@@ -62,11 +62,14 @@
       </section>
 
       <AddBoardMemberDialog
-        :open="isAddMemberDialogOpen"
-        :busy="busy || usersBusy"
+        v-if="isAddMemberDialogOpen && currentBoardId !== null"
+        :key="currentBoardId"
+        :board-id="currentBoardId"
+        :current-board-id="boardMembersStore.activeBoardId"
+        :can-manage="isCurrentUserOwner && !busy && !usersBusy"
         :users="users"
+        :add-member="boardMembersStore.addMember"
         @close="closeAddMemberDialog"
-        @submit="addMember"
       />
     </template>
   </section>
@@ -105,20 +108,13 @@ onMounted(() => {
 });
 
 async function openAddMemberDialog() {
-  await loadUsers();
-  isAddMemberDialogOpen.value = true;
+  const requestBoardId = currentBoardId.value;
+  if (await loadUsers() && currentBoardId.value === requestBoardId) {
+    isAddMemberDialogOpen.value = true;
+  }
 }
 
 function closeAddMemberDialog() {
-  isAddMemberDialogOpen.value = false;
-}
-
-async function addMember(model: BoardMemberEditModel) {
-  const added = await boardMembersStore.addMember(currentBoardId.value!, model);
-  if (!added) {
-    return;
-  }
-
   isAddMemberDialogOpen.value = false;
 }
 

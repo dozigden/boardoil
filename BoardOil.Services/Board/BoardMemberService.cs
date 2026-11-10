@@ -74,19 +74,19 @@ public sealed class BoardMemberService(
 
         if (!TryParseBoardMemberRole(request.Role, out var role))
         {
-            return ApiErrors.BadRequest("Role must be 'Owner' or 'Contributor'.");
+            return ApiErrors.ValidationFailed([new ValidationError("role", "Role must be 'Owner' or 'Contributor'.")]);
         }
 
         var user = userRepository.Get(request.UserId);
         if (user is null || !user.IsActive)
         {
-            return ApiErrors.NotFound("User not found.");
+            return ApiErrors.ValidationFailed([new ValidationError("userId", "Select an active user.")]);
         }
 
         var existingMembership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, request.UserId);
         if (existingMembership is not null)
         {
-            return ApiErrors.BadRequest("User is already a board member.");
+            return ApiErrors.ValidationFailed([new ValidationError("userId", "User is already a board member.")]);
         }
 
         var now = DateTime.UtcNow;

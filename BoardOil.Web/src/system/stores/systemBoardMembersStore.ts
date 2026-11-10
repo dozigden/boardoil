@@ -77,17 +77,13 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
   }
 
   async function addMember(boardId: number, model: BoardMemberEditModel) {
-    const result = await runBusy(boardId, () => api.addBoardMember(boardId, model));
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_MEMBER(boardId, result.data);
-    return result.data;
+    const result = await runApiOperation(boardId, () => api.addBoardMember(boardId, model), { suppressError: true });
+    if (result.ok) UPSERT_MEMBER(boardId, result.data);
+    return result;
   }
 
   async function updateMemberRole(boardId: number, model: BoardMemberEditModel) {
-    const result = await runBusy(boardId, () => api.updateBoardMemberRole(boardId, model));
+    const result = await runApiOperation(boardId, () => api.updateBoardMemberRole(boardId, model));
     if (!result.ok) {
       return null;
     }
@@ -97,7 +93,7 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
   }
 
   async function deleteMember(boardId: number, userId: number) {
-    const result = await runBusy(boardId, () => api.removeBoardMember(boardId, userId));
+    const result = await runApiOperation(boardId, () => api.removeBoardMember(boardId, userId));
     if (!result.ok) {
       return false;
     }
@@ -106,7 +102,7 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
     return true;
   }
 
-  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>, options: { suppressError?: boolean } = {}) {
     if (activeBoardId.value === boardId) {
       busy.value = true;
     }
@@ -117,7 +113,7 @@ export const useSystemBoardMembersStore = defineStore('systemBoardMembers', () =
       }
 
       if (!result.ok) {
-        reportError(result.error);
+        if (!options.suppressError) reportError(result.error);
       } else {
         feedback.clearError('systemBoardMembers');
       }

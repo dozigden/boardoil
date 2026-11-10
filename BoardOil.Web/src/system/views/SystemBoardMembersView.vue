@@ -57,11 +57,14 @@
     </section>
 
     <AddBoardMemberDialog
-      :open="isAddMemberDialogOpen"
-      :busy="busy || usersBusy"
+      v-if="isAddMemberDialogOpen && boardId !== null"
+      :key="boardId"
+      :board-id="boardId"
+      :current-board-id="boardMembersStore.activeBoardId"
+      :can-manage="auth.isAdmin && !busy && !usersBusy"
       :users="users"
+      :add-member="boardMembersStore.addMember"
       @close="closeAddMemberDialog"
-      @submit="addMember"
     />
   </section>
 </template>
@@ -76,6 +79,7 @@ import { createUsersApi } from '../../shared/api/usersApi';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import AddBoardMemberDialog from '../components/AddBoardMemberDialog.vue';
 import { useSystemBoardMembersStore } from '../stores/systemBoardMembersStore';
+import { useAuthStore } from '../../shared/stores/authStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type { UserDirectoryEntry } from '../../shared/types/authTypes';
 import type {
@@ -84,6 +88,7 @@ import type {
   BoardMemberRole
 } from '../../shared/types/boardTypes';
 
+const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const boardMembersStore = useSystemBoardMembersStore();
@@ -112,6 +117,7 @@ onUnmounted(() => {
 watch(
   () => route.params.boardId,
   async () => {
+    isAddMemberDialogOpen.value = false;
     const resolvedBoardId = resolveBoardId();
     if (resolvedBoardId === null) {
       boardName.value = null;
@@ -132,20 +138,13 @@ watch(
 );
 
 async function openAddMemberDialog() {
-  await loadUsers();
-  isAddMemberDialogOpen.value = true;
+  const requestBoardId = boardId.value;
+  if (await loadUsers() && boardId.value === requestBoardId) {
+    isAddMemberDialogOpen.value = true;
+  }
 }
 
 function closeAddMemberDialog() {
-  isAddMemberDialogOpen.value = false;
-}
-
-async function addMember(model: BoardMemberEditModel) {
-  const added = await boardMembersStore.addMember(boardId.value!, model);
-  if (!added) {
-    return;
-  }
-
   isAddMemberDialogOpen.value = false;
 }
 

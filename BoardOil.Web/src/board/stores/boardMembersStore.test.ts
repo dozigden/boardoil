@@ -67,7 +67,7 @@ describe('boardMembersStore', () => {
     await store.updateMemberRole(3, { userId: 7, role: 'Owner' });
     await store.deleteMember(3, 7);
 
-    expect(added?.userId).toBe(7);
+    expect(added).toEqual(ok(makeMember(7, 'A User', 'a.user', 'Contributor')));
     expect(api.addBoardMember).toHaveBeenCalledWith(3, { userId: 7, role: 'Contributor' });
     expect(api.updateBoardMemberRole).toHaveBeenCalledWith(3, { userId: 7, role: 'Owner' });
     expect(api.removeBoardMember).toHaveBeenCalledWith(3, 7);
@@ -86,7 +86,7 @@ describe('boardMembersStore', () => {
 
     const added = await store.addMember(3, { userId: 7, role: 'Owner' });
 
-    expect(added).toEqual(returnedMember);
+    expect(added).toEqual(ok(returnedMember));
     expect(store.members).toEqual([returnedMember, existingMembers[0]]);
     expect(store.activeBoardId).toBe(3);
     expect(api.getBoardMembers).toHaveBeenCalledTimes(1);
@@ -105,7 +105,7 @@ describe('boardMembersStore', () => {
     const returnedMember = makeMember(7, 'A User', 'a.user', 'Contributor');
     request.resolve({ ok: true, data: returnedMember });
 
-    expect(await adding).toEqual(returnedMember);
+    expect(await adding).toEqual(ok(returnedMember));
     expect(store.activeBoardId).toBe(2);
     expect(store.members).toEqual([otherMember]);
     expect(api.getBoardMembers).toHaveBeenCalledTimes(2);
@@ -122,25 +122,27 @@ describe('boardMembersStore', () => {
     const returnedMember = makeMember(7, 'A User', 'a.user', 'Contributor');
     request.resolve({ ok: true, data: returnedMember });
 
-    expect(await adding).toEqual(returnedMember);
+    expect(await adding).toEqual(ok(returnedMember));
     expect(store.activeBoardId).toBeNull();
     expect(store.members).toEqual([]);
     expect(api.getBoardMembers).toHaveBeenCalledTimes(1);
   });
 
-  it('preserves members and reports a failed addition without reloading', async () => {
+  it('returns field errors without duplicating page feedback or changing members', async () => {
     const store = useBoardMembersStore();
     const feedback = useUiFeedbackStore();
     const existingMember = makeMember(8, 'Existing User', 'existing.user', 'Owner');
     api.getBoardMembers.mockResolvedValueOnce(ok([existingMember]));
     await store.loadMembers(3);
-    api.addBoardMember.mockResolvedValueOnce(err({ kind: 'api', message: 'Could not add member.' }));
+    feedback.setError('Unrelated error.', 'anotherOperation');
+    const rejection = err<AppError>({ kind: 'api', message: 'Validation failed.', validationErrors: { userId: ['User is already a board member.'] } });
+    api.addBoardMember.mockResolvedValueOnce(rejection);
 
     const added = await store.addMember(3, { userId: 7, role: 'Contributor' });
 
-    expect(added).toBeNull();
+    expect(added).toBe(rejection);
     expect(store.members).toEqual([existingMember]);
-    expect(feedback.errorMessage).toBe('Could not add member.');
+    expect(feedback.errorMessage).toBe('Unrelated error.');
     expect(store.busy).toBe(false);
     expect(api.getBoardMembers).toHaveBeenCalledTimes(1);
   });

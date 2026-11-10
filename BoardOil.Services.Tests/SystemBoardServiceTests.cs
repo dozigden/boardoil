@@ -8,6 +8,60 @@ namespace BoardOil.Services.Tests;
 
 public sealed class SystemBoardServiceTests : TestBaseDb
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    public async Task AddMemberAsync_WhenUserDoesNotExist_ShouldReturnUserFieldError(int userId)
+    {
+        // Arrange
+        var board = CreateBoard("User validation").Build();
+        var service = ResolveService<ISystemBoardService>();
+
+        // Act
+        var result = await service.AddMemberAsync(board.BoardId, new AddBoardMemberRequest(userId, "Contributor"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Select an active user."], result.ValidationErrors!["userId"]);
+    }
+
+    [Fact]
+    public async Task AddMemberAsync_WhenUserIsInactive_ShouldReturnUserFieldError()
+    {
+        // Arrange
+        var board = CreateBoard("Inactive user validation").Build();
+        var userId = await CreateUserAsync("inactive-member", UserRole.Standard, isActive: false);
+        var service = ResolveService<ISystemBoardService>();
+
+        // Act
+        var result = await service.AddMemberAsync(board.BoardId, new AddBoardMemberRequest(userId, "Contributor"));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Select an active user."], result.ValidationErrors!["userId"]);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Admin")]
+    public async Task AddMemberAsync_WhenRoleIsInvalid_ShouldReturnRoleFieldError(string role)
+    {
+        // Arrange
+        var board = CreateBoard("Role validation").Build();
+        var service = ResolveService<ISystemBoardService>();
+
+        // Act
+        var result = await service.AddMemberAsync(board.BoardId, new AddBoardMemberRequest(ActorUserId, role));
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["Role must be 'Owner' or 'Contributor'."], result.ValidationErrors!["role"]);
+    }
+
     [Fact]
     public async Task GetBoardsAsync_ShouldReturnAllBoards()
     {
@@ -78,7 +132,7 @@ public sealed class SystemBoardServiceTests : TestBaseDb
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.Equal("User is already a board member.", result.Message);
+        Assert.Equal(["User is already a board member."], result.ValidationErrors!["userId"]);
     }
 
     private ISystemBoardService CreateService()
