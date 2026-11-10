@@ -61,21 +61,33 @@ public sealed class TagService(
         return await styleDefaultService.GetTagCreateDefaultStyleAsync(boardId);
     }
 
-    public Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request, int actorUserId) =>
-        CreateTagAsync(boardId, request.Name, request.Emoji, null, actorUserId);
+    public Task<ApiResult<TagDto>> CreateTagAsync(int boardId, CreateTagRequest request, int actorUserId)
+    {
+        var hasExplicitStyle = request.StyleName is not null || request.StylePropertiesJson is not null;
+        var styleValidation = hasExplicitStyle
+            ? StyleDefinitionCodec.ParseForWrite(request.StyleName, request.StylePropertiesJson)
+            : null;
+
+        return CreateTagAsync(boardId, request.Name, request.Emoji, styleValidation, actorUserId,
+            returnExisting: !hasExplicitStyle);
+    }
 
     public Task<ApiResult<TagDto>> CreateTagDefinitionAsync(
         int boardId,
         TagDefinitionCreate definition,
         int actorUserId) =>
-        CreateTagAsync(boardId, definition.Name, definition.Emoji, definition.Style, actorUserId);
+        CreateTagAsync(boardId, definition.Name, definition.Emoji,
+            StyleDefinitionCodec.ParseForWrite(
+                definition.Style.StyleName, definition.Style.StylePropertiesJson, "style.styleName", "style"),
+            actorUserId, returnExisting: true);
 
     private async Task<ApiResult<TagDto>> CreateTagAsync(
         int boardId,
         string name,
         string? emoji,
-        TagStylePatch? style,
-        int actorUserId)
+        StyleDefinitionParseResult? styleValidation,
+        int actorUserId,
+        bool returnExisting)
     {
         using var scope = _scopeFactory.Create();
 
@@ -103,14 +115,8 @@ public sealed class TagService(
             createValidationErrors.Add(emojiValidation.Error);
         }
 
-        StyleDefinitionParseResult? styleValidation = null;
-        if (style is not null)
+        if (styleValidation is not null)
         {
-            styleValidation = StyleDefinitionCodec.ParseForWrite(
-                style.StyleName,
-                style.StylePropertiesJson,
-                "style.styleName",
-                "style");
             createValidationErrors.AddRange(styleValidation.ValidationErrors);
         }
 
@@ -122,6 +128,12 @@ public sealed class TagService(
         var existing = await tagRepository.GetByNormalisedNameAsync(boardId, tagValidation.NormalisedName);
         if (existing is not null)
         {
+            if (!returnExisting)
+            {
+                return ApiErrors.ValidationFailed(
+                    [new ValidationError("name", $"Tag '{tagValidation.CanonicalName}' already exists.")]);
+            }
+
             return ApiResults.Ok(existing.ToTagDto());
         }
 

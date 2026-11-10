@@ -1,5 +1,5 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
-import type { Card, CardEditModel } from '../../src/shared/types/boardTypes';
+import type { Card, CardEditModel, Tag, TagCreateModel } from '../../src/shared/types/boardTypes';
 import type { ConfigurationDto, UpdateConfigurationRequest, SystemInfoMessageDto } from '../../src/shared/types/configurationTypes';
 import type { CreatedClientAccount } from '../../src/shared/types/authTypes';
 
@@ -78,6 +78,14 @@ export class BoardOilApi {
       name,
       description: 'Playwright smoke test board'
     });
+  }
+
+  public async getTags(boardId: number) {
+    return await this.read<Tag[]>(`/api/boards/${boardId}/tags`);
+  }
+
+  public async createTag(boardId: number, model: TagCreateModel) {
+    return await this.post<Tag>(`/api/boards/${boardId}/tags`, model);
   }
 
   public async exportBoardPackage(boardId: number) {

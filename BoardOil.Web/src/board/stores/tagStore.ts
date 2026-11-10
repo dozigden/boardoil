@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { StyleDefault, Tag, TagEditModel } from '../../shared/types/boardTypes';
+import type { StyleDefault, Tag, TagCreateModel, TagEditModel } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -73,18 +73,14 @@ export const useTagStore = defineStore('tag', () => {
     return true;
   }
 
-  async function createTag(boardId: number, tagName: string, emoji?: string | null) {
-    const result = await runBusy(boardId, () => api.createTag(boardId, tagName, emoji));
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_TAG(boardId, result.data);
-    return result.data;
+  async function createTag(boardId: number, model: TagCreateModel) {
+    const result = await runApiOperation(boardId, () => api.createTag(boardId, model), { suppressError: true });
+    if (result.ok) UPSERT_TAG(boardId, result.data);
+    return result;
   }
 
   async function getCreateDefaultStyle(boardId: number): Promise<StyleDefault | null> {
-    const result = await runBusy(boardId, () => api.getTagCreateDefaultStyle(boardId));
+    const result = await runApiOperation(boardId, () => api.getTagCreateDefaultStyle(boardId));
     if (!result.ok) {
       return null;
     }
@@ -106,9 +102,11 @@ export const useTagStore = defineStore('tag', () => {
         continue;
       }
 
-      const created = await createTag(boardId, trimmedTagName);
-      if (created) {
-        resolvedTagNames.push(created.name);
+      const created = await createTag(boardId, { name: trimmedTagName });
+      if (created.ok) {
+        resolvedTagNames.push(created.data.name);
+      } else if (activeBoardId.value === boardId) {
+        reportError(created.error);
       }
     }
 
@@ -120,13 +118,9 @@ export const useTagStore = defineStore('tag', () => {
     tagId: number,
     model: TagEditModel
   ) {
-    const result = await runBusy(boardId, () => api.updateTagStyle(boardId, tagId, model));
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_TAG(boardId, result.data);
-    return result.data;
+    const result = await runApiOperation(boardId, () => api.updateTagStyle(boardId, tagId, model), { suppressError: true });
+    if (result.ok) UPSERT_TAG(boardId, result.data);
+    return result;
   }
 
   async function saveTag(
@@ -135,31 +129,16 @@ export const useTagStore = defineStore('tag', () => {
     model: TagEditModel
   ) {
     if (tagId === null) {
-      const createdTag = await createTag(boardId, model.name, model.emoji);
-      if (!createdTag) {
-        return null;
-      }
-
-      const styledTag = await updateTagStyle(boardId, createdTag.id, model);
-      return { createdTag, savedTag: styledTag };
+      return createTag(boardId, model);
     }
 
-    const updatedTag = await updateTagStyle(boardId, tagId, model);
-    if (!updatedTag) {
-      return null;
-    }
-
-    return { createdTag: null, savedTag: updatedTag };
+    return updateTagStyle(boardId, tagId, model);
   }
 
   async function deleteTag(boardId: number, tagId: number) {
-    const result = await runBusy(boardId, () => api.deleteTag(boardId, tagId));
-    if (!result.ok) {
-      return false;
-    }
-
-    REMOVE_TAG(boardId, tagId);
-    return true;
+    const result = await runApiOperation(boardId, () => api.deleteTag(boardId, tagId), { suppressError: true });
+    if (result.ok) REMOVE_TAG(boardId, tagId);
+    return result;
   }
 
   function getTagById(tagId: number | null) {
@@ -180,7 +159,7 @@ export const useTagStore = defineStore('tag', () => {
       ?? null;
   }
 
-  async function runBusy<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>, options: { suppressError?: boolean } = {}) {
     if (activeBoardId.value === boardId) {
       busy.value = true;
     }
@@ -191,7 +170,7 @@ export const useTagStore = defineStore('tag', () => {
       }
 
       if (!result.ok) {
-        reportError(result.error);
+        if (!options.suppressError) reportError(result.error);
       } else {
         feedback.clearError('tag');
       }

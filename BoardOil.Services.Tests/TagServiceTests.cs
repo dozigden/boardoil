@@ -92,8 +92,10 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal("🐞", stored.Emoji);
     }
 
-    [Fact]
-    public async Task CreateTagDefinitionAsync_WithExplicitStyle_ShouldPersistCanonicalDefinition()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateTag_WithExplicitStyle_ShouldPersistCanonicalDefinition(bool throughMcpDefinition)
     {
         // Arrange
         var boardId = CreateBoard("BoardOil")
@@ -109,7 +111,10 @@ public sealed class TagServiceTests : TestBaseDb
                 """{"leftColor":"#99c1f1","rightColor":"#3584e4","textColorMode":"auto","borderMode":"none"}"""));
 
         // Act
-        var result = await service.CreateTagDefinitionAsync(boardId, definition, ActorUserId);
+        var result = throughMcpDefinition
+            ? await service.CreateTagDefinitionAsync(boardId, definition, ActorUserId)
+            : await service.CreateTagAsync(boardId, new CreateTagRequest(
+                definition.Name, definition.Emoji, definition.Style.StyleName, definition.Style.StylePropertiesJson), ActorUserId);
 
         // Assert
         Assert.True(result.Success);
@@ -126,6 +131,81 @@ public sealed class TagServiceTests : TestBaseDb
         Assert.Equal(result.Data.StylePropertiesJson, stored.StylePropertiesJson);
         Assert.Equal([boardId], ResolveBoardEvents().TagsChangedBoardIds);
         Assert.Empty(ResolveBoardEvents().ResyncRequestedBoardIds);
+    }
+
+    [Theory]
+    [InlineData("auto", null, "stylePropertiesJson")]
+    [InlineData(null, "{}", "styleName")]
+    [InlineData("", "{}", "styleName")]
+    [InlineData("unknown", "{}", "styleName")]
+    [InlineData("solid", "not json", "stylePropertiesJson")]
+    [InlineData("solid", "{}", "stylePropertiesJson")]
+    public async Task CreateTagAsync_WithInvalidExplicitStyle_ShouldNotCreateTag(
+        string? styleName, string? stylePropertiesJson, string errorField)
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil").AddColumn("Todo").Build().BoardId;
+        var service = CreateService();
+
+        // Act
+        var result = await service.CreateTagAsync(
+            boardId, new CreateTagRequest("Feature", "🚀", styleName, stylePropertiesJson), ActorUserId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.NotNull(result.ValidationErrors);
+        Assert.Contains(errorField, result.ValidationErrors.Keys);
+        Assert.Empty(await DbContextForAssert.Tags.ToListAsync());
+        Assert.Empty(ResolveBoardEvents().TagsChangedBoardIds);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateTag_WithExistingNameAndExplicitStyle_ShouldPreserveExistingTag(bool throughMcpDefinition)
+    {
+        // Arrange
+        var boardId = CreateBoard("BoardOil").AddColumn("Todo").Build().BoardId;
+        DbContextForArrange.Tags.Add(new TagEntity
+        {
+            BoardId = boardId,
+            Name = "Bug",
+            NormalisedName = "BUG",
+            Emoji = "🐞",
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":4}"""
+        });
+        await DbContextForArrange.SaveChangesAsync();
+        var service = CreateService();
+
+        // Act
+        var result = throughMcpDefinition
+            ? await service.CreateTagDefinitionAsync(boardId,
+                new TagDefinitionCreate(" bug ", "🚀", new TagStylePatch("auto", "{}")), ActorUserId)
+            : await service.CreateTagAsync(boardId, new CreateTagRequest(" bug ", "🚀", "auto", "{}"), ActorUserId);
+
+        // Assert
+        if (throughMcpDefinition)
+        {
+            Assert.True(result.Success);
+            Assert.Equal(200, result.StatusCode);
+            Assert.Equal("Bug", result.Data!.Name);
+        }
+        else
+        {
+            Assert.False(result.Success);
+            Assert.Equal(400, result.StatusCode);
+            Assert.NotNull(result.ValidationErrors);
+            Assert.Contains("name", result.ValidationErrors.Keys);
+        }
+
+        var stored = Assert.Single(await DbContextForAssert.Tags.ToListAsync());
+        Assert.Equal("Bug", stored.Name);
+        Assert.Equal("🐞", stored.Emoji);
+        Assert.Equal("presets", stored.StyleName);
+        Assert.Equal("""{"presetIndex":4}""", stored.StylePropertiesJson);
+        Assert.Empty(ResolveBoardEvents().TagsChangedBoardIds);
     }
 
     [Fact]

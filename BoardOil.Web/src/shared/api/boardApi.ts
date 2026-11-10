@@ -24,6 +24,7 @@ import type {
   SlickEditModel,
   StyleDefault,
   Tag,
+  TagCreateModel,
   TagEditModel
 } from '../types/boardTypes';
 import type { AppError } from '../types/appError';
@@ -404,13 +405,8 @@ function createHttpBoardApi() {
     return ok(envelopeResult.data.data);
   }
 
-  async function createTag(boardId: number, name: string, emoji?: string | null): Promise<Result<Tag, AppError>> {
-    const payload: { name: string; emoji?: string | null } = { name };
-    if (emoji !== undefined) {
-      payload.emoji = emoji;
-    }
-
-    return postData<Tag>(`/api/boards/${boardId}/tags`, payload);
+  async function createTag(boardId: number, model: TagCreateModel): Promise<Result<Tag, AppError>> {
+    return postData<Tag>(`/api/boards/${boardId}/tags`, model);
   }
 
   async function updateTagStyle(

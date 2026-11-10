@@ -368,7 +368,7 @@ describe('boardApi tags', () => {
     vi.clearAllMocks();
   });
 
-  it('creates a tag with name and emoji payload', async () => {
+  it.each([false, true])('creates a tag with optional explicit style: %s', async withStyle => {
     vi.mocked(postData).mockResolvedValue(ok({
       id: 7,
       name: 'Release',
@@ -380,13 +380,15 @@ describe('boardApi tags', () => {
     }));
 
     const api = createBoardApi();
-    const result = await api.createTag(3, 'Release', '🚀');
+    const model = {
+      name: 'Release',
+      emoji: '🚀',
+      ...(withStyle ? { styleName: 'presets' as const, stylePropertiesJson: '{"presetIndex":7}' } : {})
+    };
+    const result = await api.createTag(3, model);
 
     expect(result.ok).toBe(true);
-    expect(postData).toHaveBeenCalledWith('/api/boards/3/tags', {
-      name: 'Release',
-      emoji: '🚀'
-    });
+    expect(postData).toHaveBeenCalledWith('/api/boards/3/tags', model);
   });
 
   it('loads a tag create default style', async () => {

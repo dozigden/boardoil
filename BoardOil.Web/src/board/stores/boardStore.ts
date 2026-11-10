@@ -461,17 +461,9 @@ export const useBoardStore = defineStore('board', () => {
 
   async function deleteTag(boardId: number, tagId: number) {
     const tag = tagStore.getTagById(tagId);
-    if (!tag) {
-      return false;
-    }
-
-    const deleted = await tagStore.deleteTag(boardId, tagId);
-    if (!deleted) {
-      return false;
-    }
-
-    cardStore.removeTagFromCards(boardId, tag.name);
-    return true;
+    const result = await tagStore.deleteTag(boardId, tagId);
+    if (result.ok && tag) cardStore.removeTagFromCards(boardId, tag.name);
+    return result;
   }
 
   async function deleteSlick(slickId: number, boardId: number) {

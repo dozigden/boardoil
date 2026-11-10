@@ -17,4 +17,6 @@ public sealed record UpdateTagRequest(
 
 public sealed record CreateTagRequest(
     string Name,
-    string? Emoji = null);
+    string? Emoji = null,
+    string? StyleName = null,
+    string? StylePropertiesJson = null);

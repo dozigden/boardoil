@@ -263,7 +263,7 @@ describe('demoBoardApi', () => {
   it('creates visitor tags with preset styling', async () => {
     const api = createDemoBoardApi();
 
-    const createResult = await api.createTag(1, 'Visitor tag', null);
+    const createResult = await api.createTag(1, { name: 'Visitor tag', emoji: null });
     expect(createResult.ok).toBe(true);
     if (!createResult.ok) {
       return;
@@ -283,6 +283,30 @@ describe('demoBoardApi', () => {
         stylePropertiesJson: '{"presetIndex":1}'
       }
     });
+  });
+
+  it('creates complete visitor tags and rejects explicit-style duplicates without changing them', async () => {
+    const api = createDemoBoardApi();
+    const model = {
+      name: 'Visitor tag',
+      emoji: '🚀',
+      styleName: 'solid' as const,
+      stylePropertiesJson: '{"backgroundColor":"#123456","textColorMode":"auto","borderMode":"none"}'
+    };
+
+    const created = await api.createTag(1, model);
+    expect(created).toMatchObject({ ok: true, data: model });
+    expect(await api.createTag(1, { ...model, name: 'VISITOR TAG', styleName: 'auto', stylePropertiesJson: '{}' }))
+      .toMatchObject({ ok: false, error: { validationErrors: { name: ["Tag 'VISITOR TAG' already exists."] } } });
+    expect(await api.createTag(1, { name: 'VISITOR TAG' })).toEqual(created);
+  });
+
+  it('does not create a visitor tag with an incomplete style', async () => {
+    const api = createDemoBoardApi();
+    const before = await api.getTags(1);
+
+    expect(await api.createTag(1, { name: 'Incomplete', styleName: 'auto' })).toMatchObject({ ok: false });
+    expect(await api.getTags(1)).toEqual(before);
   });
 
   it('archives and restores cards without a server', async () => {

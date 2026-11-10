@@ -597,12 +597,29 @@ const demoBoardApi: BoardApi = {
     return ok({ styleName: 'presets', stylePropertiesJson: '{"presetIndex":1}' });
   },
 
-  async createTag(boardId, name, emoji) {
+  async createTag(boardId, model) {
     if (boardId !== DemoBoardId) {
       return notFound('Board not found.');
     }
 
-    const tag = ensureTag(name, emoji);
+    const hasExplicitStyle = model.styleName !== undefined || model.stylePropertiesJson !== undefined;
+    if (hasExplicitStyle) {
+      if (model.styleName === undefined || model.stylePropertiesJson === undefined) {
+        return validationError('Provide both style name and style properties.');
+      }
+
+      const existing = state.tags.find(tag => tag.name.toLocaleLowerCase() === model.name.trim().toLocaleLowerCase());
+      if (existing) {
+        const message = `Tag '${model.name.trim()}' already exists.`;
+        return err({ kind: 'api', message: 'Validation failed.', validationErrors: { name: [message] } });
+      }
+    }
+
+    const tag = ensureTag(model.name, model.emoji);
+    if (model.styleName !== undefined && model.stylePropertiesJson !== undefined) {
+      tag.styleName = model.styleName;
+      tag.stylePropertiesJson = model.stylePropertiesJson;
+    }
     return ok(clone(tag));
   },
 

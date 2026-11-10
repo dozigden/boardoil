@@ -36,7 +36,7 @@
       </label>
     </template>
 
-    <template v-else-if="draftStyle.styleName === 'gradient'">
+    <div v-else-if="draftStyle.styleName === 'gradient'" class="style-control-gradient-colours">
       <label>
         Left Color
         <input
@@ -55,7 +55,7 @@
           :disabled="disabled"
         />
       </label>
-    </template>
+    </div>
 
     <label v-if="draftStyle.styleName === 'solid' || draftStyle.styleName === 'gradient'">
       Text Color Mode
@@ -135,6 +135,7 @@ function setColour(field: 'backgroundColor' | 'leftColor' | 'rightColor' | 'text
 
 <style scoped>
 .style-control { display: grid; gap: 0.5rem; min-width: 0; }
+.style-control-gradient-colours { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
 .style-control-colour-input { min-height: 2.25rem; padding: 0.2rem; }
 .style-control-preset-picker { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .style-control-preset-swatch {

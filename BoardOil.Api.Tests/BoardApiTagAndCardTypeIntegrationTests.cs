@@ -15,11 +15,15 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         UseSharedFactory(fixture);
     }
 
-    [Fact]
-    public async Task TagEndpoints_ShouldCreateTag()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TagEndpoints_ShouldCreateTag(bool withExplicitStyle)
     {
         // Arrange
-        var request = new CreateTagRequest("Bug", "🐞");
+        var request = withExplicitStyle
+            ? new CreateTagRequest("Bug", "🐞", "presets", """{"presetIndex":7}""")
+            : new CreateTagRequest("Bug", "🐞");
 
         // Act
         var createResponse = await Client.PostAsJsonAsync("/api/boards/1/tags", request);
@@ -32,6 +36,29 @@ public sealed class BoardApiTagAndCardTypeIntegrationTests
         Assert.Equal("Bug", createdTagEnvelope.Data!.Name);
         Assert.Equal("🐞", createdTagEnvelope.Data.Emoji);
         Assert.Equal(201, createdTagEnvelope.StatusCode);
+        if (withExplicitStyle)
+        {
+            Assert.Equal("presets", createdTagEnvelope.Data.StyleName);
+            Assert.Equal("""{"presetIndex":7}""", createdTagEnvelope.Data.StylePropertiesJson);
+        }
+    }
+
+    [Fact]
+    public async Task TagEndpoints_WhenCreateStyleIsIncomplete_ShouldReturnFieldError()
+    {
+        // Arrange
+        var request = new CreateTagRequest("Bug", StyleName: "auto");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/boards/1/tags", request);
+        var payload = await response.Content.ReadFromJsonAsync<ApiEnvelope<TagDto>>(JsonOptions);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(payload);
+        Assert.False(payload.Success);
+        Assert.NotNull(payload.ValidationErrors);
+        Assert.Contains("stylePropertiesJson", payload.ValidationErrors.Keys);
     }
 
     [Fact]

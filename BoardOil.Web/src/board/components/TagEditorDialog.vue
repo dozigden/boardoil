@@ -1,513 +1,60 @@
 <template>
-  <FixedChromeDialog
-    :open="isCreateMode || editingTag !== null"
-    :title="dialogTitle"
-    :close-label="isCreateMode ? 'Cancel creating' : 'Cancel editing'"
-    @close="closeTagEditor"
-    @submit="saveTag"
-  >
-    <template v-if="draft">
-      <div class="tags-dialog-preview">
-        <span class="badge">Preview</span>
-        <span
-          class="tag"
-          :class="[previewStyleClasses, { 'tag--with-emoji': previewEmoji }]"
-          :style="previewStyle"
-          :aria-label="previewTagName"
-        >
-          <span v-if="previewEmoji" class="tag-emoji bo-emoji" aria-hidden="true">{{ previewEmoji }}</span>
-          {{ previewTagName }}
-        </span>
-      </div>
-
-      <label>
-        Name
-        <input
-          :value="draftTagName"
-          maxlength="40"
-          :placeholder="isCreateMode ? 'New tag name' : 'Tag name'"
-          :disabled="busy"
-          autocomplete="off"
-          data-lpignore="true"
-          @input="setDraftTagName(($event.target as HTMLInputElement).value)"
-        />
-      </label>
-
-      <label>
-        Emoji
-        <div class="tags-emoji-picker-wrap">
-          <EmojiPickerDropdown v-model="draftEmoji" :disabled="busy" :teleport="false" placeholder="Select emoji" />
-        </div>
-      </label>
-
-      <label>
-        Style
-        <select :value="draft.styleName" :disabled="busy" @change="setStyleName(parseStyleNameInput(($event.target as HTMLSelectElement).value))">
-          <option value="auto">Auto</option>
-          <option value="presets">Presets</option>
-          <option value="solid">Solid</option>
-          <option value="gradient">Gradient</option>
-        </select>
-      </label>
-
-      <template v-if="draft.styleName === 'presets'">
-        <label>
-          Preset
-          <div class="tags-preset-picker" role="radiogroup" aria-label="Tag preset colour">
-            <button
-              v-for="preset in presetColours"
-              :key="preset.cssVar"
-              type="button"
-              class="tags-preset-swatch"
-              :class="{ 'tags-preset-swatch--selected': draft.presetIndex === preset.index }"
-              :style="{ backgroundColor: preset.cssValue }"
-              :disabled="busy"
-              :aria-pressed="draft.presetIndex === preset.index"
-              :aria-label="`Preset ${preset.index + 1}`"
-              @click="setDraftField('presetIndex', preset.index)"
-            />
-          </div>
-        </label>
-      </template>
-
-      <template v-else-if="draft.styleName === 'solid'">
-        <label>
-          Background Color
-          <input
-            type="color"
-            class="tags-colour-input"
-            :value="draft.backgroundColor"
-            :disabled="busy"
-            @input="setDraftField('backgroundColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-      </template>
-
-      <template v-else-if="draft.styleName === 'gradient'">
-        <label>
-          Left Color
-          <input
-            type="color"
-            class="tags-colour-input"
-            :value="draft.leftColor"
-            :disabled="busy"
-            @input="setDraftField('leftColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-        <label>
-          Right Color
-          <input
-            type="color"
-            class="tags-colour-input"
-            :value="draft.rightColor"
-            :disabled="busy"
-            @input="setDraftField('rightColor', ($event.target as HTMLInputElement).value)"
-          />
-        </label>
-      </template>
-
-      <label v-if="draft.styleName === 'solid' || draft.styleName === 'gradient'">
-        Text Color Mode
-        <select :value="draft.textColorMode" :disabled="busy" @change="setTextMode(($event.target as HTMLSelectElement).value)">
-          <option value="auto">Auto Contrast</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
-
-      <label v-if="(draft.styleName === 'solid' || draft.styleName === 'gradient') && draft.textColorMode === 'custom'">
-        Text Color
-        <input
-          type="color"
-          class="tags-colour-input"
-          :value="draft.textColor"
-          :disabled="busy"
-          @input="setDraftField('textColor', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-
-      <label v-if="draft.styleName === 'solid' || draft.styleName === 'gradient'">
-        Border
-        <select :value="draft.borderMode" :disabled="busy" @change="setBorderMode(($event.target as HTMLSelectElement).value)">
-          <option value="auto">Auto</option>
-          <option value="custom">Custom</option>
-          <option value="none">None</option>
-        </select>
-      </label>
-
-      <label v-if="(draft.styleName === 'solid' || draft.styleName === 'gradient') && draft.borderMode === 'custom'">
-        Border Color
-        <input
-          type="color"
-          class="tags-colour-input"
-          :value="draft.borderColor"
-          :disabled="busy"
-          @input="setDraftField('borderColor', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
+  <FormDialog v-if="form" :key="sessionKey" :definition="form" @close="closeDialog" @saved="closeDialog">
+    <template #before-fields="{ values }">
+      <TagPreview :draft="values" :fallback-name="editingTag?.name ?? 'New tag'" />
     </template>
-
-    <template #actions>
-      <div v-if="draft" class="fixed-chrome-dialog-actions">
-        <button
-          v-if="!isCreateMode && editingTag"
-          type="button"
-          class="btn btn--danger"
-          :disabled="busy"
-          aria-label="Delete tag"
-          title="Delete tag"
-          @click="deleteEditingTag"
-        >
-          <Trash2 :size="16" aria-hidden="true" />
-        </button>
-        <span v-else />
-        <div class="fixed-chrome-dialog-actions-left">
-          <button type="submit" class="btn" :disabled="busy || !hasValidDraftTagName" :aria-label="saveButtonAriaLabel" :title="saveButtonAriaLabel">
-            <Check :size="16" aria-hidden="true" />
-            <span>{{ saveButtonLabel }}</span>
-          </button>
-          <button type="button" class="btn btn--secondary" :disabled="busy" aria-label="Cancel editing" title="Cancel" @click="closeTagEditor">
-            <X :size="16" aria-hidden="true" />
-            <span>Cancel</span>
-          </button>
-        </div>
-      </div>
-    </template>
-  </FixedChromeDialog>
+  </FormDialog>
 </template>
 
 <script setup lang="ts">
-import { Check, Trash2, X } from '@lucide/vue';
-import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import FormDialog from '../../shared/forms/FormDialog.vue';
+import { useConfirm } from '../../shared/composables/useConfirm';
 import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
-import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { Tag, TagEditModel } from '../../shared/types/boardTypes';
-import {
-  DEFAULT_TAG_STYLE_PROPERTIES_JSON,
-  getTagPillClassList,
-  createTagStyleDraft,
-  getTagPillStyle,
-  normaliseTagEmojiForRender
-} from '../../shared/utils/tagStyles';
-import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
-import { parseStyleNameInput, useStyleDraft } from '../../shared/composables/useStyleDraft';
-import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
-import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
-import { useConfirm } from '../../shared/composables/useConfirm';
+import { createTagForm } from '../forms/tagForm';
+import TagPreview from './TagPreview.vue';
 
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
 const tagStore = useTagStore();
 const { confirm } = useConfirm();
-const feedbackStore = useUiFeedbackStore();
-const { currentBoardId } = storeToRefs(boardStore);
-const { busy } = storeToRefs(tagStore);
-const {
-  saveTag: saveTagAction,
-  getTagById,
-  getTagByName,
-  loadTags,
-  getCreateDefaultStyle
-} = tagStore;
-const {
-  draft,
-  stylePropertiesJson,
-  setDraft,
-  clearDraft,
-  setStyleName,
-  setTextMode,
-  setBorderMode,
-  setField: setDraftField
-} = useStyleDraft();
-const draftEmoji = ref<string | null>(null);
-const draftTagName = ref('');
-const draftSourceKey = ref<string | null>(null);
-const presetColours = PRESET_TOKENS;
-
+const boardId = computed(() => boardStore.currentBoardId!);
 const isCreateMode = computed(() => route.name === 'tags-new');
-const routeTagId = computed<number | null>(() => {
-  const rawTagId = route.params.tagId;
-  const parsedTagId = typeof rawTagId === 'string'
-    ? Number.parseInt(rawTagId, 10)
-    : Number.NaN;
-  if (!Number.isFinite(parsedTagId)) {
-    return null;
-  }
-
-  return parsedTagId;
+const routeTagId = computed(() => {
+  const id = Number.parseInt(String(route.params.tagId ?? ''), 10);
+  return Number.isFinite(id) ? id : null;
 });
+const editingTag = computed(() => tagStore.getTagById(routeTagId.value));
+const sessionKey = computed(() => `${boardId.value}:${isCreateMode.value ? 'create' : routeTagId.value}`);
+const form = shallowRef<ReturnType<typeof createTagForm> | null>(null);
 
-const boardId = computed(() => currentBoardId.value!);
-
-const editingTag = computed(() => getTagById(routeTagId.value));
-const dialogTitle = computed(() => {
-  if (isCreateMode.value) {
-    return 'Add Tag';
+watch(sessionKey, async () => {
+  form.value = null;
+  const targetBoardId = boardId.value;
+  const tag = isCreateMode.value ? null : editingTag.value;
+  if (!isCreateMode.value && !tag) {
+    await router.replace({ name: 'tags', params: { boardId: targetBoardId } });
+    return;
   }
+  form.value = createTagForm(tag, {
+    loadDefaultStyle: () => tagStore.getCreateDefaultStyle(targetBoardId),
+    save: model => tagStore.saveTag(targetBoardId, tag?.id ?? null, model),
+    delete: tag ? {
+      run: () => boardStore.deleteTag(targetBoardId, tag.id),
+      confirm: () => confirm({
+        title: 'Delete tag',
+        message: `Delete tag "${tag.name}"?\n\nThis removes the tag from all cards and cannot be undone.`,
+        confirmLabel: 'Delete', danger: true
+      })
+    } : undefined,
+    isCurrent: () => boardStore.currentBoardId === targetBoardId && tagStore.activeBoardId === targetBoardId
+  });
+}, { immediate: true });
 
-  if (editingTag.value) {
-    return `Edit Tag: ${editingTag.value.name}`;
-  }
-
-  return 'Edit Tag';
-});
-const previewTagName = computed(() => {
-  const value = draftTagName.value.trim();
-  if (value.length > 0) {
-    return value;
-  }
-
-  if (isCreateMode.value) {
-    return 'New tag';
-  }
-
-  return editingTag.value?.name ?? 'Tag';
-});
-const hasValidDraftTagName = computed(() => draftTagName.value.trim().length > 0);
-const saveButtonLabel = computed(() => (isCreateMode.value ? 'Create' : 'Save'));
-const saveButtonAriaLabel = computed(() => (isCreateMode.value ? 'Create tag' : 'Save tag style'));
-const previewStyle = computed(() => {
-  if (!draft.value) {
-    return getTagPillStyle(editingTag.value);
-  }
-
-  const sourceTag = editingTag.value;
-  const previewTag: Tag = {
-    id: sourceTag?.id ?? 0,
-    name: previewTagName.value,
-    styleName: draft.value.styleName,
-    stylePropertiesJson: stylePropertiesJson.value ?? DEFAULT_TAG_STYLE_PROPERTIES_JSON,
-    emoji: normaliseTagEmojiForRender(draftEmoji.value),
-    createdAtUtc: sourceTag?.createdAtUtc ?? '1970-01-01T00:00:00Z',
-    updatedAtUtc: sourceTag?.updatedAtUtc ?? '1970-01-01T00:00:00Z'
-  };
-
-  return getTagPillStyle(previewTag);
-});
-const previewStyleClasses = computed(() => {
-  if (!draft.value) {
-    return getTagPillClassList(editingTag.value);
-  }
-
-  const sourceTag = editingTag.value;
-  const previewTag: Tag = {
-    id: sourceTag?.id ?? 0,
-    name: previewTagName.value,
-    styleName: draft.value.styleName,
-    stylePropertiesJson: stylePropertiesJson.value ?? DEFAULT_TAG_STYLE_PROPERTIES_JSON,
-    emoji: normaliseTagEmojiForRender(draftEmoji.value),
-    createdAtUtc: sourceTag?.createdAtUtc ?? '1970-01-01T00:00:00Z',
-    updatedAtUtc: sourceTag?.updatedAtUtc ?? '1970-01-01T00:00:00Z'
-  };
-
-  return getTagPillClassList(previewTag);
-});
-const previewEmoji = computed(() => normaliseTagEmojiForRender(draftEmoji.value));
-
-async function closeTagEditor() {
+async function closeDialog() {
   await router.push({ name: 'tags', params: { boardId: boardId.value } });
 }
-
-function setDraftTagName(value: string) {
-  draftTagName.value = value;
-}
-
-async function saveTag() {
-  if (!draft.value) {
-    return;
-  }
-
-  const nextStylePropertiesJson = stylePropertiesJson.value;
-  if (!nextStylePropertiesJson) {
-    return;
-  }
-
-  const canonicalTagName = draftTagName.value.trim();
-  if (!canonicalTagName) {
-    return;
-  }
-
-  const saveModel: TagEditModel = {
-    name: canonicalTagName,
-    emoji: draftEmoji.value,
-    styleName: draft.value.styleName,
-    stylePropertiesJson: nextStylePropertiesJson
-  };
-
-  if (isCreateMode.value) {
-    const existingTag = getTagByName(canonicalTagName);
-    if (existingTag) {
-      feedbackStore.setError(`Tag '${existingTag.name}' already exists.`, 'tag');
-      return;
-    }
-
-    const saveResult = await saveTagAction(boardId.value, null, saveModel);
-    if (!saveResult) {
-      return;
-    }
-
-    if (!saveResult.savedTag && saveResult.createdTag) {
-      await router.replace({ name: 'tags-tag', params: { boardId: boardId.value, tagId: saveResult.createdTag.id } });
-      return;
-    }
-
-    await closeTagEditor();
-    return;
-  }
-
-  if (!editingTag.value) {
-    return;
-  }
-
-  const saveResult = await saveTagAction(boardId.value, editingTag.value.id, saveModel);
-  if (!saveResult?.savedTag) {
-    return;
-  }
-
-  await closeTagEditor();
-}
-
-async function deleteEditingTag() {
-  const tag = editingTag.value;
-  const targetBoardId = boardId.value;
-  if (!tag) {
-    return;
-  }
-
-  const confirmed = await confirm({
-    title: 'Delete tag',
-    message: `Delete tag "${tag.name}"?\n\nThis removes the tag from all cards and cannot be undone.`,
-    confirmLabel: 'Delete',
-    danger: true
-  });
-  if (!confirmed || boardId.value !== targetBoardId) {
-    return;
-  }
-
-  const deleted = await boardStore.deleteTag(targetBoardId, tag.id);
-  if (!deleted) {
-    return;
-  }
-
-  await closeTagEditor();
-}
-
-function clearDraftState() {
-  clearDraft();
-  draftEmoji.value = null;
-  draftTagName.value = '';
-  draftSourceKey.value = null;
-}
-
-async function initialiseCreateDraftState(nextBoardId: number) {
-  if (draftSourceKey.value === 'create' && draft.value !== null) {
-    return;
-  }
-
-  if (draftSourceKey.value === 'create:loading') {
-    return;
-  }
-
-  draftSourceKey.value = 'create:loading';
-  const defaultStyle = await getCreateDefaultStyle(nextBoardId);
-  if (!isCreateMode.value || boardId.value !== nextBoardId) {
-    return;
-  }
-
-  setDraft(createTagStyleDraft({
-    styleName: defaultStyle?.styleName ?? 'presets',
-    stylePropertiesJson: defaultStyle?.stylePropertiesJson ?? DEFAULT_TAG_STYLE_PROPERTIES_JSON,
-    emoji: null
-  }));
-  draftEmoji.value = null;
-  draftTagName.value = '';
-  draftSourceKey.value = 'create';
-}
-
-function initialiseEditDraftState(tag: Tag, tagId: number) {
-  const sourceKey = `edit:${tagId}`;
-  if (draftSourceKey.value === sourceKey && draft.value !== null) {
-    return;
-  }
-
-  setDraft(createTagStyleDraft(tag));
-  draftEmoji.value = tag.emoji ?? null;
-  draftTagName.value = tag.name;
-  draftSourceKey.value = sourceKey;
-}
-
-watch(
-  [boardId, routeTagId, isCreateMode, editingTag],
-  async ([nextBoardId, nextTagId, nextIsCreate, nextTag]) => {
-    if (nextIsCreate) {
-      await initialiseCreateDraftState(nextBoardId);
-      return;
-    }
-
-    if (nextTagId === null) {
-      clearDraftState();
-      await router.replace({ name: 'tags', params: { boardId: nextBoardId } });
-      return;
-    }
-
-    if (!nextTag && tagStore.activeBoardId !== nextBoardId) {
-      const loaded = await loadTags(nextBoardId);
-      if (!loaded) {
-        return;
-      }
-
-      nextTag = getTagById(nextTagId);
-    }
-
-    if (!nextTag) {
-      clearDraftState();
-      await router.replace({ name: 'tags', params: { boardId: nextBoardId } });
-      return;
-    }
-
-    initialiseEditDraftState(nextTag, nextTagId);
-  },
-  { immediate: true }
-);
 </script>
-
-<style scoped>
-.tags-dialog-preview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.tags-colour-input {
-  min-height: 2.25rem;
-  padding: 0.2rem;
-}
-
-.tags-emoji-picker-wrap {
-  margin-top: 0.3rem;
-}
-
-.tags-preset-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.tags-preset-swatch {
-  width: 1.7rem;
-  height: 1.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--bo-border-default);
-  cursor: pointer;
-  padding: 0;
-}
-
-.tags-preset-swatch--selected {
-  outline: 2px solid var(--bo-focus-ring);
-  outline-offset: 1px;
-}
-</style>

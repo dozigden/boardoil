@@ -374,7 +374,7 @@ describe('boardStore', () => {
       ? err({ kind: 'api', message: 'Deletion failed.' })
       : ok(undefined));
 
-    expect(await deleting).toBe(outcome !== 'failure');
+    expect((await deleting).ok).toBe(outcome !== 'failure');
     expect(api.deleteTag).toHaveBeenCalledWith(1, tag.id);
     if (outcome === 'disposal') {
       expect(cards.getCardById(card.id)).toBeNull();
