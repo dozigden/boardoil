@@ -35,13 +35,13 @@ describe('systemUsersManagerStore feedback', () => {
       role: 'Standard'
     });
 
-    expect(created).toBe(true);
+    expect(created).toEqual(ok(newUser('New User')));
     expect(feedback.toastMessage).toBe('Created successfully.');
     expect(feedback.toastTone).toBe('success');
     expect(store.errorMessage).toBeNull();
   });
 
-  it('publishes creation validation without a failure toast and clears it on retry', async () => {
+  it('returns full creation results without publishing validation or a failure toast', async () => {
     const api = createApi();
     api.createUser.mockResolvedValueOnce(err({
       kind: 'api', message: 'Validation failed.', validationErrors: { password: ['Too short'] }
@@ -53,8 +53,12 @@ describe('systemUsersManagerStore feedback', () => {
     const payload = { userName: 'new-user', displayName: 'New User', email: 'new-user@example.test', password: 'short', role: 'Standard' as const };
     store.errorMessage = 'Existing load error';
 
-    expect(await store.createUser(payload)).toBe(false);
-    expect(validation.getFieldErrors('password')).toEqual(['Too short']);
+    const existingValidation = err({ message: 'Another form error' });
+    validation.setValidationResult(existingValidation);
+    expect(await store.createUser(payload)).toEqual(err({
+      kind: 'api', message: 'Validation failed.', validationErrors: { password: ['Too short'] }
+    }));
+    expect(validation.getValidationMessages()).toEqual(['Another form error']);
     expect(feedback.toastMessage).toBe('');
     expect(store.errorMessage).toBe('Existing load error');
     expect(store.users).toEqual([]);
@@ -62,18 +66,18 @@ describe('systemUsersManagerStore feedback', () => {
 
     vi.mocked(api.getUsers).mockResolvedValueOnce(ok([]));
     await store.loadUsers();
-    expect(validation.getFieldErrors('password')).toEqual(['Too short']);
+    expect(validation.getValidationMessages()).toEqual(['Another form error']);
 
     let finish!: (result: Result<ManagedUser, AppError>) => void;
     api.createUser.mockReturnValueOnce(new Promise<Result<ManagedUser, AppError>>(resolve => { finish = resolve; }));
     const retry = store.createUser({ ...payload, password: 'Password1234!' });
-    expect(validation.getValidationMessages()).toEqual([]);
+    expect(validation.getValidationMessages()).toEqual(['Another form error']);
     expect(store.busy).toBe(true);
     finish(ok(newUser('New User')));
-    expect(await retry).toBe(true);
+    expect(await retry).toEqual(ok(newUser('New User')));
     expect(store.busy).toBe(false);
     expect(store.users).toEqual([newUser('New User')]);
-    expect(validation.getValidationMessages()).toEqual([]);
+    expect(validation.getValidationMessages()).toEqual(['Another form error']);
     expect(feedback.toastMessage).toBe('Created successfully.');
   });
 

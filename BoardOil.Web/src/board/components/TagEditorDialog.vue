@@ -192,7 +192,7 @@ import {
   normaliseTagEmojiForRender
 } from '../../shared/utils/tagStyles';
 import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
-import { parseStyleNameInput, useStyleDraft } from '../composables/useStyleDraft';
+import { parseStyleNameInput, useStyleDraft } from '../../shared/composables/useStyleDraft';
 import EmojiPickerDropdown from '../../shared/components/EmojiPickerDropdown.vue';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';

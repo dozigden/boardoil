@@ -64,6 +64,7 @@ import { useClickOutside } from '../composables/useClickOutside';
 
 const props = withDefaults(defineProps<{
   label: string;
+  triggerLabel?: string;
   text?: string | null;
   icon?: Component | null;
   iconSize?: number;
@@ -107,7 +108,7 @@ const triggerText = computed(() => {
 const isIconOnly = computed(() => props.iconOnly || !triggerText.value);
 const hasCustomTrigger = computed(() => slots.trigger !== undefined);
 const effectiveIsIconOnly = computed(() => isIconOnly.value && !hasCustomTrigger.value);
-const triggerAriaLabel = computed(() => (effectiveIsIconOnly.value ? props.label : undefined));
+const triggerAriaLabel = computed(() => props.triggerLabel ?? (effectiveIsIconOnly.value ? props.label : undefined));
 const panelStyle = computed(() => ({
   top: `${panelTop.value}px`,
   left: `${panelLeft.value}px`,

@@ -2,7 +2,8 @@ import type { Page } from '@playwright/test';
 
 export async function rejectNextUserCreation(
   page: Page,
-  error: { message: string; validationErrors?: Record<string, string[]> }
+  error: { message: string; validationErrors?: Record<string, string[]> },
+  responseReady: Promise<void> = Promise.resolve()
 ) {
   const url = '**/api/system/users';
   await page.route(url, async route => {
@@ -10,6 +11,7 @@ export async function rejectNextUserCreation(
       await route.continue();
       return;
     }
+    await responseReady;
     await route.fulfill({ status: 400, json: { success: false, ...error } });
     await page.unroute(url);
   });

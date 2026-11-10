@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useStyleDraft } from './useStyleDraft';
-import type { StyleDraft } from '../../shared/utils/styleTypes';
+import type { StyleDraft } from '../utils/styleTypes';
 
 describe('useStyleDraft', () => {
   it('updates draft through shared mutators and produces style properties json', () => {

@@ -158,7 +158,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { createSystemApi } from '../../shared/api/systemApi';
-import { useStyleDraft } from '../../board/composables/useStyleDraft';
+import { useStyleDraft } from '../../shared/composables/useStyleDraft';
 import { PRESET_TOKENS } from '../../shared/utils/presetTheme';
 import { createRestrictedStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';

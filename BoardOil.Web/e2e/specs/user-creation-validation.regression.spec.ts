@@ -2,6 +2,45 @@ import { expect, test } from '../fixtures/boardOilTest';
 import { rejectNextUserCreation } from '../support/userCreationResponse';
 import { UserCreationDialog } from '../ui/UserCreationDialog';
 
+test('keyboard submission blocks cancellation and repeat requests until the response arrives', async ({ authenticatedPage: page }) => {
+  await page.goto('/admin/system/users');
+  const form = new UserCreationDialog(page);
+  await form.open();
+  await form.fill('validation-pending');
+  let release!: () => void;
+  const responseReady = new Promise<void>(resolve => { release = resolve; });
+  await rejectNextUserCreation(page, { message: 'Please try again.' }, responseReady);
+  let submissions = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && request.url().endsWith('/api/system/users')) submissions++;
+  });
+
+  try {
+    await form.confirmation.press('Enter');
+    await expect(form.save).toBeDisabled();
+    await expect(form.username).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(form.dialog).toBeVisible();
+    await form.dialog.getByRole('button', { name: 'Cancel creation', exact: true })
+      .and(form.dialog.getByTitle('Cancel creation', { exact: true })).click();
+    await page.keyboard.press('Enter');
+    await expect(form.dialog).toBeVisible();
+    expect(submissions).toBe(1);
+  } finally {
+    release();
+  }
+
+  await expect(form.dialog.getByRole('alert')).toHaveText('Please try again.');
+  await expect(form.dialog.getByRole('alert')).toBeFocused();
+  await expect(form.save).toBeEnabled();
+  await expect(form.username).toHaveValue('validation-pending');
+  await page.keyboard.press('Escape');
+  await expect(form.dialog).toBeHidden();
+  await form.open();
+  await expect(form.username).toHaveValue('');
+  await expect(form.dialog.getByRole('alert')).toHaveCount(0);
+});
+
 test('user creation combines local field errors with server password validation and permits correction', async ({ authenticatedPage: page }) => {
   await page.goto('/admin/system/users');
   const form = new UserCreationDialog(page);

@@ -1,14 +1,14 @@
-import { computed, ref } from 'vue';
-import { buildStylePropertiesJsonFromDraft } from '../../shared/utils/styleDraftAdapter';
-import type { BorderMode, StyleDraft, TextColorMode } from '../../shared/utils/styleTypes';
-import { DEFAULT_PRESET_INDEX } from '../../shared/utils/presetTheme';
+import { computed, isRef, ref, type Ref } from 'vue';
+import { buildStylePropertiesJsonFromDraft } from '../utils/styleDraftAdapter';
+import type { BorderMode, StyleDraft, TextColorMode } from '../utils/styleTypes';
+import { DEFAULT_PRESET_INDEX } from '../utils/presetTheme';
 
 const DEFAULT_BACKGROUND_COLOR = '#69C1CE';
 const DEFAULT_TEXT_COLOR = '#111827';
 const DEFAULT_BORDER_COLOR = '#D8CDEC';
 
-export function useStyleDraft(initialDraft: StyleDraft | null = null) {
-  const draft = ref<StyleDraft | null>(initialDraft);
+export function useStyleDraft(initialDraft: StyleDraft | null | Ref<StyleDraft | null> = null) {
+  const draft = isRef(initialDraft) ? initialDraft : ref<StyleDraft | null>(initialDraft);
 
   const stylePropertiesJson = computed(() => {
     if (!draft.value) {

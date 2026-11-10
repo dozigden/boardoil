@@ -144,7 +144,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
 import { useSlickStore } from '../stores/slickStore';
-import { useStyleDraft } from '../composables/useStyleDraft';
+import { useStyleDraft } from '../../shared/composables/useStyleDraft';
 import { SLICK_PRESET_TOKENS } from '../../shared/utils/presetTheme';
 import { createRestrictedStyleDraft, createStyleDraft } from '../../shared/utils/styleDraftAdapter';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';

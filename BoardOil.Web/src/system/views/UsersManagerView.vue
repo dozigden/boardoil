@@ -96,7 +96,7 @@
       </BoGrid>
     </section>
 
-    <UserCreateDialog :open="isCreateDialogOpen" :busy="busy" @close="closeCreateDialog" @submit="createUser" />
+    <UserCreateDialog :open="isCreateDialogOpen" @close="closeCreateDialog" />
     <UserEditDialog
       :open="isEditDialogOpen"
       :busy="busy"
@@ -129,7 +129,6 @@ import UserEditDialog from '../components/UserEditDialog.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import type {
-  CreateManagedUserRequest,
   ManagedUser,
   UpdateManagedUserRequest
 } from '../../shared/types/authTypes';
@@ -178,15 +177,6 @@ function openResetPasswordDialog(user: ManagedUser) {
 function closeResetPasswordDialog() {
   isResetPasswordDialogOpen.value = false;
   userForPasswordReset.value = null;
-}
-
-async function createUser(payload: CreateManagedUserRequest) {
-  const created = await usersManagerStore.createUser(payload);
-  if (!created) {
-    return;
-  }
-
-  isCreateDialogOpen.value = false;
 }
 
 function openEditDialog(user: ManagedUser) {

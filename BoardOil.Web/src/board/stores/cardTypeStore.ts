@@ -3,7 +3,6 @@ import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
 import type { CardType, CardTypeEditModel } from '../../shared/types/boardTypes';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import { useValidationStore } from '../../shared/stores/validationStore';
 import type { AppError } from '../../shared/types/appError';
 import type { Result } from '../../shared/types/result';
 
@@ -12,7 +11,6 @@ export const useCardTypeStore = defineStore('cardType', () => {
   const busy = ref(false);
   const activeBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
-  const validation = useValidationStore();
   const api = createBoardApi();
 
   const systemCardType = computed(() => cardTypes.value.find(x => x.isSystem) ?? null);
@@ -78,44 +76,30 @@ export const useCardTypeStore = defineStore('cardType', () => {
 
   async function createCardType(
     model: CardTypeEditModel,
-    boardId: number,
-    category = ''
+    boardId: number
   ) {
-    const result = await runApiOperation(boardId, () => api.createCardType(boardId, model), category);
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_CARD_TYPE(boardId, result.data);
-    return result.data;
+    const result = await runApiOperation(boardId, () => api.createCardType(boardId, model));
+    if (result.ok) UPSERT_CARD_TYPE(boardId, result.data);
+    return result;
   }
 
   async function updateCardType(
     cardTypeId: number,
     model: CardTypeEditModel,
-    boardId: number,
-    category = ''
+    boardId: number
   ) {
-    const result = await runApiOperation(boardId, () => api.updateCardType(boardId, cardTypeId, model), category);
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_CARD_TYPE(boardId, result.data);
-    return result.data;
+    const result = await runApiOperation(boardId, () => api.updateCardType(boardId, cardTypeId, model));
+    if (result.ok) UPSERT_CARD_TYPE(boardId, result.data);
+    return result;
   }
 
-  async function deleteCardType(cardTypeId: number, boardId: number, category = '') {
-    const result = await runApiOperation(boardId, () => api.deleteCardType(boardId, cardTypeId), category);
-    if (!result.ok) {
-      return false;
-    }
-
-    REMOVE_CARD_TYPE(boardId, cardTypeId);
-    return true;
+  async function deleteCardType(cardTypeId: number, boardId: number) {
+    const result = await runApiOperation(boardId, () => api.deleteCardType(boardId, cardTypeId));
+    if (result.ok) REMOVE_CARD_TYPE(boardId, cardTypeId);
+    return result;
   }
 
-  async function setDefaultCardType(cardTypeId: number, boardId: number, category = '') {
+  async function setDefaultCardType(cardTypeId: number, boardId: number) {
     const result = await runApiOperation(boardId, async () => {
       const result = await api.setDefaultCardType(boardId, cardTypeId);
       if (result.ok && activeBoardId.value === boardId) {
@@ -123,9 +107,9 @@ export const useCardTypeStore = defineStore('cardType', () => {
       }
 
       return result;
-    }, category);
+    });
 
-    return result.ok;
+    return result;
   }
 
   function getCardTypeById(cardTypeId: number | null) {
@@ -136,20 +120,12 @@ export const useCardTypeStore = defineStore('cardType', () => {
     return cardTypes.value.find(x => x.id === cardTypeId) ?? null;
   }
 
-  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>, category = '') {
+  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
     if (activeBoardId.value === boardId) {
       busy.value = true;
-      validation.clearValidation();
     }
     try {
-      const result = await operation();
-      if (activeBoardId.value !== boardId) {
-        return result;
-      }
-
-      validation.setValidationResult(result, category);
-
-      return result;
+      return await operation();
     } finally {
       if (activeBoardId.value === boardId) {
         busy.value = false;

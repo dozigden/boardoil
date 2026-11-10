@@ -2,6 +2,7 @@
   <BoDropdown
     class="emoji-picker-dropdown"
     label="Emoji picker"
+    :trigger-label="triggerLabel"
     :text="selectedEmoji ?? placeholder"
     :disabled="disabled"
     :teleport="teleport"
@@ -40,6 +41,7 @@ import { normaliseTagEmojiForRender } from '../utils/tagStyles';
 
 const props = withDefaults(defineProps<{
   modelValue: string | null;
+  triggerLabel?: string;
   disabled?: boolean;
   placeholder?: string;
   teleport?: boolean;

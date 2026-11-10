@@ -27,3 +27,15 @@ export async function rejectNextCardTypeDefault(page: Page, boardId: number, car
     await page.unroute(url);
   });
 }
+
+export async function rejectNextCardTypeDelete(page: Page, boardId: number, cardTypeId: number) {
+  const url = `**/api/boards/${boardId}/card-types/${cardTypeId}`;
+  await page.route(url, async route => {
+    if (route.request().method() !== 'DELETE') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({ status: 400, json: { success: false, message: 'This card type cannot be deleted yet.' } });
+    await page.unroute(url);
+  });
+}

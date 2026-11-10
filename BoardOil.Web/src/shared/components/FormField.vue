@@ -1,10 +1,15 @@
 <template>
-  <div class="form-field" @input="clearErrors" @change="clearErrors">
+  <fieldset v-if="group" class="form-field" v-bind="inputAttrs" tabindex="-1">
+    <legend>{{ label }}</legend>
+    <slot :input-attrs="inputAttrs" />
+    <FormFieldErrors :id="errorId" :field="field" :fields="errorFields" :category="category" />
+  </fieldset>
+  <div v-else class="form-field">
     <label :for="inputId">
       {{ label }}
       <slot :input-attrs="inputAttrs" />
     </label>
-    <FormFieldErrors :id="errorId" :field="field" :category="category" />
+    <FormFieldErrors :id="errorId" :field="field" :fields="errorFields" :category="category" />
   </div>
 </template>
 
@@ -14,32 +19,20 @@ import { useValidationStore } from '../stores/validationStore';
 import FormFieldErrors from './FormFieldErrors.vue';
 import { formValidationContext } from './formValidationContext';
 
-const props = defineProps<{ field: string; label: string; clearFields?: readonly string[] }>();
+const props = defineProps<{ field: string; label: string; errorFields?: readonly string[]; group?: boolean }>();
 const form = inject(formValidationContext);
-if (!form) {
-  throw new Error('FormField must be inside FormValidation.');
-}
+if (!form) throw new Error('FormField must be inside FormFeedback.');
 const { category, registerField } = form;
 const validation = useValidationStore();
 const inputId = `form-field-${useId()}`;
 const errorId = `${inputId}-errors`;
 const inputAttrs = computed(() => {
-  const hasErrors = validation.getFieldErrors(props.field, category.value).length > 0;
-  return {
-    id: inputId,
-    'aria-invalid': hasErrors || undefined,
-    'aria-describedby': hasErrors ? errorId : undefined
-  };
+  const hasErrors = [props.field, ...(props.errorFields ?? [])].some(field => validation.getFieldErrors(field, category.value).length > 0);
+  return { id: inputId, 'aria-invalid': hasErrors || undefined, 'aria-describedby': hasErrors ? errorId : undefined };
 });
 
-onBeforeUnmount(registerField(props.field));
-
-function clearErrors() {
-  validation.clearFieldErrors(props.field, category.value);
-  for (const field of props.clearFields ?? []) {
-    validation.clearFieldErrors(field, category.value);
-  }
-}
+const unregister = [props.field, ...(props.errorFields ?? [])].map(registerField);
+onBeforeUnmount(() => unregister.forEach(remove => remove()));
 </script>
 
 <style scoped>
@@ -47,5 +40,16 @@ function clearErrors() {
   display: grid;
   gap: 0.5rem;
   min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.form-field > label,
+.form-field > legend {
+  padding: 0;
+}
+.form-field > legend {
+  margin-bottom: 0.2rem;
+  font-size: 0.85rem;
 }
 </style>

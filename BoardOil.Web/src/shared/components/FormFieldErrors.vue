@@ -12,9 +12,9 @@ import { CircleAlert } from '@lucide/vue';
 import { computed } from 'vue';
 import { useValidationStore } from '../stores/validationStore';
 
-const props = defineProps<{ id: string; field: string; category?: string }>();
+const props = defineProps<{ id: string; field: string; fields?: readonly string[]; category?: string }>();
 const validation = useValidationStore();
-const messages = computed(() => validation.getFieldErrors(props.field, props.category));
+const messages = computed(() => [...new Set([props.field, ...(props.fields ?? [])].flatMap(field => validation.getFieldErrors(field, props.category)))]);
 </script>
 
 <style scoped>

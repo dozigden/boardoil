@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures/boardOilTest';
-import { rejectNextCardTypeDefault, rejectNextCardTypeSave } from '../support/cardTypeSubmission';
+import { rejectNextCardTypeDefault, rejectNextCardTypeDelete, rejectNextCardTypeSave } from '../support/cardTypeSubmission';
 
 for (const operation of ['create', 'update'] as const) {
   test(`card-type ${operation} keeps validation beside the name and permits correction and retry`, async ({ api, authenticatedPage: page }) => {
@@ -197,4 +197,86 @@ test('default selection confirms before saving and keeps failures in its dialog 
   await expect(dialog).toBeHidden();
   await expect(row.getByText('Default', { exact: true })).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+test('custom controls retain their drafts, show mapped errors and update the live preview', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Compound card type form');
+  await page.goto(`/boards/${board.id}/admin/card-types/new`);
+  const dialog = page.getByRole('dialog', { name: 'Add Card Type', exact: true });
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Compound type');
+  const emoji = dialog.getByRole('group', { name: 'Emoji', exact: true });
+  const style = dialog.getByRole('group', { name: 'Style', exact: true });
+  const emojiTrigger = emoji.getByRole('button', { name: 'Emoji', exact: true });
+  await emojiTrigger.click();
+  const picker = dialog.getByRole('dialog', { name: 'Emoji picker', exact: true });
+  await picker.getByRole('menuitem').first().click();
+  await expect(picker).toBeHidden();
+  await expect(emojiTrigger).not.toHaveText('Select emoji');
+  const selectedEmoji = (await emojiTrigger.textContent())!.trim();
+  const preview = dialog.getByRole('article', { name: 'Card type preview', exact: true });
+  await expect(preview).toContainText(`${selectedEmoji} Compound type`);
+
+  await style.getByRole('combobox', { name: 'Style', exact: true }).selectOption('gradient');
+  await style.getByLabel('Left Color', { exact: true }).fill('#112233');
+  await style.getByLabel('Right Color', { exact: true }).fill('#445566');
+  await style.getByRole('combobox', { name: 'Text Color Mode', exact: true }).selectOption('custom');
+  await style.getByLabel('Text Color', { exact: true }).fill('#ffffff');
+  await style.getByRole('combobox', { name: 'Border', exact: true }).selectOption('custom');
+  await style.getByLabel('Border Color', { exact: true }).fill('#aabbcc');
+  await expect(preview).toHaveCSS('background-image', /rgb\(17, 34, 51\)/);
+  await expect(preview).toHaveCSS('color', 'rgb(255, 255, 255)');
+
+  await rejectNextCardTypeSave(page, board.id, { message: 'Invalid appearance', validationErrors: {
+    emoji: ['Choose another emoji.'], styleName: ['Choose another style.'], stylePropertiesJson: ['Change the colours.']
+  } });
+  await dialog.getByRole('button', { name: 'Create card type', exact: true }).click();
+  await expect(emoji).toHaveAccessibleDescription('Choose another emoji.');
+  await expect(emoji).toBeFocused();
+  await expect(style).toHaveAccessibleDescription('Choose another style. Change the colours.');
+  await expect(dialog.getByRole('alert')).toHaveCount(2);
+  await expect(style.getByLabel('Left Color', { exact: true })).toHaveValue('#112233');
+  await page.screenshot({ path: test.info().outputPath('card-type-custom-validation.png') });
+
+  await emojiTrigger.click();
+  await picker.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(emoji).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(style).toHaveAttribute('aria-invalid', 'true');
+  await style.getByLabel('Left Color', { exact: true }).fill('#223344');
+  await expect(style).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await expect(preview).toHaveCSS('background-image', /rgb\(34, 51, 68\)/);
+  await dialog.getByRole('button', { name: 'Create card type', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Edit card type Compound type', exact: true }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit Card Type: Compound type', exact: true });
+  await expect(edit.getByLabel('Left Color', { exact: true })).toHaveValue('#223344');
+  await expect(edit.getByLabel('Right Color', { exact: true })).toHaveValue('#445566');
+  await expect(edit.getByLabel('Text Color', { exact: true })).toHaveValue('#ffffff');
+  await expect(edit.getByLabel('Border Color', { exact: true })).toHaveValue('#aabbcc');
+  await expect(edit.getByRole('button', { name: 'Emoji', exact: true })).toHaveText('Select emoji');
+  await edit.getByRole('combobox', { name: 'Style', exact: true }).selectOption('presets');
+  await edit.getByRole('button', { name: 'Preset 4', exact: true }).click();
+  await edit.getByRole('button', { name: 'Save card type', exact: true }).click();
+  await expect(edit).toBeHidden();
+  await page.getByRole('button', { name: 'Edit card type Compound type', exact: true }).click();
+  await expect(edit.getByRole('button', { name: 'Preset 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a failed delete keeps the editor draft and allows a confirmed retry', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Card type delete failure');
+  const cardType = await api.createCardType(board.id, 'Delete later');
+  await page.goto(`/boards/${board.id}/admin/card-types/${cardType.id}`);
+  const editor = page.getByRole('dialog', { name: 'Edit Card Type: Delete later', exact: true });
+  await editor.getByRole('textbox', { name: 'Name', exact: true }).fill('');
+  await rejectNextCardTypeDelete(page, board.id, cardType.id);
+  await editor.getByRole('button', { name: 'Delete card type', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Delete card type', exact: true });
+  await confirmation.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(editor.getByRole('alert')).toHaveText('This card type cannot be deleted yet.');
+  await expect(editor.getByRole('alert')).toBeFocused();
+  await expect(editor.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('');
+  await editor.getByRole('button', { name: 'Delete card type', exact: true }).click();
+  await confirmation.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Edit card type Delete later', exact: true })).toHaveCount(0);
 });
