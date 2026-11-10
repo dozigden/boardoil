@@ -13,7 +13,7 @@
       <FormFeedback ref="feedback" :category="definition.category" general-errors="toast">
         <FormReassessment v-if="definition.reassess" :error="reassessmentError" @retry="reassess" />
         <FormFields :fields="fields" :values="draft" :busy="locked" @change="setValue" />
-        <slot name="after-fields" :values="draft" :busy="locked" />
+        <slot name="after-fields" :values="draft" :busy="locked" :dirty="dirty" :reset="reset" />
       </FormFeedback>
     </section>
   </form>
@@ -35,7 +35,7 @@ import { useForm } from './useForm';
 const props = defineProps<{ definition: FormDefinition<T, R>; discardMessage: string }>();
 const emit = defineEmits<{ saved: [value: R] }>();
 let active = true;
-const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, dirty, canSubmit, setValue, submit: submitForm } = useForm({
+const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, dirty, reset, canSubmit, setValue, submit: submitForm } = useForm({
   ...props.definition,
   isCurrent: () => active && (props.definition.isCurrent?.() ?? true)
 });

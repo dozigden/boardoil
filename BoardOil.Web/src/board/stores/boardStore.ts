@@ -23,7 +23,7 @@ import type {
   ColumnEditModel
 } from '../../shared/types/boardTypes';
 import type { AppError } from '../../shared/types/appError';
-import type { Result } from '../../shared/types/result';
+import { err, type Result } from '../../shared/types/result';
 
 type BoardShell = Omit<Board, 'columns'> & {
   columns: Column[];
@@ -302,36 +302,19 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function createColumn(model: ColumnCreateModel) {
-    model.title = model.title.trim();
-    if (!model.title) {
-      return;
-    }
-
-    const boardId = getCurrentBoardIdOrReport();
-    if (boardId === null) {
-      return;
-    }
-
-    const result = await runApiOperation(boardId, () => api.createColumn(boardId, model));
-    if (!result.ok) {
-      return;
-    }
-
-    UPSERT_COLUMN(boardId, result.data);
+    const boardId = currentBoardId.value;
+    if (boardId === null) return err<AppError>({ kind: 'api', message: 'No board selected.' });
+    const result = await runApiOperation(boardId, () => api.createColumn(boardId, model), { suppressError: true });
+    if (result.ok) UPSERT_COLUMN(boardId, result.data);
+    return result;
   }
 
   async function saveColumn(columnId: number, model: ColumnEditModel) {
-    const boardId = getCurrentBoardIdOrReport();
-    if (boardId === null) {
-      return;
-    }
-
-    const result = await runApiOperation(boardId, () => api.saveColumn(boardId, columnId, model));
-    if (!result.ok) {
-      return;
-    }
-
-    UPSERT_COLUMN(boardId, result.data);
+    const boardId = currentBoardId.value;
+    if (boardId === null) return err<AppError>({ kind: 'api', message: 'No board selected.' });
+    const result = await runApiOperation(boardId, () => api.saveColumn(boardId, columnId, model), { suppressError: true });
+    if (result.ok) UPSERT_COLUMN(boardId, result.data);
+    return result;
   }
 
   async function reorderColumns(columnIds: number[]) {
@@ -349,17 +332,11 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function deleteColumn(columnId: number) {
-    const boardId = getCurrentBoardIdOrReport();
-    if (boardId === null) {
-      return;
-    }
-
-    const result = await runApiOperation(boardId, () => api.deleteColumn(boardId, columnId));
-    if (!result.ok) {
-      return;
-    }
-
-    REMOVE_COLUMN(boardId, columnId);
+    const boardId = currentBoardId.value;
+    if (boardId === null) return err<AppError>({ kind: 'api', message: 'No board selected.' });
+    const result = await runApiOperation(boardId, () => api.deleteColumn(boardId, columnId), { suppressError: true });
+    if (result.ok) REMOVE_COLUMN(boardId, columnId);
+    return result;
   }
 
   function applyBoardSummaryUpdate(summary: Pick<BoardSummary,
@@ -380,7 +357,7 @@ export const useBoardStore = defineStore('board', () => {
     return boardShell.value.columns.find(x => x.id === columnId) ?? null;
   }
 
-  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(boardId: number, operation: () => Promise<Result<T, AppError>>, options?: { suppressError?: boolean }) {
     if (currentBoardId.value === boardId) {
       busy.value = true;
     }
@@ -391,7 +368,7 @@ export const useBoardStore = defineStore('board', () => {
       }
 
       if (!result.ok) {
-        reportError(result.error);
+        if (!options?.suppressError) reportError(result.error);
       } else {
         feedback.clearError('board');
       }
@@ -438,25 +415,17 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   async function saveBoard(boardId: number, model: BoardEditModel) {
-    const saved = await boardCatalogueStore.saveBoard(boardId, model);
-    if (!saved) {
-      return null;
-    }
-
-    applyBoardSummaryUpdate(saved);
-    return saved;
+    const result = await boardCatalogueStore.saveBoard(boardId, model);
+    if (result.ok) applyBoardSummaryUpdate(result.data);
+    return result;
   }
 
   async function deleteBoard(boardId: number) {
-    const deleted = await boardCatalogueStore.deleteBoard(boardId);
-    if (!deleted) {
-      return false;
-    }
-
-    if (currentBoardId.value === boardId) {
+    const result = await boardCatalogueStore.deleteBoard(boardId);
+    if (result.ok && currentBoardId.value === boardId) {
       await dispose();
     }
-    return true;
+    return result;
   }
 
   async function deleteTag(boardId: number, tagId: number) {

@@ -55,23 +55,15 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   async function saveBoard(boardId: number, model: BoardEditModel) {
-    const result = await runApiOperation(() => api.saveBoard(boardId, model));
-    if (!result.ok) {
-      return null;
-    }
-
-    UPSERT_BOARD(result.data);
-    return result.data;
+    const result = await runApiOperation(() => api.saveBoard(boardId, model), { suppressError: true });
+    if (result.ok) UPSERT_BOARD(result.data);
+    return result;
   }
 
   async function deleteBoard(boardId: number) {
-    const result = await runApiOperation(() => api.deleteBoard(boardId));
-    if (!result.ok) {
-      return false;
-    }
-
-    REMOVE_BOARD(boardId);
-    return true;
+    const result = await runApiOperation(() => api.deleteBoard(boardId), { suppressError: true });
+    if (result.ok) REMOVE_BOARD(boardId);
+    return result;
   }
 
   function dispose() {

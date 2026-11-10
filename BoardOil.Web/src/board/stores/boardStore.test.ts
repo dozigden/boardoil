@@ -124,7 +124,7 @@ describe('boardStore', () => {
       ? err({ kind: 'api', message: 'Save failed' })
       : ok(saved));
 
-    expect(await saving).toEqual(outcome === 'failure' ? null : saved);
+    expect(await saving).toEqual(outcome === 'failure' ? err({ kind: 'api', message: 'Save failed' }) : ok(saved));
     expect(catalogue.boards.find(board => board.id === 1)?.name).toBe(outcome === 'failure' ? 'Board' : saved.name);
     if (outcome === 'disposal') {
       expect(store.board).toBeNull();
@@ -155,7 +155,7 @@ describe('boardStore', () => {
       ? err({ kind: 'api', message: 'Delete failed' })
       : ok(undefined));
 
-    expect(await deleting).toBe(outcome !== 'failure');
+    expect(await deleting).toEqual(outcome === 'failure' ? err({ kind: 'api', message: 'Delete failed' }) : ok(undefined));
     expect(catalogue.boards.map(board => board.id)).toEqual(outcome === 'failure' ? [1, 2] : [2]);
     if (outcome === 'success' || outcome === 'disposal') {
       expect(store.board).toBeNull();
@@ -278,7 +278,7 @@ describe('boardStore', () => {
       await store.initialize(1);
       const column = { ...makeBoard().columns[0], title: 'Old board response' };
       const pending = deferred<Result<Column | Column[] | void, AppError>>();
-      let request: Promise<void>;
+      let request: Promise<unknown>;
       switch (operation) {
         case 'create':
           api.createColumn.mockReturnValueOnce(pending.promise);
@@ -832,20 +832,27 @@ describe('boardStore', () => {
     expect(store.busy).toBe(false);
   });
 
-  it('sets feedback error when API returns failure', async () => {
+  it.each(['create', 'save', 'delete'] as const)('returns column %s errors intact without changing the draft, board or feedback', async operation => {
     const store = useBoardStore();
     const feedback = useUiFeedbackStore();
     await store.initialize(1);
+    const previous = store.board;
+    const model = { title: '   ' };
+    const rejection = err({ kind: 'api' as const, message: 'Validation failed.', validationErrors: { title: ['Column title is required.'] } });
+    feedback.setError('Existing error', 'other');
+    const call = { create: api.createColumn, save: api.saveColumn, delete: api.deleteColumn }[operation];
+    call.mockResolvedValueOnce(rejection);
 
-    const apiError: AppError = {
-      kind: 'api',
-      message: 'Column create failed.'
-    };
-    api.createColumn.mockResolvedValue(err(apiError));
+    let result;
+    if (operation === 'create') result = await store.createColumn(model);
+    else if (operation === 'save') result = await store.saveColumn(1, model);
+    else result = await store.deleteColumn(1);
 
-    await store.createColumn({ title: 'Bad' });
-
-    expect(feedback.errorMessage).toBe('Column create failed.');
+    expect(result).toBe(rejection);
+    expect(model.title).toBe('   ');
+    expect(store.board).toBe(previous);
+    expect(store.busy).toBe(false);
+    expect(feedback.errorMessage).toBe('Existing error');
   });
 
   it('refreshes only the tag catalogue when tags change', async () => {

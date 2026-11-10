@@ -1,54 +1,13 @@
 <template>
   <section class="board-details-page">
-    <h2>Details</h2>
-
-    <form class="board-details-form" @submit.prevent="saveBoardDetails">
-      <label>
-        Board name
-        <input
-          v-model="boardDetailsDraft.name"
-          :disabled="!isOwner || busy"
-          maxlength="120"
-          required
-        />
-      </label>
-      <label>
-        Description (optional)
-        <textarea
-          v-model="boardDetailsDraft.description"
-          :disabled="!isOwner || busy"
-          maxlength="5000"
-          rows="8"
-        ></textarea>
-      </label>
-      <label class="board-details-toggle">
-        <input
-          v-model="boardDetailsDraft.slickCohesionModeEnabled"
-          type="checkbox"
-          :disabled="!isOwner || busy"
-        />
-        <span>Enable slick cohesion mode</span>
-      </label>
-      <label v-if="boardApi.supportsAttachments" class="board-details-toggle">
-        <input
-          v-model="boardDetailsDraft.cardAttachmentThumbnailsEnabled"
-          type="checkbox"
-          :disabled="!isOwner || busy"
-        />
-        <span>Show attachment thumbnails on cards</span>
-      </label>
-
-      <p v-if="!isOwner" class="board-details-owner-note">Owner permission required to edit this board.</p>
-
-      <div class="board-details-actions">
-        <button type="submit" class="btn" :disabled="!canSave">
-          Save details
-        </button>
-        <button type="button" class="btn btn--secondary" :disabled="busy || !hasChanges" @click="resetDraft">
-          Reset
-        </button>
-      </div>
-    </form>
+    <FormPage :definition="form" discard-message="Discard your board details changes and leave?">
+      <template #after-fields="{ busy, dirty, reset }">
+        <p v-if="!isOwner" class="board-details-owner-note">Owner permission required to edit this board.</p>
+        <div class="board-details-actions">
+          <button type="button" class="btn btn--secondary" :disabled="busy || !dirty" @click="reset">Reset</button>
+        </div>
+      </template>
+    </FormPage>
 
     <section class="board-export-section">
       <h3>Export board</h3>
@@ -65,97 +24,33 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';
-import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
+import FormPage from '../../shared/forms/FormPage.vue';
+import { createBoardDetailsForm } from '../forms/boardDetailsForm';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { BoardEditModel } from '../../shared/types/boardTypes';
 
 const boardStore = useBoardStore();
-const boardCatalogueStore = useBoardCatalogueStore();
 const feedbackStore = useUiFeedbackStore();
 const boardApi = createBoardApi();
-const { board, currentBoardId } = storeToRefs(boardStore);
-const { busy } = storeToRefs(boardCatalogueStore);
+const { board } = storeToRefs(boardStore);
+const boardId = boardStore.currentBoardId!;
 const exporting = ref(false);
-const boardDetailsDraft = ref<BoardEditModel>({
-  name: '',
-  description: '',
-  slickCohesionModeEnabled: true,
-  cardAttachmentThumbnailsEnabled: true
-});
-
-const boardId = computed(() => currentBoardId.value!);
-const boardName = computed(() => board.value?.name ?? '');
-const boardDescription = computed(() => board.value?.description ?? '');
-const slickCohesionModeEnabled = computed(() => board.value?.slickCohesionModeEnabled ?? true);
-const cardAttachmentThumbnailsEnabled = computed(() => board.value?.cardAttachmentThumbnailsEnabled ?? true);
-const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
-const hasChanges = computed(() =>
-  board.value !== null
-  && (
-    boardDetailsDraft.value.name.trim() !== boardName.value.trim()
-    || boardDetailsDraft.value.description.trim() !== boardDescription.value.trim()
-    || boardDetailsDraft.value.slickCohesionModeEnabled !== slickCohesionModeEnabled.value
-    || boardDetailsDraft.value.cardAttachmentThumbnailsEnabled !== cardAttachmentThumbnailsEnabled.value
-  ));
-const canSave = computed(() => isOwner.value && !busy.value && boardDetailsDraft.value.name.trim().length > 0 && hasChanges.value);
+const isOwner = computed(() => boardStore.isCurrentUserOwner);
 const canExport = computed(() => isOwner.value && !exporting.value);
-
-onMounted(() => {
-  resetDraftFromBoard();
+const form = createBoardDetailsForm(board.value!, {
+  save: values => boardStore.saveBoard(boardId, values),
+  canEdit: () => isOwner.value,
+  isCurrent: () => boardStore.currentBoardId === boardId,
+  supportsAttachments: boardApi.supportsAttachments
 });
-
-function resetDraft() {
-  resetDraftFromBoard();
-}
-
-async function saveBoardDetails() {
-  if (!canSave.value) {
-    return;
-  }
-  const nextBoardId = boardId.value;
-
-  const saveModel: BoardEditModel = {
-    name: boardDetailsDraft.value.name.trim(),
-    description: boardDetailsDraft.value.description.trim(),
-    slickCohesionModeEnabled: boardDetailsDraft.value.slickCohesionModeEnabled,
-    cardAttachmentThumbnailsEnabled: boardDetailsDraft.value.cardAttachmentThumbnailsEnabled
-  };
-  const saved = await boardStore.saveBoard(
-    nextBoardId,
-    saveModel);
-  if (!saved) {
-    return;
-  }
-
-  boardDetailsDraft.value = {
-    name: saved.name,
-    description: saved.description,
-    slickCohesionModeEnabled: saved.slickCohesionModeEnabled,
-    cardAttachmentThumbnailsEnabled: saved.cardAttachmentThumbnailsEnabled
-  };
-}
-
-function resetDraftFromBoard() {
-  if (board.value === null) {
-    return;
-  }
-
-  boardDetailsDraft.value = {
-    name: board.value.name,
-    description: board.value.description,
-    slickCohesionModeEnabled: board.value.slickCohesionModeEnabled,
-    cardAttachmentThumbnailsEnabled: board.value.cardAttachmentThumbnailsEnabled
-  };
-}
 
 async function exportBoardPackage() {
   if (!canExport.value) {
     return;
   }
-  const nextBoardId = boardId.value;
+  const nextBoardId = boardId;
 
   exporting.value = true;
   try {
@@ -192,15 +87,6 @@ async function exportBoardPackage() {
   margin: 0;
 }
 
-.board-details-form {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0.9rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 12px;
-  background: var(--bo-surface-panel);
-}
-
 .board-details-owner-note {
   margin: 0;
   color: var(--bo-ink-muted);
@@ -210,12 +96,6 @@ async function exportBoardPackage() {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-}
-
-.board-details-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .board-export-section {

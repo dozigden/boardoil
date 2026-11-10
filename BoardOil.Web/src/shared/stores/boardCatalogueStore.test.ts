@@ -85,8 +85,8 @@ describe('boardCatalogueStore', () => {
   it('adds an authoritative saved board missing from the catalogue', async () => {
     const store = useBoardCatalogueStore();
     const saved = await store.saveBoard(10, makeSummary(10, 'Roadmap'));
-    expect(saved).toEqual(makeSummary(10, 'Roadmap'));
-    expect(store.boards).toEqual([saved]);
+    expect(saved).toEqual(ok(makeSummary(10, 'Roadmap')));
+    expect(store.boards).toEqual([makeSummary(10, 'Roadmap')]);
   });
 
   it.each(['success', 'failure'] as const)('handles board deletion %s without changing unrelated entries', async outcome => {
@@ -99,7 +99,7 @@ describe('boardCatalogueStore', () => {
       ? ok(undefined)
       : err({ kind: 'api', message: 'Delete failed' }));
 
-    expect(await store.deleteBoard(10)).toBe(outcome === 'success');
+    expect((await store.deleteBoard(10)).ok).toBe(outcome === 'success');
     expect(store.boards).toEqual(outcome === 'success' ? [second] : [first, second]);
     expect(store.busy).toBe(false);
   });
@@ -125,7 +125,7 @@ describe('boardCatalogueStore', () => {
     expect(store.boards.map(x => x.name)).toEqual(['Cloned Board']);
   });
 
-  it.each(['create', 'clone', 'import'] as const)('returns %s rejection intact without a duplicate page error', async operation => {
+  it.each(['create', 'clone', 'import', 'save', 'delete'] as const)('returns %s rejection intact without a duplicate page error', async operation => {
     const store = useBoardCatalogueStore();
     const feedback = useUiFeedbackStore();
     const publish = vi.spyOn(feedback, 'setError');
@@ -136,6 +136,8 @@ describe('boardCatalogueStore', () => {
       case 'create': api.createBoard.mockResolvedValueOnce(rejection); result = await store.createBoard('Name'); break;
       case 'clone': api.cloneBoard.mockResolvedValueOnce(rejection); result = await store.cloneBoard(4, 'Name'); break;
       case 'import': api.importBoardPackage.mockResolvedValueOnce(rejection); result = await store.importBoardPackage(file); break;
+      case 'save': api.saveBoard.mockResolvedValueOnce(rejection); result = await store.saveBoard(1, makeSummary(1, 'Name')); break;
+      case 'delete': api.deleteBoard.mockResolvedValueOnce(rejection); result = await store.deleteBoard(1); break;
     }
     expect(result).toBe(rejection);
     expect(publish).not.toHaveBeenCalled();

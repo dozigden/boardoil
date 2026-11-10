@@ -1,0 +1,58 @@
+import { expect, test } from '../fixtures/boardOilTest';
+import { ColumnsManagerPage } from '../ui/ColumnsManagerPage';
+
+test('inline column creation retains backend errors and cancellation starts a fresh draft', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Column form creation');
+  const columns = new ColumnsManagerPage(page);
+  await columns.open(board.id);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Add column', exact: true }).click();
+  const title = page.getByRole('textbox', { name: 'Column title', exact: true });
+  await expect(title).toBeFocused();
+  await title.fill('   ');
+  await title.press('Enter');
+  await expect(title).toHaveAccessibleDescription('Column title is required.');
+  await expect(title).toHaveValue('   ');
+  await expect(title).toBeFocused();
+  await expect(page.getByText('Column title is required.', { exact: true })).toHaveCount(1);
+  await page.screenshot({ path: test.info().outputPath('column-create-validation-mobile.png') });
+  await title.fill('  New Column  ');
+  await title.press('Enter');
+  await expect(title).toHaveCount(0);
+  await columns.expectOrder(['Todo', 'In Progress', 'Done', 'New Column']);
+  await page.getByRole('button', { name: 'Add column', exact: true }).click();
+  await title.fill('Discard me');
+  await title.press('Escape');
+  await page.getByRole('button', { name: 'Add column', exact: true }).click();
+  await expect(title).toHaveValue('');
+  await expect(title).not.toHaveAttribute('aria-invalid', 'true');
+});
+
+test('column edit and delete rejections keep the dialog open until a successful retry', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Column form editing');
+  const card = await api.createCard(board, 'Todo', 'Blocks deletion');
+  const columns = new ColumnsManagerPage(page);
+  await columns.open(board.id);
+  await page.getByRole('button', { name: 'Edit column Todo', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit Column', exact: true });
+  const title = dialog.getByRole('textbox', { name: 'Title', exact: true });
+  await title.fill('');
+  await dialog.getByRole('button', { name: 'Save column', exact: true }).click();
+  await expect(title).toHaveAccessibleDescription('Column title is required.');
+  await expect(title).toBeFocused();
+  await title.fill('Retained draft');
+  await dialog.getByRole('button', { name: 'Delete column', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Column must be empty before it can be deleted.');
+  await expect(dialog.getByRole('alert')).toBeFocused();
+  await expect(title).toHaveValue('Retained draft');
+  await expect(page.getByText('Column must be empty before it can be deleted.', { exact: true })).toHaveCount(1);
+  await page.screenshot({ path: test.info().outputPath('column-delete-rejection.png') });
+  await dialog.getByRole('button', { name: 'Save column', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await columns.expectOrder(['Retained draft', 'In Progress', 'Done']);
+  await api.deleteCards(board.id, [card.id]);
+  await page.getByRole('button', { name: 'Edit column Retained draft', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Delete column', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await columns.expectOrder(['In Progress', 'Done']);
+});

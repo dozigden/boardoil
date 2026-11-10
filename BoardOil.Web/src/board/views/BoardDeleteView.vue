@@ -5,75 +5,65 @@
       This will permanently delete the board, including all columns and cards.
     </p>
 
-    <section class="board-delete-panel">
+    <form class="board-delete-panel" @submit.prevent="submit">
       <p class="board-delete-confirm-copy">
         Type <strong>{{ boardName }}</strong> to confirm deletion.
       </p>
 
-      <label>
-        Confirm board name
-        <input
-          v-model="confirmationName"
-          :disabled="!isOwner || busy"
-          maxlength="120"
-          autocomplete="off"
-          required
-        />
-      </label>
+      <FormFeedback ref="feedback" general-errors="toast">
+        <FormFields :fields="fields" :values="draft" :busy="locked" @change="setValue" />
+      </FormFeedback>
 
       <p v-if="!isOwner" class="board-delete-owner-note">Owner permission required to delete this board.</p>
 
       <div class="board-delete-actions">
         <button
-          type="button"
+          type="submit"
           class="btn btn--danger"
-          :disabled="!canDelete"
-          @click="deleteBoard"
+          :disabled="!canSubmit"
         >
           Delete board
         </button>
       </div>
-    </section>
+    </form>
   </section>
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
+import FormFeedback from '../../shared/components/FormFeedback.vue';
+import FormFields from '../../shared/forms/FormFields.vue';
+import { useForm } from '../../shared/forms/useForm';
+import { useValidationStore } from '../../shared/stores/validationStore';
+import { createBoardDeleteForm } from '../forms/boardDeleteForm';
 import { useBoardStore } from '../stores/boardStore';
 
 const router = useRouter();
 const boardStore = useBoardStore();
-const boardCatalogueStore = useBoardCatalogueStore();
-const { board, currentBoardId } = storeToRefs(boardStore);
-const { busy } = storeToRefs(boardCatalogueStore);
-const confirmationName = ref('');
-
-const boardId = computed(() => currentBoardId.value!);
-const boardName = computed(() => board.value?.name ?? 'this board');
-const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
-const canDelete = computed(() => isOwner.value && !busy.value && confirmationName.value.trim() === boardName.value.trim());
-
-onMounted(() => {
-  confirmationName.value = '';
-});
-
-async function deleteBoard() {
-  if (!canDelete.value) {
-    return;
+const boardId = boardStore.currentBoardId!;
+const boardName = computed(() => boardStore.board?.name ?? '');
+const isOwner = computed(() => boardStore.isCurrentUserOwner);
+const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
+const validation = useValidationStore();
+const { draft, fields, locked, canSubmit, setValue, submit: submitForm } = useForm(createBoardDeleteForm({
+  boardName: () => boardName.value,
+  canDelete: () => isOwner.value,
+  isCurrent: () => boardStore.currentBoardId === boardId,
+  delete: async () => {
+    const result = await boardStore.deleteBoard(boardId);
+    // Deletion disposes this board's view before the form receives its result.
+    if (result.ok && boardStore.currentBoardId === null) await router.push({ name: 'boards' });
+    return result;
   }
-  const nextBoardId = boardId.value;
+}));
+validation.clearValidation();
+onBeforeUnmount(() => validation.clearValidation());
 
-  const deleted = await boardStore.deleteBoard(nextBoardId);
-  if (!deleted) {
-    return;
-  }
-
-  await router.push({ name: 'boards' });
+async function submit() {
+  const result = await submitForm();
+  if (result && !result.ok) await feedback.value?.showFeedback();
 }
-
 </script>
 
 <style scoped>

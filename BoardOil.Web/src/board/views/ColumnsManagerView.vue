@@ -10,29 +10,7 @@
     </section>
 
     <section class="entity-rows-list columns-manager-list">
-      <article v-if="isOwner && newColumnDraft !== null" class="entity-row columns-manager-item create-column-inline">
-        <label class="create-card-inline-label">
-          Column title
-          <input
-            ref="newColumnDraftInput"
-            v-model="newColumnDraft.title"
-            maxlength="200"
-            autocomplete="off"
-            data-lpignore="true"
-            placeholder="New column title"
-            @keydown.enter.prevent="saveNewColumnDraft"
-            @keydown.esc.prevent="closeNewColumnDraft"
-          />
-        </label>
-        <div class="entity-row-actions column-create-actions">
-          <button type="button" class="btn" aria-label="Save new column" title="Save new column" @click="saveNewColumnDraft">
-            Save
-          </button>
-          <button type="button" class="btn btn--secondary" aria-label="Cancel new column" title="Cancel" @click="closeNewColumnDraft">
-            Cancel
-          </button>
-        </div>
-      </article>
+      <ColumnCreateForm v-if="isOwner && creatingColumn" ref="createForm" @close="closeNewColumnDraft" />
 
       <article
         v-for="column in board.columns"
@@ -91,42 +69,27 @@ import { storeToRefs } from 'pinia';
 import { computed, nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useBoardStore } from '../stores/boardStore';
-import type { ColumnCreateModel } from '../../shared/types/boardTypes';
+import ColumnCreateForm from '../components/ColumnCreateForm.vue';
 
-const newColumnDraft = ref<ColumnCreateModel | null>(null);
-const newColumnDraftInput = ref<HTMLInputElement | null>(null);
+const creatingColumn = ref(false);
+const createForm = ref<InstanceType<typeof ColumnCreateForm> | null>(null);
 const draggingColumnId = ref<number | null>(null);
 const dragOverColumnId = ref<number | null>(null);
 
 const router = useRouter();
 const boardStore = useBoardStore();
-const { board, busy, currentBoardId } = storeToRefs(boardStore);
-const { createColumn: createColumnAction, reorderColumns: reorderColumnsAction } = boardStore;
+const { board, currentBoardId } = storeToRefs(boardStore);
+const { reorderColumns: reorderColumnsAction } = boardStore;
 const isOwner = computed(() => board.value?.currentUserRole === 'Owner');
 
 async function openNewColumnDraft() {
-  if (newColumnDraft.value !== null) {
-    newColumnDraftInput.value?.focus();
-    return;
-  }
-
-  newColumnDraft.value = { title: '' };
+  creatingColumn.value = true;
   await nextTick();
-  newColumnDraftInput.value?.focus();
+  createForm.value?.focus();
 }
 
 function closeNewColumnDraft() {
-  newColumnDraft.value = null;
-  newColumnDraftInput.value = null;
-}
-
-async function saveNewColumnDraft() {
-  if (newColumnDraft.value === null || !newColumnDraft.value.title.trim()) {
-    return;
-  }
-
-  await createColumnAction(newColumnDraft.value);
-  closeNewColumnDraft();
+  creatingColumn.value = false;
 }
 
 async function openColumnEditor(columnId: number) {
@@ -229,21 +192,6 @@ function onColumnDragEnd() {
 
 .columns-manager-item {
   gap: 0.5rem;
-}
-
-.create-column-inline {
-  border-style: dashed;
-}
-
-.column-create-actions {
-  justify-content: flex-end;
-}
-
-.columns-manager-item label {
-  display: grid;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--bo-ink-default);
 }
 
 .column-drag-handle {

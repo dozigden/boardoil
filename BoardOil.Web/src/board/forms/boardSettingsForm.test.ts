@@ -1,0 +1,50 @@
+import { createPinia, setActivePinia } from 'pinia';
+import { expect, it, vi } from 'vitest';
+import { ref } from 'vue';
+import { useForm } from '../../shared/forms/useForm';
+import { ok } from '../../shared/types/result';
+import { createBoardDetailsForm } from './boardDetailsForm';
+import { createBoardDeleteForm } from './boardDeleteForm';
+
+it('resets board settings to the canonical saved values and preserves hidden settings', async () => {
+  setActivePinia(createPinia());
+  const board = { id: 1, name: 'Original', description: '', slickCohesionModeEnabled: true, cardAttachmentThumbnailsEnabled: false, createdAtUtc: '', updatedAtUtc: '', currentUserRole: 'Owner' };
+  const saved = { ...board, name: 'Canonical' };
+  const save = vi.fn().mockResolvedValue(ok(saved));
+  const form = useForm(createBoardDetailsForm(board, { save, supportsAttachments: false, isCurrent: () => true, canEdit: () => true }));
+  form.setValue('name', ' Canonical ');
+  await form.submit();
+  expect(save).toHaveBeenCalledWith({ name: ' Canonical ', description: '', slickCohesionModeEnabled: true, cardAttachmentThumbnailsEnabled: false });
+  expect(form.dirty.value).toBe(false);
+  form.setValue('name', 'Discard');
+  form.reset();
+  expect(form.draft.value.name).toBe('Canonical');
+  expect(form.fields.value.some(field => field.name === 'cardAttachmentThumbnailsEnabled')).toBe(false);
+});
+
+it('requires the current board name and permission for deletion and ignores a different board', async () => {
+  setActivePinia(createPinia());
+  const name = ref('Original');
+  const owner = ref(true);
+  const current = ref(true);
+  const remove = vi.fn().mockResolvedValue(ok(undefined));
+  const form = useForm(createBoardDeleteForm({ boardName: () => name.value, canDelete: () => owner.value, isCurrent: () => current.value, delete: remove }));
+  await form.submit();
+  expect(remove).not.toHaveBeenCalled();
+  form.setValue('confirmationName', 'Original');
+  name.value = 'Renamed';
+  await form.submit();
+  expect(remove).not.toHaveBeenCalled();
+  form.setValue('confirmationName', 'Renamed');
+  owner.value = false;
+  await form.submit();
+  expect(remove).not.toHaveBeenCalled();
+  owner.value = true;
+  form.setValue('confirmationName', 'Renamed');
+  current.value = false;
+  await form.submit();
+  expect(remove).not.toHaveBeenCalled();
+  current.value = true;
+  await form.submit();
+  expect(remove).toHaveBeenCalledOnce();
+});
