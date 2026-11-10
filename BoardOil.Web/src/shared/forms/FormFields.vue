@@ -132,7 +132,6 @@ function controlFor(field: FormFieldDefinition<T>) {
 }
 
 function updateValue(field: Extract<keyof T, string>, value: unknown) {
-  // Dynamic Vue components cross a runtime boundary; definitions bind each control to its draft field.
   emit('change', field, value as T[Extract<keyof T, string>]);
 }
 

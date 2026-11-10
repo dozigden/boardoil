@@ -1,4 +1,4 @@
-import { computed, getCurrentScope, onScopeDispose, ref, shallowRef } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, type ShallowRef } from 'vue';
 import { cloneFormDraft, equalFormDrafts } from './formDraft';
 import { useValidationStore } from '../stores/validationStore';
 import { err, type Result } from '../types/result';
@@ -8,7 +8,7 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
   const validation = useValidationStore();
   const clone = (value: T): T => cloneFormDraft(value);
   const initial = shallowRef(clone(definition.initialValues()));
-  const draft = shallowRef<T>(clone(initial.value));
+  const draft: ShallowRef<T> = shallowRef(clone(initial.value));
   const busy = ref(false);
   const fields = shallowRef(definition.fields);
   const reassessing = ref(false);
