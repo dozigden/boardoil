@@ -7,6 +7,8 @@ type Draft = {
   emoji: string | null;
   boardId: number | null;
   columnId: number;
+  file: File | null;
+  nonNullableFile: File;
   style: StyleDraft;
   name: string;
   enabled: boolean;
@@ -47,4 +49,12 @@ it('retains typed numeric select values', () => {
   expectTypeOf<{ name: 'boardId'; label: string; type: 'select'; options: { value: number | null; label: string }[] }>().toMatchTypeOf<Field>();
   expectTypeOf<{ name: 'boardId'; label: string; type: 'select'; options: { value: string; label: string }[] }>().not.toMatchTypeOf<Field>();
 
+});
+
+it('requires file fields to accept both a selection and clearing it', () => {
+  type Field = FormFieldDefinition<Draft>;
+  expectTypeOf<{ name: 'file'; label: string; type: 'file' }>().toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'nonNullableFile'; label: string; type: 'file' }>().not.toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'name'; label: string; type: 'file' }>().not.toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'name'; label: string; type: 'textarea' }>().toMatchTypeOf<Field>();
 });

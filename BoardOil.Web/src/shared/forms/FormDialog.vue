@@ -1,6 +1,6 @@
 <template>
   <FixedChromeDialog open :title="definition.title" :close-label="definition.closeLabel ?? definition.cancelLabel" @close="cancel" @submit="submit">
-    <FormFeedback ref="feedback" :category="definition.category">
+    <FormFeedback ref="feedback" class="form-dialog-fields" :category="definition.category">
       <slot name="before-fields" :values="draft" :busy="locked" />
       <FormReassessment v-if="definition.reassess" :error="reassessmentError" @retry="reassess" />
       <FormFields :fields="fields" :values="draft" :busy="locked" @change="setValue" />
@@ -20,9 +20,9 @@
             </button>
           </div>
           <div class="fixed-chrome-dialog-actions-left">
-            <button type="submit" class="btn" :class="{ 'btn--reassessing': reassessing }" :disabled="!canSubmit" :aria-label="definition.submitLabel" :title="definition.submitLabel">
+            <button type="submit" class="btn" :class="{ 'btn--reassessing': reassessing }" :disabled="!canSubmit" :aria-label="submitLabel" :title="submitLabel">
               <FormSubmitIcon :loading="reassessing" />
-              <span>{{ definition.submitText ?? definition.submitLabel }}</span>
+              <span>{{ definition.submitText ?? submitLabel }}</span>
             </button>
             <button type="button" class="btn btn--secondary" :disabled="busy" :aria-label="definition.cancelLabel ?? 'Cancel'" title="Cancel" @click="cancel">
               <X :size="16" aria-hidden="true" />
@@ -37,7 +37,7 @@
 
 <script setup lang="ts" generic="T extends object, R">
 import { X } from '@lucide/vue';
-import { onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import FixedChromeDialog from '../components/FixedChromeDialog.vue';
 import FormFeedback from '../components/FormFeedback.vue';
 import { useValidationStore } from '../stores/validationStore';
@@ -51,6 +51,8 @@ import { useForm } from './useForm';
 const props = defineProps<{ definition: FormDefinition<T, R> }>();
 const emit = defineEmits<{ close: []; saved: [value: R] }>();
 const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, canSubmit, setValue, submit: submitForm, runAction: runFormAction } = useForm(props.definition);
+const submitLabel = computed(() => typeof props.definition.submitLabel === 'function'
+  ? props.definition.submitLabel(draft.value) : props.definition.submitLabel);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
 validation.clearValidation();
@@ -74,3 +76,7 @@ function cancel() {
   if (!busy.value) emit('close');
 }
 </script>
+
+<style scoped>
+.form-dialog-fields { align-content: start; }
+</style>

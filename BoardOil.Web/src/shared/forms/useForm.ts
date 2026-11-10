@@ -1,11 +1,12 @@
-import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, toRaw } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, shallowRef } from 'vue';
+import { cloneFormDraft, equalFormDrafts } from './formDraft';
 import { useValidationStore } from '../stores/validationStore';
 import { err, type Result } from '../types/result';
 import type { FormAction, FormDefinition, FormError } from './formDefinition';
 
 export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
   const validation = useValidationStore();
-  const clone = (value: T): T => structuredClone(toRaw(value));
+  const clone = (value: T): T => cloneFormDraft(value);
   const initial = shallowRef(clone(definition.initialValues()));
   const draft = shallowRef<T>(clone(initial.value));
   const busy = ref(false);
@@ -15,7 +16,7 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
   const locked = computed(() => busy.value || reassessing.value);
   let disposed = false;
   if (getCurrentScope()) onScopeDispose(() => { disposed = true; });
-  const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(initial.value));
+  const dirty = computed(() => !equalFormDrafts(draft.value, initial.value));
   const canSubmit = computed(() => !locked.value && !reassessmentError.value && (definition.canSubmit?.(draft.value) ?? true));
   const isCurrent = () => definition.isCurrent?.() ?? true;
 
@@ -24,11 +25,15 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
     if (Object.is(draft.value[field], value)) return;
     draft.value = { ...draft.value, [field]: value };
     const config = fields.value.find(candidate => candidate.name === field);
-    const corrected = [field, ...(config?.clearFields ?? [])];
-    for (const name of corrected) {
-      const correctedField = fields.value.find(candidate => candidate.name === name);
-      for (const errorField of [name, ...(correctedField?.errorFields ?? [])]) {
-        validation.clearFieldErrors(errorField, definition.category);
+    if (config?.clearFields === 'all') {
+      validation.clearValidation();
+    } else {
+      const corrected = [field, ...(config?.clearFields ?? [])];
+      for (const name of corrected) {
+        const correctedField = fields.value.find(candidate => candidate.name === name);
+        for (const errorField of [name, ...(correctedField?.errorFields ?? [])]) {
+          validation.clearFieldErrors(errorField, definition.category);
+        }
       }
     }
     if (config?.reassessOnChange) void reassess();

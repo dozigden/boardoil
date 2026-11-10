@@ -4,7 +4,7 @@
       <h2>{{ definition.title }}</h2>
       <button type="submit" class="btn" :class="{ 'btn--reassessing': reassessing }" :disabled="!canSubmit || !dirty">
         <FormSubmitIcon v-if="definition.reassess" :loading="reassessing" />
-        <span>{{ busy ? 'Saving...' : definition.submitLabel }}</span>
+        <span>{{ busy ? 'Saving...' : submitLabel }}</span>
       </button>
     </header>
     <slot name="before-fields" />
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts" generic="T extends object, R">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import FormFeedback from '../components/FormFeedback.vue';
 import { useConfirm } from '../composables/useConfirm';
@@ -37,6 +37,8 @@ const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, d
   ...props.definition,
   isCurrent: () => active && (props.definition.isCurrent?.() ?? true)
 });
+const submitLabel = computed(() => typeof props.definition.submitLabel === 'function'
+  ? props.definition.submitLabel(draft.value) : props.definition.submitLabel);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
 const { confirm } = useConfirm();

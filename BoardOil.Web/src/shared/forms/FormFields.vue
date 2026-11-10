@@ -19,6 +19,23 @@
       :disabled="isDisabled(field)"
       @update:model-value="(value: unknown) => updateValue(field.name, value)"
     />
+    <FileFormControl
+      v-else-if="field.type === 'file'"
+      v-bind="inputAttrs"
+      :model-value="values[field.name] as File | null"
+      :disabled="isDisabled(field)"
+      :accept="field.accept"
+      @update:model-value="value => updateValue(field.name, value)"
+    />
+    <textarea
+      v-else-if="field.type === 'textarea'"
+      v-bind="inputAttrs"
+      :value="String(values[field.name])"
+      :rows="field.rows ?? 4"
+      :disabled="isDisabled(field)"
+      @input="event => updateInput(field.name, event)"
+      @compositionend="event => updateInput(field.name, event)"
+    />
     <input
       v-else-if="field.type === 'checkbox'"
       v-bind="inputAttrs"
@@ -84,6 +101,7 @@ import EmojiFormControl from '../components/EmojiFormControl.vue';
 import StyleFormControl from '../components/StyleFormControl.vue';
 import TokenScopesFormControl from '../components/TokenScopesFormControl.vue';
 import TokenExpiryFormControl from '../components/TokenExpiryFormControl.vue';
+import FileFormControl from '../components/FileFormControl.vue';
 import RadioFormControl from '../components/RadioFormControl.vue';
 import type { FormFieldDefinition, FormOption } from './formDefinition';
 
@@ -121,7 +139,7 @@ function updateValue(field: Extract<keyof T, string>, value: unknown) {
 function updateInput(field: Extract<keyof T, string>, event: Event) {
   if (event instanceof InputEvent && event.isComposing) return;
   const input = event.target;
-  if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) updateValue(field, input.value);
+  if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) updateValue(field, input.value);
 }
 
 function selectionValue(field: FormFieldDefinition<T>) {

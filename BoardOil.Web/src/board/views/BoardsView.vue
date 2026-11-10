@@ -56,11 +56,9 @@
     </ul>
 
     <BoardCreateDialog
-      :open="isCreateDialogOpen"
-      :busy="busy"
-      :boards="boards"
+      v-if="isCreateDialogOpen"
       @close="closeCreateDialog"
-      @submit="submitCreateBoard"
+      @saved="boardCreated"
     />
   </section>
 </template>
@@ -72,7 +70,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoardCreateDialog from '../components/BoardCreateDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
-import type { BoardCreateDialogSubmitPayload } from '../components/boardCreateDialogModel';
+import type { BoardSummary } from '../../shared/types/boardTypes';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';
 
@@ -103,20 +101,7 @@ function closeCreateDialog() {
   isCreateDialogOpen.value = false;
 }
 
-async function submitCreateBoard(payload: BoardCreateDialogSubmitPayload) {
-  let created: Awaited<ReturnType<typeof boardCatalogueStore.createBoard>>;
-  if (payload.mode === 'blank') {
-    created = await boardCatalogueStore.createBoard(payload.name, payload.description);
-  } else if (payload.mode === 'clone') {
-    created = await boardCatalogueStore.cloneBoard(payload.sourceBoardId, payload.name);
-  } else {
-    created = await boardCatalogueStore.importBoardPackage(payload.file, payload.name);
-  }
-
-  if (!created) {
-    return;
-  }
-
+async function boardCreated(created: BoardSummary) {
   isCreateDialogOpen.value = false;
   await router.push({ name: 'board', params: { boardId: created.id } });
 }

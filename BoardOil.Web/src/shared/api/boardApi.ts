@@ -84,9 +84,9 @@ function createHttpBoardApi() {
     return postData<Board>(`/api/boards/${sourceBoardId}/clone`, { name });
   }
 
-  async function importBoardPackage(file: File, name?: string): Promise<Result<Board, AppError>> {
+  async function importBoardPackage(file: File | null, name?: string): Promise<Result<Board, AppError>> {
     const formData = new FormData();
-    formData.append('file', file);
+    if (file) formData.append('file', file);
     if (typeof name === 'string' && name.trim().length > 0) {
       formData.append('name', name.trim());
     }

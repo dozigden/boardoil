@@ -37,36 +37,21 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
   }
 
   async function createBoard(name: string, description?: string) {
-    const result = await runApiOperation(() => api.createBoard(name, description));
-    if (!result.ok) {
-      return null;
-    }
-
-    const created = toBoardSummary(result.data);
-    UPSERT_BOARD(created);
-    return created;
+    const result = await runApiOperation(() => api.createBoard(name, description), { suppressError: true });
+    if (result.ok) UPSERT_BOARD(toBoardSummary(result.data));
+    return result;
   }
 
   async function cloneBoard(sourceBoardId: number, name: string) {
-    const result = await runApiOperation(() => api.cloneBoard(sourceBoardId, name));
-    if (!result.ok) {
-      return null;
-    }
-
-    const created = toBoardSummary(result.data);
-    UPSERT_BOARD(created);
-    return created;
+    const result = await runApiOperation(() => api.cloneBoard(sourceBoardId, name), { suppressError: true });
+    if (result.ok) UPSERT_BOARD(toBoardSummary(result.data));
+    return result;
   }
 
-  async function importBoardPackage(file: File, name?: string) {
-    const result = await runApiOperation(() => api.importBoardPackage(file, name));
-    if (!result.ok) {
-      return null;
-    }
-
-    const created = toBoardSummary(result.data);
-    UPSERT_BOARD(created);
-    return created;
+  async function importBoardPackage(file: File | null, name?: string) {
+    const result = await runApiOperation(() => api.importBoardPackage(file, name), { suppressError: true });
+    if (result.ok) UPSERT_BOARD(toBoardSummary(result.data));
+    return result;
   }
 
   async function saveBoard(boardId: number, model: BoardEditModel) {
@@ -94,12 +79,12 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     busy.value = false;
   }
 
-  async function runApiOperation<T>(operation: () => Promise<Result<T, AppError>>) {
+  async function runApiOperation<T>(operation: () => Promise<Result<T, AppError>>, options?: { suppressError?: boolean }) {
     busy.value = true;
     try {
       const result = await operation();
       if (!result.ok) {
-        reportError(result.error);
+        if (!options?.suppressError) reportError(result.error);
       } else {
         feedback.clearError('boardCatalogue');
       }

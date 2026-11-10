@@ -111,7 +111,7 @@ describe('boardCatalogueStore', () => {
     const imported = await store.importBoardPackage(file, 'Imported Name');
 
     expect(api.importBoardPackage).toHaveBeenCalledWith(file, 'Imported Name');
-    expect(imported?.id).toBe(12);
+    expect(imported).toEqual(ok(makeBoard(12, 'Imported Board')));
     expect(store.boards.map(x => x.name)).toEqual(['Imported Board']);
   });
 
@@ -121,21 +121,26 @@ describe('boardCatalogueStore', () => {
     const cloned = await store.cloneBoard(4, 'Cloned Board');
 
     expect(api.cloneBoard).toHaveBeenCalledWith(4, 'Cloned Board');
-    expect(cloned?.id).toBe(11);
+    expect(cloned).toEqual(ok(makeBoard(11, 'Cloned Board')));
     expect(store.boards.map(x => x.name)).toEqual(['Cloned Board']);
   });
 
-  it('reports API error when board package import fails', async () => {
+  it.each(['create', 'clone', 'import'] as const)('returns %s rejection intact without a duplicate page error', async operation => {
     const store = useBoardCatalogueStore();
     const feedback = useUiFeedbackStore();
-    const file = new File(['zip-data'], 'board.boardoil.zip', { type: 'application/zip' });
-    api.importBoardPackage.mockResolvedValueOnce(err({ kind: 'api', message: 'Package import failed.' }));
-
-    const imported = await store.importBoardPackage(file);
-
-    expect(imported).toBeNull();
-    expect(feedback.errorMessage).toBe('Package import failed.');
+    const publish = vi.spyOn(feedback, 'setError');
+    const rejection = err({ kind: 'api' as const, message: 'Creation failed.', validationErrors: { name: ['Name rejected'] } });
+    const file = new File(['zip-data'], 'board.zip');
+    let result;
+    switch (operation) {
+      case 'create': api.createBoard.mockResolvedValueOnce(rejection); result = await store.createBoard('Name'); break;
+      case 'clone': api.cloneBoard.mockResolvedValueOnce(rejection); result = await store.cloneBoard(4, 'Name'); break;
+      case 'import': api.importBoardPackage.mockResolvedValueOnce(rejection); result = await store.importBoardPackage(file); break;
+    }
+    expect(result).toBe(rejection);
+    expect(publish).not.toHaveBeenCalled();
     expect(store.boards).toHaveLength(0);
+    expect(store.busy).toBe(false);
   });
 });
 

@@ -22,9 +22,10 @@ export type FormFieldDefinition<T> = {
     reassessOnChange?: boolean;
     // A compound control can represent several API validation keys.
     errorFields?: readonly string[];
-    clearFields?: readonly Extract<keyof T, string>[];
+    clearFields?: readonly Extract<keyof T, string>[] | 'all';
   } & (
     | { type: 'custom'; component: Component }
+    | FieldForValue<T[K], File | null, { type: 'file'; accept?: string }>
     | FieldForValue<T[K], boolean, { type: 'checkbox' }>
     | FieldForValue<T[K], string, { type: 'searchableSelect'; options: readonly { value: string; label: string }[] }>
     | FieldForValue<T[K], string | null, { type: 'emoji' }>
@@ -37,6 +38,7 @@ export type FormFieldDefinition<T> = {
       type: 'radio'; options: Options<T, T[K]>;
     } : never)
     | (T[K] extends string ? (
+      | { type: 'textarea'; rows?: number }
       | { type: 'text' | 'email' | 'password'; maxLength?: number; autocomplete?: string; placeholder?: string; required?: boolean; clearable?: boolean; spellcheck?: boolean }
     ) : never)
   )
@@ -60,7 +62,7 @@ export type FormAction<T> = {
 // Drafts are plain, structured-cloneable data. Controls replace values through updates.
 export type FormDefinition<T extends object, R> = {
   title: string;
-  submitLabel: string;
+  submitLabel: string | ((values: T) => string);
   submitText?: string;
   cancelLabel?: string;
   closeLabel?: string;

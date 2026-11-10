@@ -111,6 +111,15 @@ describe('boardApi importBoardPackage', () => {
   });
 });
 
+it('allows the backend to return a missing package file error', async () => {
+  vi.clearAllMocks();
+  const rejection = err({ kind: 'api' as const, message: 'Missing file', validationErrors: { file: ['Select a package'] } });
+  vi.mocked(postFormData).mockResolvedValueOnce(rejection);
+  expect(await createBoardApi().importBoardPackage(null)).toBe(rejection);
+  const body = vi.mocked(postFormData).mock.calls[0]?.[1];
+  expect(body?.has('file')).toBe(false);
+});
+
 describe('boardApi createBoard', () => {
   beforeEach(() => {
     vi.clearAllMocks();

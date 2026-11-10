@@ -80,6 +80,12 @@ export class BoardOilApi {
     });
   }
 
+  public async exportBoardPackage(boardId: number) {
+    const response = await this.request.get(`/api/boards/${boardId}/export`);
+    if (!response.ok()) throw new Error(`Board export failed: ${await response.text()}`);
+    return { name: 'board.boardoil.zip', mimeType: 'application/zip', buffer: await response.body() };
+  }
+
   public async getConfiguration() {
     return await this.read<ConfigurationDto>('/api/system/configuration');
   }
