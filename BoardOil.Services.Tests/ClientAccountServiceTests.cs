@@ -207,7 +207,38 @@ public sealed class ClientAccountServiceTests : TestBaseDb
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.Equal("Unsupported scope provided.", result.Message);
+        Assert.Equal("Validation failed.", result.Message);
+        Assert.Equal(["Unsupported scope provided."], result.ValidationErrors!["scopes"]);
+    }
+
+    [Fact]
+    public async Task CreateClientAccessTokenAsync_WhenFieldsInvalid_ShouldReturnAllFieldErrorsWithoutPersisting()
+    {
+        await RemoveAllUsersAsync();
+        var client = await AddUserAsync("client-bot", "client-bot@localhost", UserIdentityType.Client);
+        var service = ResolveService<IClientAccountService>();
+
+        var result = await service.CreateClientAccessTokenAsync(client.Id, new CreateClientAccessTokenRequest(" ", 0, []));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["expiresInDays", "name", "scopes"], result.ValidationErrors!.Keys.Order().ToArray());
+        Assert.Empty(await DbContextForAssert.PersonalAccessTokens.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateClientAccountAsync_WhenInitialTokenInvalid_ShouldUseTokenNameFieldWithoutCreatingAccount()
+    {
+        await RemoveAllUsersAsync();
+        var service = ResolveService<IClientAccountService>();
+
+        var result = await service.CreateClientAccountAsync(new CreateClientAccountRequest(
+            "client-bot", "Client Bot", "client-bot@localhost", "Standard", new string('x', 121), 0, []));
+
+        Assert.False(result.Success);
+        Assert.Equal(["expiresInDays", "scopes", "tokenName"], result.ValidationErrors!.Keys.Order().ToArray());
+        Assert.Empty(await DbContextForAssert.Users.ToListAsync());
+        Assert.Empty(await DbContextForAssert.PersonalAccessTokens.ToListAsync());
     }
 
     [Fact]

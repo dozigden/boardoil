@@ -97,11 +97,11 @@
 
     <AccessTokenCreateDialog
       :open="isCreateDialogOpen"
-      :busy="isBusy"
+      :submit="createToken"
       :default-scopes="userDefaultScopes"
       :allowed-scopes="userAllowedScopes"
       @close="closeCreateDialog"
-      @submit="createToken"
+      @saved="tokenCreated"
     />
     <AccessTokenSecretModal
       :open="isSecretModalOpen"
@@ -122,7 +122,7 @@ import AccessTokenListItem from '../../shared/components/AccessTokenListItem.vue
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { AccessToken, CreateAccessTokenRequest } from '../../shared/types/authTypes';
+import type { AccessToken, CreateAccessTokenRequest, CreatedAccessToken } from '../../shared/types/authTypes';
 import {
   buildClaudeCodeAccessTokenCommand,
   buildCodexAccessTokenConfig
@@ -218,19 +218,20 @@ async function createToken(payload: CreateAccessTokenRequest) {
   errorMessage.value = null;
   try {
     const result = await authApi.createAccessToken(payload);
-    if (!result.ok) {
-      feedback.showToast(result.error.message, 'error');
-      return;
+    if (result.ok) {
+      tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
     }
-
-    tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
-    plainTextPat.value = result.data.plainTextToken;
-    plainTextPatName.value = result.data.token.name;
-    isCreateDialogOpen.value = false;
-    feedback.showToast('Created successfully.');
+    return result;
   } finally {
     createBusy.value = false;
   }
+}
+
+function tokenCreated(created: CreatedAccessToken) {
+  plainTextPat.value = created.plainTextToken;
+  plainTextPatName.value = created.token.name;
+  isCreateDialogOpen.value = false;
+  feedback.showToast('Created successfully.');
 }
 
 async function revokeToken(token: AccessToken) {

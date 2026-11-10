@@ -6,11 +6,13 @@
     :field="field.name"
     :label="field.label"
     :error-fields="field.errorFields"
-    :group="field.type === 'custom' || field.type === 'emoji' || field.type === 'style'"
+    :group="isControl(field)"
+    :boxed="field.type === 'tokenScopes' || field.type === 'tokenExpiry'"
   >
     <component
-      v-if="field.type === 'custom' || field.type === 'emoji' || field.type === 'style'"
+      v-if="isControl(field)"
       :is="controlFor(field)"
+      v-bind="controlProps(field)"
       :model-value="values[field.name]"
       :disabled="busy"
       @update:model-value="(value: unknown) => updateValue(field.name, value)"
@@ -26,7 +28,7 @@
       <option v-for="option in field.options" :key="String(option.value)" :value="option.value">{{ option.label }}</option>
     </select>
     <input
-      v-else
+      v-else-if="field.type === 'text' || field.type === 'email' || field.type === 'password'"
       v-bind="inputAttrs"
       :value="values[field.name]"
       :type="field.type"
@@ -45,15 +47,28 @@
 import FormField from '../components/FormField.vue';
 import EmojiFormControl from '../components/EmojiFormControl.vue';
 import StyleFormControl from '../components/StyleFormControl.vue';
+import TokenScopesFormControl from '../components/TokenScopesFormControl.vue';
+import TokenExpiryFormControl from '../components/TokenExpiryFormControl.vue';
 import type { FormDefinition, FormFieldDefinition } from './formDefinition';
 
 defineProps<{ definition: FormDefinition<T, R>; values: T; busy: boolean }>();
 const emit = defineEmits<{ change: [field: Extract<keyof T, string>, value: T[Extract<keyof T, string>]] }>();
 
+function isControl(field: FormFieldDefinition<T>) {
+  return ['custom', 'emoji', 'style', 'tokenScopes', 'tokenExpiry'].includes(field.type);
+}
+
+function controlProps(field: FormFieldDefinition<T>) {
+  if (field.type === 'tokenScopes') return { allowedScopes: field.allowedScopes };
+  return {};
+}
+
 function controlFor(field: FormFieldDefinition<T>) {
   switch (field.type) {
     case 'emoji': return EmojiFormControl;
     case 'style': return StyleFormControl;
+    case 'tokenScopes': return TokenScopesFormControl;
+    case 'tokenExpiry': return TokenExpiryFormControl;
     case 'custom': return field.component;
   }
 }

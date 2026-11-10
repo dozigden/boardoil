@@ -92,7 +92,7 @@ public sealed class ClientAccountService(
             request.ExpiresInDays,
             request.Scopes);
 
-        var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes);
+        var patResult = BuildPatEntity(user, tokenRequest, now, MachinePatRules.DefaultClientScopes, "tokenName");
         if (!patResult.Success || patResult.Data is null)
         {
             return ApiResults.BadRequest<CreatedClientAccountDto>(patResult.Message ?? "Token creation failed.", patResult.ValidationErrors);
@@ -256,48 +256,21 @@ public sealed class ClientAccountService(
         EntityUser user,
         CreateMachinePatRequest request,
         DateTime now,
-        IReadOnlyList<string> defaultScopes)
+        IReadOnlyList<string> defaultScopes,
+        string nameField = "name")
     {
-        var name = request.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        var validation = MachinePatRules.ValidateCreation(
+            request, defaultScopes, MachinePatRules.SupportedClientScopes, nameField);
+        if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Token name is required.");
+            return ApiErrors.ValidationFailed(validation);
         }
 
-        if (name.Length > 120)
-        {
-            return ApiErrors.BadRequest("Token name must be 120 characters or fewer.");
-        }
-
-        if (request.ExpiresInDays is <= 0 or > 3650)
-        {
-            return ApiErrors.BadRequest("expiresInDays must be between 1 and 3650 when specified.");
-        }
-
-        var requestedScopes = (request.Scopes ?? defaultScopes)
-            .Select(x => x.Trim().ToLowerInvariant())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToArray();
-
-        if (requestedScopes.Length == 0)
-        {
-            return ApiErrors.BadRequest("At least one scope is required.");
-        }
-
-        if (requestedScopes.Except(MachinePatRules.SupportedClientScopes, StringComparer.OrdinalIgnoreCase).Any())
-        {
-            return ApiErrors.BadRequest("Unsupported scope provided.");
-        }
-
+        var name = request.Name.Trim();
         var scopes = MachinePatRules.NormaliseScopes(
             request.Scopes,
             defaultScopes,
             MachinePatRules.SupportedClientScopes);
-        if (scopes.Count == 0)
-        {
-            return ApiErrors.BadRequest("At least one scope is required.");
-        }
-
         var plainTextToken = CreatePersonalAccessToken();
         var entity = new EntityPersonalAccessToken
         {

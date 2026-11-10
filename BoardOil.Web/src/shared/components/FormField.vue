@@ -1,5 +1,5 @@
 <template>
-  <fieldset v-if="group" class="form-field" v-bind="inputAttrs" tabindex="-1">
+  <fieldset v-if="group" class="form-field" :class="{ 'form-field--boxed': boxed }" v-bind="inputAttrs" tabindex="-1">
     <legend>{{ label }}</legend>
     <slot :input-attrs="inputAttrs" />
     <FormFieldErrors :id="errorId" :field="field" :fields="errorFields" :category="category" />
@@ -19,7 +19,7 @@ import { useValidationStore } from '../stores/validationStore';
 import FormFieldErrors from './FormFieldErrors.vue';
 import { formValidationContext } from './formValidationContext';
 
-const props = defineProps<{ field: string; label: string; errorFields?: readonly string[]; group?: boolean }>();
+const props = defineProps<{ field: string; label: string; errorFields?: readonly string[]; group?: boolean; boxed?: boolean }>();
 const form = inject(formValidationContext);
 if (!form) throw new Error('FormField must be inside FormFeedback.');
 const { category, registerField } = form;
@@ -47,6 +47,17 @@ onBeforeUnmount(() => unregister.forEach(remove => remove()));
 .form-field > label,
 .form-field > legend {
   padding: 0;
+}
+.form-field--boxed {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 10px;
+  background: var(--bo-surface-base);
+}
+.form-field--boxed > legend {
+  font-weight: 700;
+  color: var(--bo-link);
+  padding: 0 0.25rem;
 }
 .form-field > legend {
   margin-bottom: 0.2rem;

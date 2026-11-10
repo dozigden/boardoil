@@ -1,4 +1,5 @@
 using BoardOil.Contracts.Auth;
+using BoardOil.Contracts.Common;
 using BoardOil.Data.Abstractions.Entities;
 
 namespace BoardOil.Services.Auth;
@@ -38,6 +39,44 @@ internal static class MachinePatRules
         MachinePatScopes.ApiAdmin,
         MachinePatScopes.ApiSystem
     ];
+
+    internal static IReadOnlyList<ValidationError> ValidateCreation(
+        CreateMachinePatRequest request,
+        IEnumerable<string> defaultScopes,
+        IEnumerable<string> supportedScopes,
+        string nameField = "name")
+    {
+        var errors = new List<ValidationError>();
+        var name = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errors.Add(new ValidationError(nameField, "Token name is required."));
+        }
+        else if (name.Length > 120)
+        {
+            errors.Add(new ValidationError(nameField, "Token name must be 120 characters or fewer."));
+        }
+
+        if (request.ExpiresInDays is <= 0 or > 3650)
+        {
+            errors.Add(new ValidationError("expiresInDays", "Expiry must be between 1 and 3650 days."));
+        }
+
+        var requestedScopes = (request.Scopes ?? defaultScopes)
+            .Select(x => x.Trim().ToLowerInvariant())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
+        if (requestedScopes.Length == 0)
+        {
+            errors.Add(new ValidationError("scopes", "At least one scope is required."));
+        }
+        else if (requestedScopes.Except(supportedScopes, StringComparer.OrdinalIgnoreCase).Any())
+        {
+            errors.Add(new ValidationError("scopes", "Unsupported scope provided."));
+        }
+
+        return errors;
+    }
 
     internal static IReadOnlyList<string> ParseScopes(string scopesCsv)
     {

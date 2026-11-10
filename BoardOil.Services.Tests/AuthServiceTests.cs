@@ -497,7 +497,44 @@ public sealed class AuthServiceTests : TestBaseDb
         // Assert
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.Equal("Unsupported scope provided.", result.Message);
+        Assert.Equal("Validation failed.", result.Message);
+        Assert.Equal(["Unsupported scope provided."], result.ValidationErrors!["scopes"]);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(121, 3651)]
+    public async Task CreateMachinePatAsync_WhenFieldsInvalid_ShouldReturnAllFieldErrorsWithoutPersisting(int nameLength, int days)
+    {
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        var result = await service.CreateMachinePatAsync(user.Id,
+            new CreateMachinePatRequest(new string('x', nameLength), days, []));
+
+        Assert.False(result.Success);
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal(["expiresInDays", "name", "scopes"], result.ValidationErrors!.Keys.Order().ToArray());
+        Assert.Equal(nameLength == 0 ? "Token name is required." : "Token name must be 120 characters or fewer.",
+            Assert.Single(result.ValidationErrors["name"]));
+        Assert.Empty(await DbContextForAssert.PersonalAccessTokens.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(1)]
+    [InlineData(3650)]
+    public async Task CreateMachinePatAsync_WhenExpiryValid_ShouldPreserveExpiryAndDefaultScopes(int? days)
+    {
+        var user = await SeedActiveUserAsync("admin", "Password1234!");
+        var service = ResolveService<IAuthService>();
+
+        var result = await service.CreateMachinePatAsync(user.Id, new CreateMachinePatRequest(" agent-token ", days));
+
+        Assert.True(result.Success);
+        Assert.Equal("agent-token", result.Data!.Token.Name);
+        Assert.Equal(days is null, result.Data.Token.ExpiresAtUtc is null);
+        Assert.Equal([MachinePatScopes.McpRead, MachinePatScopes.McpWrite], result.Data.Token.Scopes);
     }
 
     [Theory]

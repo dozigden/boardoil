@@ -185,41 +185,18 @@ public sealed class AuthService(
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var name = request.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        var validation = MachinePatRules.ValidateCreation(
+            request, MachinePatRules.DefaultUserScopes, MachinePatRules.SupportedUserScopes);
+        if (validation.Count > 0)
         {
-            return ApiErrors.BadRequest("Token name is required.");
+            return ApiErrors.ValidationFailed(validation);
         }
 
-        if (name.Length > 120)
-        {
-            return ApiErrors.BadRequest("Token name must be 120 characters or fewer.");
-        }
-
-        if (request.ExpiresInDays is <= 0 or > 3650)
-        {
-            return ApiErrors.BadRequest("expiresInDays must be between 1 and 3650 when specified.");
-        }
-
-        var requestedScopes = request.Scopes?
-            .Select(x => x.Trim().ToLowerInvariant())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToArray();
-        if (requestedScopes is { Length: > 0 }
-            && requestedScopes.Except(MachinePatRules.SupportedUserScopes, StringComparer.OrdinalIgnoreCase).Any())
-        {
-            return ApiErrors.BadRequest("Unsupported scope provided.");
-        }
-
+        var name = request.Name.Trim();
         var scopes = MachinePatRules.NormaliseScopes(
             request.Scopes,
             MachinePatRules.DefaultUserScopes,
             MachinePatRules.SupportedUserScopes);
-        if (scopes.Count == 0)
-        {
-            return ApiErrors.BadRequest("At least one scope is required.");
-        }
-
         var plainTextToken = CreatePersonalAccessToken();
         var entity = new EntityPersonalAccessToken
         {

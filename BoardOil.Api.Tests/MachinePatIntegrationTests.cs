@@ -17,6 +17,30 @@ public sealed class MachinePatIntegrationTests : ApiFactoryIntegrationTestBase, 
         UseSharedFactory(fixture);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateToken_WhenFieldsInvalid_ShouldReturnFieldValidationEnvelope(bool clientToken)
+    {
+        var adminClient = CreateClient();
+        await RegisterInitialAdminAsync(adminClient);
+        var endpoint = "/api/auth/access-tokens";
+        if (clientToken)
+        {
+            var created = await CreateClientAccountAsync(adminClient, "validation-client", "Standard", ["api:read"]);
+            endpoint = $"/api/system/client-accounts/{created.Account.Id}/tokens";
+        }
+
+        var response = await adminClient.PostAsJsonAsync(endpoint, new CreateMachinePatRequest(" ", 0, []));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.False(payload.RootElement.GetProperty("success").GetBoolean());
+        var errors = payload.RootElement.GetProperty("validationErrors");
+        Assert.Equal(["expiresInDays", "name", "scopes"], errors.EnumerateObject().Select(x => x.Name).Order().ToArray());
+        Assert.Equal("Token name is required.", errors.GetProperty("name")[0].GetString());
+    }
+
     [Fact]
     public async Task CreatePat_ThenCallMcpWithPatBearer_ShouldSucceed()
     {

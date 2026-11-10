@@ -1,229 +1,30 @@
 <template>
-  <FixedChromeDialog :open="open" title="Create Access Token" close-label="Cancel access token creation" @close="emit('close')" @submit="submit">
-    <p class="machine-pat-dialog-hint">Create an access token for MCP and REST API clients without sharing your account password.</p>
-
-    <label>
-      Token name
-      <input v-model="name" :disabled="busy" maxlength="120" required />
-    </label>
-
-    <fieldset class="machine-pat-dialog-group">
-      <legend>Scopes</legend>
-      <p class="machine-pat-dialog-scope-hint">{{ scopeHint }}</p>
-      <label v-for="scope in visibleScopes" :key="scope.id" class="machine-pat-dialog-check">
-        <input v-model="selectedScopes" :disabled="busy" type="checkbox" :value="scope.id" />
-        <span><code>{{ scope.id }}</code>{{ scope.description }}</span>
-      </label>
-    </fieldset>
-
-    <fieldset class="machine-pat-dialog-group">
-      <legend>Expiry</legend>
-      <label class="machine-pat-dialog-check">
-        <input v-model="isNonExpiring" :disabled="busy" type="checkbox" />
-        <span>Non-expiring token (not recommended)</span>
-      </label>
-
-      <label v-if="!isNonExpiring">
-        Expires in days
-        <input v-model.number="expiresInDays" :disabled="busy" type="number" min="1" max="3650" />
-      </label>
-
-      <div v-else class="machine-pat-warning">
-        <p>This token will remain valid until revoked manually.</p>
-        <label class="machine-pat-dialog-check">
-          <input v-model="nonExpiringConfirmed" :disabled="busy" type="checkbox" />
-          <span>I understand the risk and still want a non-expiring token.</span>
-        </label>
-      </div>
-    </fieldset>
-
-    <p v-if="draftError" class="error">{{ draftError }}</p>
-
-    <template #actions>
-      <div class="fixed-chrome-dialog-actions machine-pat-dialog-actions">
-        <div class="fixed-chrome-dialog-actions-left">
-          <button type="submit" class="btn" :disabled="busy" aria-label="Create token" title="Create token">
-            <Check :size="16" aria-hidden="true" />
-            <span>Create token</span>
-          </button>
-          <button type="button" class="btn btn--secondary" :disabled="busy" aria-label="Cancel creation" title="Cancel" @click="emit('close')">
-            <X :size="16" aria-hidden="true" />
-            <span>Cancel</span>
-          </button>
-        </div>
-      </div>
+  <FormDialog v-if="open" :definition="form" @close="emit('close')" @saved="saved">
+    <template #before-fields>
+      <p class="access-token-hint">Create an access token for MCP and REST API clients without sharing your account password.</p>
     </template>
-  </FixedChromeDialog>
+  </FormDialog>
 </template>
 
 <script setup lang="ts">
-import { Check, X } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
-import type { CreateAccessTokenRequest } from '../types/authTypes';
-import FixedChromeDialog from './FixedChromeDialog.vue';
+import { computed } from 'vue';
+import FormDialog from '../forms/FormDialog.vue';
+import { accessTokenForm, type AccessTokenFormOptions } from '../forms/accessTokenForm';
+import type { CreatedAccessToken } from '../types/authTypes';
 
-const props = defineProps<{
-  open: boolean;
-  busy: boolean;
-  defaultScopes: string[];
-  allowedScopes: string[];
-}>();
+const props = defineProps<AccessTokenFormOptions & { open: boolean }>();
+const emit = defineEmits<{ close: []; saved: [value: CreatedAccessToken] }>();
+const form = computed(() => accessTokenForm(props));
 
-const emit = defineEmits<{
-  close: [];
-  submit: [payload: CreateAccessTokenRequest];
-}>();
-
-const scopeDefinitions = [
-  { id: 'mcp:read', description: ' (board and column reads)' },
-  { id: 'mcp:write', description: ' (includes MCP board reads and mutations; excludes diagnostics)' },
-  { id: 'mcp:diagnostics:read', description: ' (read system-wide diagnostics; requires an administrator)' },
-  { id: 'api:read', description: ' (REST `GET` and `HEAD` on `/api/*`)' },
-  { id: 'api:write', description: ' (REST `POST`/`PUT`/`PATCH`/`DELETE` on `/api/*`)' },
-  { id: 'api:admin', description: ' (`/api/admin/*`)' },
-  { id: 'api:system', description: ' (`/api/system/*`)' }
-] as const;
-
-const name = ref('');
-const selectedScopes = ref<string[]>([]);
-const isNonExpiring = ref(false);
-const nonExpiringConfirmed = ref(false);
-const expiresInDays = ref(30);
-const draftError = ref<string | null>(null);
-const allowedScopeSet = computed(() => new Set(props.allowedScopes.map(scope => scope.toLowerCase())));
-const visibleScopes = computed(() => scopeDefinitions.filter(scope => allowedScopeSet.value.has(scope.id)));
-const scopeHint = computed(() => {
-  const hasApiScopes = visibleScopes.value.some(scope => scope.id.startsWith('api:'));
-  return hasApiScopes ? 'MCP scopes control `/mcp`. API scopes control `/api` endpoints.' : 'MCP scopes control `/mcp`.';
-});
-
-function resetDraft() {
-  name.value = '';
-  const scopeSet = new Set(props.defaultScopes.map(scope => scope.toLowerCase()));
-  selectedScopes.value = [...scopeSet].filter(scope => allowedScopeSet.value.has(scope));
-  isNonExpiring.value = false;
-  nonExpiringConfirmed.value = false;
-  expiresInDays.value = 30;
-  draftError.value = null;
+function saved(value: CreatedAccessToken) {
+  emit('saved', value);
 }
-
-function submit() {
-  draftError.value = null;
-
-  const trimmedName = name.value.trim();
-  if (!trimmedName) {
-    draftError.value = 'Token name is required.';
-    return;
-  }
-
-  const scopes = selectedScopes.value.filter(scope => allowedScopeSet.value.has(scope));
-
-  if (scopes.length === 0) {
-    draftError.value = 'Select at least one scope.';
-    return;
-  }
-
-  if (isNonExpiring.value && !nonExpiringConfirmed.value) {
-    draftError.value = 'Confirm non-expiring token risk before creating.';
-    return;
-  }
-
-  if (!isNonExpiring.value) {
-    const parsedDays = Math.trunc(Number(expiresInDays.value));
-    if (!Number.isFinite(parsedDays) || parsedDays < 1) {
-      draftError.value = 'Expiry must be at least 1 day.';
-      return;
-    }
-  }
-
-  const payload: CreateAccessTokenRequest = {
-    name: trimmedName,
-    expiresInDays: isNonExpiring.value ? null : Math.trunc(Number(expiresInDays.value)),
-    scopes
-  };
-  emit('submit', payload);
-}
-
-watch(
-  () => props.open,
-  isOpen => {
-    if (isOpen) {
-      resetDraft();
-    }
-  }
-);
 </script>
 
 <style scoped>
-.machine-pat-dialog-hint {
+.access-token-hint {
   margin: 0;
   color: var(--bo-ink-muted);
   line-height: 1.4;
-}
-
-.machine-pat-dialog-group > label:not(.machine-pat-dialog-check) {
-  display: grid;
-  gap: 0.3rem;
-}
-
-.machine-pat-dialog-group input[type="number"],
-.machine-pat-dialog-group input[type="text"] {
-  width: 100%;
-}
-
-.machine-pat-dialog-group {
-  display: grid;
-  gap: 0.45rem;
-  margin: 0;
-  min-inline-size: 0;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid var(--bo-border-soft);
-  border-radius: 10px;
-  background: var(--bo-surface-base);
-}
-
-.machine-pat-dialog-group > legend {
-  font-weight: 700;
-  color: var(--bo-link);
-  padding: 0 0.25rem;
-}
-
-.machine-pat-dialog-scope-hint {
-  margin: 0;
-  color: var(--bo-ink-muted);
-  line-height: 1.35;
-}
-
-.machine-pat-dialog-check {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  color: var(--bo-ink-default);
-  line-height: 1.35;
-}
-
-.machine-pat-dialog-check > input {
-  width: auto;
-  padding: 0;
-  margin-top: 0.15rem;
-  flex: 0 0 auto;
-}
-
-.machine-pat-warning {
-  display: grid;
-  gap: 0.4rem;
-  border: 1px solid var(--bo-colour-warning);
-  border-radius: 10px;
-  padding: 0.5rem 0.6rem;
-  background: color-mix(in srgb, var(--bo-colour-warning) 18%, white);
-}
-
-.machine-pat-warning > p {
-  margin: 0;
-  color: var(--bo-ink-strong);
-}
-
-.machine-pat-dialog-actions {
-  margin-top: 0.35rem;
 }
 </style>

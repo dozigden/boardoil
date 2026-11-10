@@ -1,5 +1,6 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import type { Card, CardEditModel } from '../../src/shared/types/boardTypes';
+import type { CreatedClientAccount } from '../../src/shared/types/authTypes';
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -102,6 +103,14 @@ export class BoardOilApi {
       password,
       role: 'Standard'
     });
+  }
+
+  public async createClientAccount(userName: string) {
+    const created = await this.post<CreatedClientAccount>('/api/system/client-accounts', {
+      userName, displayName: userName, email: `${userName}@boardoil.test`, role: 'Standard',
+      tokenName: 'Initial token', expiresInDays: 30, scopes: ['api:read']
+    });
+    return created.account;
   }
 
   public async getOwnProfile() {

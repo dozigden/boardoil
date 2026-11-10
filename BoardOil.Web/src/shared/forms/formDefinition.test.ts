@@ -1,6 +1,7 @@
 import { expectTypeOf, it } from 'vitest';
 import type { StyleDraft } from '../utils/styleTypes';
 import type { FormFieldDefinition } from './formDefinition';
+import type { TokenExpiryDraft } from '../utils/accessTokenDraft';
 
 type Draft = {
   emoji: string | null;
@@ -9,6 +10,9 @@ type Draft = {
   restrictedEmoji: '😀' | null;
   optionalStyle?: StyleDraft;
   extendedStyle: StyleDraft & { extra: string };
+  scopes: string[];
+  restrictedScopes: ('mcp:read')[];
+  expiry: TokenExpiryDraft;
 };
 
 it('binds domain controls only to draft values that accept their full output', () => {
@@ -23,4 +27,9 @@ it('binds domain controls only to draft values that accept their full output', (
   expectTypeOf<{ name: 'name'; label: string; type: 'style' }>().not.toMatchTypeOf<Field>();
   expectTypeOf<{ name: 'optionalStyle'; label: string; type: 'style' }>().not.toMatchTypeOf<Field>();
   expectTypeOf<{ name: 'extendedStyle'; label: string; type: 'style' }>().not.toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'scopes'; label: string; type: 'tokenScopes'; allowedScopes: string[] }>().toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'expiry'; label: string; type: 'tokenExpiry' }>().toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'restrictedScopes'; label: string; type: 'tokenScopes'; allowedScopes: string[] }>().not.toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'name'; label: string; type: 'tokenExpiry' }>().not.toMatchTypeOf<Field>();
+  expectTypeOf<{ name: 'scopes'; label: string; type: 'tokenScopes' }>().not.toMatchTypeOf<Field>();
 });

@@ -2,6 +2,7 @@ import type { Component } from 'vue';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
 import type { StyleDraft } from '../utils/styleTypes';
+import type { TokenExpiryDraft } from '../utils/accessTokenDraft';
 
 export type FormError = Pick<AppError, 'message' | 'validationErrors'>;
 export type FormErrors<T> = Partial<Record<Extract<keyof T, string>, string[]>>;
@@ -20,6 +21,8 @@ export type FormFieldDefinition<T> = {
     | { type: 'custom'; component: Component }
     | FieldForValue<T[K], string | null, { type: 'emoji' }>
     | FieldForValue<T[K], StyleDraft, { type: 'style' }>
+    | FieldForValue<T[K], string[], { type: 'tokenScopes'; allowedScopes: readonly string[] }>
+    | FieldForValue<T[K], TokenExpiryDraft, { type: 'tokenExpiry' }>
     | (T[K] extends string ? (
       | { type: 'text' | 'email' | 'password'; maxLength?: number; autocomplete?: string; placeholder?: string; required?: boolean }
       | { type: 'select'; options: readonly { value: T[K]; label: string }[]; required?: boolean }

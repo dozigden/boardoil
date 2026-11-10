@@ -37,11 +37,11 @@
 
     <AccessTokenCreateDialog
       :open="isCreateTokenDialogOpen"
-      :busy="isBusy"
+      :submit="createClientToken"
       :default-scopes="clientDefaultScopes"
       :allowed-scopes="clientAllowedScopes"
       @close="closeCreateTokenDialog"
-      @submit="createClientToken"
+      @saved="tokenCreated"
     />
     <AccessTokenSecretModal
       :open="isSecretModalOpen"
@@ -60,9 +60,10 @@ import { createSystemApi } from '../../shared/api/systemApi';
 import AccessTokenCreateDialog from '../../shared/components/AccessTokenCreateDialog.vue';
 import AccessTokenListItem from '../../shared/components/AccessTokenListItem.vue';
 import AccessTokenSecretModal from '../../shared/components/AccessTokenSecretModal.vue';
+import { err } from '../../shared/types/result';
 import { useConfirm } from '../../shared/composables/useConfirm';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
-import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreateClientAccessTokenRequest } from '../../shared/types/authTypes';
+import type { AccessToken, ClientAccount, CreateAccessTokenRequest, CreatedAccessToken } from '../../shared/types/authTypes';
 
 const systemApi = createSystemApi();
 const { confirm } = useConfirm();
@@ -149,32 +150,27 @@ async function loadTokens(targetClientId: number) {
 
 async function createClientToken(payload: CreateAccessTokenRequest) {
   if (!client.value) {
-    return;
+    return err({ message: 'Client account is no longer available.' });
   }
-
-  const request: CreateClientAccessTokenRequest = {
-    name: payload.name,
-    expiresInDays: payload.expiresInDays,
-    scopes: payload.scopes
-  };
 
   tokenCreateBusy.value = true;
   errorMessage.value = null;
   try {
-    const result = await systemApi.createClientAccountToken(client.value.id, request);
-    if (!result.ok) {
-      feedback.showToast(result.error.message, 'error');
-      return;
+    const result = await systemApi.createClientAccountToken(client.value.id, payload);
+    if (result.ok) {
+      tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
     }
-
-    tokens.value = sortTokens([result.data.token, ...tokens.value.filter(token => token.id !== result.data.token.id)]);
-    plainTextPat.value = result.data.plainTextToken;
-    plainTextPatName.value = result.data.token.name;
-    feedback.showToast('Created successfully.');
-    isCreateTokenDialogOpen.value = false;
+    return result;
   } finally {
     tokenCreateBusy.value = false;
   }
+}
+
+function tokenCreated(created: CreatedAccessToken) {
+  plainTextPat.value = created.plainTextToken;
+  plainTextPatName.value = created.token.name;
+  isCreateTokenDialogOpen.value = false;
+  feedback.showToast('Created successfully.');
 }
 
 async function revokeToken(token: AccessToken) {
