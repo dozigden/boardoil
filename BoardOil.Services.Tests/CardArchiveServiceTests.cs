@@ -1,6 +1,7 @@
 using BoardOil.Abstractions.Card;
 using BoardOil.Contracts.Card;
 using BoardOil.Services.Card;
+using BoardOil.Services.Style;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -206,13 +207,17 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
         Assert.Equal(slick.Id, unarchiveResult.Data!.SlickId);
+        Assert.NotNull(unarchiveResult.Data.Slick);
+        Assert.Equal(slick.StyleName, unarchiveResult.Data.Slick.StyleName);
+        Assert.Equal(slick.StylePropertiesJson, unarchiveResult.Data.Slick.StylePropertiesJson);
+        Assert.Single(await DbContextForAssert.Slicks.Where(x => x.BoardId == boardId).ToListAsync());
         var restoredCard = await DbContextForAssert.Cards
             .SingleAsync(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data.Id);
         Assert.Equal(slick.Id, restoredCard.SlickId);
     }
 
     [Fact]
-    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldLeaveSlickUnset()
+    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldRecreateSlickWithDefaultStyle()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -243,18 +248,35 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         DbContextForArrange.ChangeTracker.Clear();
         var slickToDelete = await DbContextForArrange.Slicks.SingleAsync(x => x.Id == slick.Id);
         DbContextForArrange.Slicks.Remove(slickToDelete);
+        DbContextForArrange.Slicks.Add(new SlickEntity
+        {
+            BoardId = boardId,
+            Name = "Existing preset",
+            NormalisedName = "EXISTING PRESET",
+            StyleName = "presets",
+            StylePropertiesJson = """{"presetIndex":0}"""
+        });
         await DbContextForArrange.SaveChangesAsync();
         var unarchiveResult = await service.UnarchiveCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
 
         // Assert
         Assert.True(unarchiveResult.Success);
         Assert.NotNull(unarchiveResult.Data);
-        Assert.Null(unarchiveResult.Data!.SlickId);
-        Assert.Null(unarchiveResult.Data.SlickName);
+        Assert.Equal("Release train", unarchiveResult.Data!.SlickName);
+        var recreatedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == boardId && x.Name == "Release train");
+        Assert.Equal("RELEASE TRAIN", recreatedSlick.NormalisedName);
+        Assert.Equal("presets", recreatedSlick.StyleName);
+        var defaultStyle = Assert.IsType<PresetStyleDefinition>(
+            StyleDefinitionCodec.ParseCompatible(recreatedSlick.StyleName, recreatedSlick.StylePropertiesJson).Definition);
+        Assert.InRange(defaultStyle.PresetIndex, 1, StyleDefinitionCodec.PresetCount - 1);
+        Assert.Equal(recreatedSlick.Id, unarchiveResult.Data.SlickId);
+        Assert.NotNull(unarchiveResult.Data.Slick);
+        Assert.Equal(recreatedSlick.StylePropertiesJson, unarchiveResult.Data.Slick.StylePropertiesJson);
         var restoredCard = await DbContextForAssert.Cards
             .SingleAsync(x => x.BoardId == boardId && x.BoardCardId == unarchiveResult.Data.Id);
-        Assert.Null(restoredCard.SlickId);
-        Assert.Empty(await DbContextForAssert.Slicks.Where(x => x.BoardId == boardId).ToListAsync());
+        Assert.Equal(recreatedSlick.Id, restoredCard.SlickId);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<BoardOil.Abstractions.IBoardEvents>());
+        Assert.Equal(recreatedSlick.Id, Assert.Single(events.CardCreatedEvents).Card.SlickId);
     }
 
     [Fact]
@@ -773,7 +795,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task GetArchivedCardAsync_WhenSnapshotSlickNoLongerExists_ShouldReturnNullSlickId()
+    public async Task GetArchivedCardAsync_WhenSnapshotSlickNoLongerExists_ShouldKeepNameWithoutRecreatingSlick()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -813,8 +835,9 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Null(result.Data!.Card.SlickId);
-        Assert.Null(result.Data.Card.SlickName);
+        Assert.Equal("Release train", result.Data.Card.SlickName);
         Assert.Null(result.Data.Card.Slick);
+        Assert.Empty(await DbContextForAssert.Slicks.Where(x => x.BoardId == boardId).ToListAsync());
     }
 
     [Fact]
@@ -976,7 +999,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Empty(result.Data.Card.Tags);
         Assert.Equal(["Missing tag"], result.Data.Card.TagNames);
         Assert.Null(result.Data.Card.SlickId);
-        Assert.Null(result.Data.Card.SlickName);
+        Assert.Equal("Missing slick", result.Data.Card.SlickName);
     }
 
     private async Task<ArchivedCardEntity> SeedArchivedCardAsync(

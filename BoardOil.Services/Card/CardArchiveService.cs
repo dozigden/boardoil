@@ -32,6 +32,7 @@ public sealed class CardArchiveService(
     IImageRepository imageRepository,
     ISlickRepository slickRepository,
     ITagRepository tagRepository,
+    IBoardStyleDefaultService styleDefaultService,
     IBoardAuthorisationService boardAuthorisationService,
     IBoardEvents boardEvents,
     CardInsertionOrderPlanner insertionOrderPlanner,
@@ -180,7 +181,7 @@ public sealed class CardArchiveService(
         var title = snapshotCard.Title.Trim();
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var resolvedAssignedUser = await ResolveAssignedUserAsync(boardId, snapshot.AssignedUserEmail);
-        var resolvedSlick = await ResolveSlickByNameAsync(boardId, snapshotCard.SlickName);
+        var resolvedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, snapshotCard.SlickName, slickRepository, styleDefaultService);
         var tagResolution = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames);
         var restoredCard = new EntityBoardCard
         {
@@ -368,7 +369,7 @@ public sealed class CardArchiveService(
             AssignedUserDisplayName = null,
             AssignedUserImageRelativePath = null,
             SlickId = resolvedSlick?.Id,
-            SlickName = resolvedSlick?.Name,
+            SlickName = resolvedSlick?.Name ?? snapshotCard.SlickName,
             Slick = resolvedSlick?.ToSlickDto()
         };
         if (assignedUser is null)

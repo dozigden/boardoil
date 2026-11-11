@@ -250,7 +250,8 @@ public sealed class CardUnarchiveServiceV1Tests : TestBaseDb
         Assert.Equal("Frozen legacy V1", result.Data.Title);
         Assert.Equal("Legacy description", result.Data.Description);
         Assert.Equal(["Legacy"], result.Data.TagNames);
-        Assert.Null(result.Data.SlickName);
+        Assert.Equal("Legacy slick", result.Data.SlickName);
+        Assert.NotNull(result.Data.SlickId);
         Assert.Equal("https://example.test/legacy", result.Data.ExternalUrl);
 
         var restoredCard = await DbContextForAssert.Cards
