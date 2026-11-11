@@ -45,6 +45,7 @@
           :disable-clear-visible="!canClearVisibleInColumn(column.id)"
           @open-default-card-draft="openDefaultCardDraft"
           @open-card-draft-for-type="openNewCardDraft"
+          @open-card-details="openCardDetails"
           @select-all-visible="selectAllVisibleInColumn"
           @clear-visible="clearVisibleInColumn"
         />
@@ -134,14 +135,21 @@
     </div>
     <div :ref="motion.setMovementLayerRef" class="card-motion-layer" aria-hidden="true" inert />
   </section>
+  <CardEditorDialog
+    v-if="detailedCardDraft"
+    :create-draft="detailedCardDraft"
+    @close="closeCardDetails"
+    @created="cardDetailsCreated"
+  />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import BoardColumnHeader from './BoardColumnHeader.vue';
 import Card from './Card.vue';
 import CreateCardInline from './CreateCardInline.vue';
+import CardEditorDialog from './CardEditorDialog.vue';
 import GooLayer from './GooLayer.vue';
 import LiteGooLayer from './LiteGooLayer.vue';
 import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
@@ -151,7 +159,7 @@ import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
 import { useCardAttachmentThumbnailStore } from '../stores/cardAttachmentThumbnailStore';
 import { useSlickStore } from '../stores/slickStore';
-import type { BoardColumn } from '../../shared/types/boardTypes';
+import type { BoardColumn, CardEditModel } from '../../shared/types/boardTypes';
 import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 import { formatColumnCardCount } from '../utils/columnCardCount';
 import { resolveGooRendererMode } from '../utils/gooRendererMode';
@@ -210,6 +218,37 @@ const {
   setNewCardDraftInput,
   saveNewCardDraft
 } = useBoardInlineCreation(defaultCreateCardTypeId, motion, focusCreatedCard);
+const detailedCardDraft = ref<CardEditModel | null>(null);
+
+function openCardDetails(columnId: number) {
+  // A pending quick-add must finish before its draft can become a second create request.
+  if (cardStore.busy) return;
+  const inlineDraft = newCardDrafts.value[columnId];
+  detailedCardDraft.value = {
+    boardColumnId: columnId,
+    title: inlineDraft?.title ?? '',
+    cardTypeId: inlineDraft?.cardTypeId ?? defaultCreateCardTypeId.value,
+    description: '',
+    externalUrl: null,
+    tagNames: [],
+    assignedUserId: null,
+    slickName: null
+  };
+  if (inlineDraft) closeNewCardDraft(columnId);
+}
+
+function closeCardDetails() {
+  detailedCardDraft.value = null;
+}
+
+async function cardDetailsCreated(cardId: number) {
+  closeCardDetails();
+  await nextTick();
+  await motion.revealCard(cardId);
+  focusCreatedCard(cardId);
+}
+
+watch(() => props.boardId, closeCardDetails);
 const interactiveColumns = computed(() => renderedColumns.value.map(column => ({
   ...column, cards: column.cards.filter(card => !motion.isRemovingCard(card.id))
 })));

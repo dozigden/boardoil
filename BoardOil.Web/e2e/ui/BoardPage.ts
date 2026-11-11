@@ -55,6 +55,20 @@ export class BoardPage {
     await column.getByRole('button', { name: 'Save new card' }).click();
   }
 
+  public async openCardDetails(columnTitle: string) {
+    await this.column(columnTitle).getByRole('button', { name: 'Choose card type', exact: true }).click();
+    await this.page.getByRole('menu', { name: 'Choose card type', exact: true })
+      .getByRole('button', { name: 'Add...', exact: true }).click();
+    await expect(this.page.getByRole('textbox', { name: 'Card title', exact: true })).toBeVisible();
+  }
+
+  public async startQuickCard(columnTitle: string, title: string, cardTypeName: string) {
+    await this.column(columnTitle).getByRole('button', { name: 'Choose card type', exact: true }).click();
+    await this.page.getByRole('menu', { name: 'Choose card type', exact: true })
+      .getByRole('button', { name: cardTypeName, exact: true }).click();
+    await this.column(columnTitle).getByPlaceholder('Title', { exact: true }).fill(title);
+  }
+
   public async enterCardSelectionMode() {
     const selectionToggle = this.page.getByRole('checkbox', { name: 'Toggle card selection mode' });
     await this.page.getByTitle('Select cards').click();

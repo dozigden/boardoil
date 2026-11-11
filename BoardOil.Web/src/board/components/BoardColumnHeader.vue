@@ -35,7 +35,7 @@
         <Plus :size="16" aria-hidden="true" />
       </button>
       <BoDropdown
-        v-if="cardTypes.length > 1"
+        ref="addMenuRef"
         label="Choose card type"
         :icon="ChevronDown"
         :icon-size="14"
@@ -56,6 +56,10 @@
               <span v-if="cardType.emoji" class="bo-emoji" aria-hidden="true">{{ cardType.emoji }}</span>{{ cardType.emoji ? ' ' : '' }}{{ cardType.name }}
             </span>
           </button>
+          <span class="bo-dropdown-divider" aria-hidden="true"></span>
+          <button type="button" class="bo-dropdown-item" @click="openCardDetails(columnId); close()">
+            <span class="bo-dropdown-item-main">Add...</span>
+          </button>
         </template>
       </BoDropdown>
     </div>
@@ -64,8 +68,11 @@
 
 <script setup lang="ts">
 import { ChevronDown, Plus } from '@lucide/vue';
+import { ref } from 'vue';
 import type { CardType } from '../../shared/types/boardTypes';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+
+const addMenuRef = ref<InstanceType<typeof BoDropdown> | null>(null);
 
 defineProps<{
   columnId: number;
@@ -80,9 +87,16 @@ defineProps<{
 const emit = defineEmits<{
   openDefaultCardDraft: [columnId: number];
   openCardDraftForType: [columnId: number, cardTypeId: number];
+  openCardDetails: [columnId: number];
   selectAllVisible: [columnId: number];
   clearVisible: [columnId: number];
 }>();
+
+function openCardDetails(columnId: number) {
+  // Let the dialog restore focus to the persistent trigger, not the removed menu item.
+  addMenuRef.value?.focusTrigger();
+  emit('openCardDetails', columnId);
+}
 </script>
 
 <style scoped>

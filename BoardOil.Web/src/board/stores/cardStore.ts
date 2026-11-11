@@ -180,11 +180,6 @@ export const useCardStore = defineStore('card', () => {
     model: CardEditModel,
     options?: { suppressValidationFeedback?: boolean; duplicateFromCardId?: number }
   ) {
-    model.title = model.title.trim();
-    if (!model.title) {
-      return null;
-    }
-
     const boardId = activeBoardId.value;
     const result = await runApiOperation(
       () => {

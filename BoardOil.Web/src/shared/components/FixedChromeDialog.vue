@@ -4,10 +4,11 @@
     class="fixed-chrome-dialog"
     :class="[`fixed-chrome-dialog--${size}`, `fixed-chrome-dialog--body-${bodyMode}`]"
     :aria-labelledby="titleId"
-    @cancel.self.prevent="emit('close')"
+    :aria-busy="busy || undefined"
+    @cancel.self.prevent="requestClose"
     @click="onDialogClick"
   >
-    <form v-if="open" class="editor fixed-chrome-dialog__surface" @submit.prevent="emit('submit')">
+    <form v-if="open" class="editor fixed-chrome-dialog__surface" :inert="busy" @submit.prevent.stop="submit">
       <header class="fixed-chrome-dialog__header">
         <div class="fixed-chrome-dialog__header-actions">
           <slot name="headerActions" />
@@ -17,7 +18,8 @@
           class="btn btn--secondary btn--icon fixed-chrome-dialog__close"
           :aria-label="closeLabel"
           :title="closeLabel"
-          @click="emit('close')"
+          :disabled="busy"
+          @click="requestClose"
         >
           <X :size="18" aria-hidden="true" />
         </button>
@@ -47,6 +49,7 @@ const props = withDefaults(defineProps<{
   size?: 'md' | 'fill';
   closeLabel?: string;
   bodyMode?: 'scroll' | 'managed';
+  busy?: boolean;
 }>(), {
   size: 'md',
   closeLabel: 'Cancel',
@@ -61,12 +64,39 @@ const emit = defineEmits<{
 
 const dialogRef = ref<HTMLDialogElement | null>(null);
 const titleId = `fixed-chrome-dialog-title-${useId()}`;
+let focusBeforeBusy: HTMLElement | null = null;
+
+function requestClose() {
+  if (!props.busy) emit('close');
+}
+
+function submit() {
+  if (!props.busy) emit('submit');
+}
 
 function onDialogClick(event: MouseEvent) {
   if (event.target === dialogRef.value) {
-    emit('close');
+    requestClose();
   }
 }
+
+watch(() => props.busy, async busy => {
+  const dialog = dialogRef.value;
+  if (busy) {
+    const focused = document.activeElement;
+    focusBeforeBusy = focused instanceof HTMLElement && dialog?.contains(focused) ? focused : null;
+    // Keep focus within the modal while its controls are inert.
+    dialog?.focus({ preventScroll: true });
+    return;
+  }
+
+  await nextTick();
+  if (dialog?.open && focusBeforeBusy?.isConnected
+    && (document.activeElement === dialog || document.activeElement === document.body)) {
+    focusBeforeBusy.focus({ preventScroll: true });
+  }
+  focusBeforeBusy = null;
+});
 
 async function syncDialogState() {
   await nextTick();
@@ -141,6 +171,10 @@ onBeforeUnmount(() => {
 
 .fixed-chrome-dialog::backdrop {
   background: var(--bo-overlay-backdrop);
+}
+
+.fixed-chrome-dialog[aria-busy="true"] .fixed-chrome-dialog__surface {
+  opacity: 0.65;
 }
 
 .fixed-chrome-dialog__surface {
