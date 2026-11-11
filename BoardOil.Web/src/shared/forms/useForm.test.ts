@@ -13,13 +13,12 @@ describe('form submission lifecycle', () => {
       title: 'Example', submitLabel: 'Save', category: 'example',
       initialValues: () => ({ name: 'Initial' }),
       fields: [{ name: 'name', label: 'Name', type: 'text' }],
-      normalize: values => ({ name: values.name.trim() }),
-      validate: values => values.name ? {} : { name: ['Name is required.'] },
+      validate: values => values.name.trim() ? {} : { name: ['Name is required.'] },
       submit: vi.fn(async () => ok(42))
     });
   }
 
-  it('normalizes before local validation and retains the draft without sending an invalid request', async () => {
+  it('retains the entered draft when local validation rejects submission', async () => {
     const config = definition();
     const form = useForm(config);
     const validation = useValidationStore();
@@ -27,7 +26,7 @@ describe('form submission lifecycle', () => {
     form.setValue('name', '   ');
     expect((await form.submit())?.ok).toBe(false);
     expect(config.submit).not.toHaveBeenCalled();
-    expect(form.draft.value.name).toBe('');
+    expect(form.draft.value.name).toBe('   ');
     expect(form.busy.value).toBe(false);
     expect(form.dirty.value).toBe(true);
     expect(validation.getFieldErrors('name', 'example')).toEqual(['Name is required.']);
@@ -49,9 +48,9 @@ describe('form submission lifecycle', () => {
     expect(await form.submit()).toBeUndefined();
     form.setValue('name', 'Ignored while busy');
     form.reset();
-    expect(form.draft.value.name).toBe('Edited');
+    expect(form.draft.value.name).toBe(' Edited ');
     expect(config.submit).toHaveBeenCalledTimes(1);
-    expect(config.submit).toHaveBeenCalledWith({ name: 'Edited' });
+    expect(config.submit).toHaveBeenCalledWith({ name: ' Edited ' });
     finish(failure);
     expect(await pending).toBe(failure);
     expect(form.dirty.value).toBe(true);

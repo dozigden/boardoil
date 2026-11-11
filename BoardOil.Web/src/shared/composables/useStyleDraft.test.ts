@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { shallowRef } from 'vue';
 import { useStyleDraft } from './useStyleDraft';
 import type { StyleDraft } from '../utils/styleTypes';
 
 describe('useStyleDraft', () => {
-  it('updates draft through shared mutators and produces style properties json', () => {
+  it('replaces the supplied draft on edits and resets style-specific values when switching modes', () => {
     const initialDraft: StyleDraft = {
       styleName: 'solid',
       textColorMode: 'auto',
@@ -16,11 +17,8 @@ describe('useStyleDraft', () => {
       borderColor: '#D8CDEC'
     };
 
-    const model = useStyleDraft(null);
-    model.setStyleName('gradient');
-    expect(model.draft.value).toBeNull();
-
-    model.setDraft(initialDraft);
+    const draft = shallowRef(initialDraft);
+    const model = useStyleDraft(draft);
     model.setStyleName('gradient');
     model.setTextMode('custom');
     model.setBorderMode('custom');
@@ -29,14 +27,11 @@ describe('useStyleDraft', () => {
     model.setField('textColor', '#FFFFFF');
     model.setField('borderColor', '#AABBCC');
 
-    expect(model.draft.value?.styleName).toBe('gradient');
-    expect(model.draft.value?.textColorMode).toBe('custom');
-    expect(model.draft.value?.borderMode).toBe('custom');
-
-    const json = model.stylePropertiesJson.value;
-    expect(json).not.toBeNull();
-    const parsed = JSON.parse(json ?? '{}') as Record<string, string>;
-    expect(parsed).toEqual({
+    expect(initialDraft.styleName).toBe('solid');
+    expect(initialDraft.leftColor).toBe('#69C1CE');
+    expect(draft.value).toEqual({
+      ...initialDraft,
+      styleName: 'gradient',
       leftColor: '#112233',
       rightColor: '#445566',
       textColorMode: 'custom',
@@ -46,14 +41,6 @@ describe('useStyleDraft', () => {
     });
 
     model.setStyleName('presets');
-    expect(model.draft.value?.styleName).toBe('presets');
-    expect(model.draft.value?.textColorMode).toBe('auto');
-    expect(model.draft.value?.borderMode).toBe('auto');
-    expect(model.draft.value?.backgroundColor).toBe('#69C1CE');
-    expect(model.stylePropertiesJson.value).toContain('"presetIndex":2');
-
-    model.clearDraft();
-    expect(model.draft.value).toBeNull();
-    expect(model.stylePropertiesJson.value).toBeNull();
+    expect(draft.value).toEqual({ ...initialDraft, styleName: 'presets' });
   });
 });

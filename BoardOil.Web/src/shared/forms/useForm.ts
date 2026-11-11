@@ -86,8 +86,7 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
     if (!canSubmit.value) return;
     return runOperation(async () => {
       const values = clone(draft.value);
-      draft.value = definition.normalize ? definition.normalize(values) : values;
-      const localErrors: Partial<Record<string, string[]>> = definition.validate?.(draft.value) ?? {};
+      const localErrors: Partial<Record<string, string[]>> = definition.validate?.(values) ?? {};
       const errors: Record<string, string[]> = {};
       for (const [field, messages] of Object.entries(localErrors)) {
         if (messages?.length) errors[field] = messages;
@@ -95,7 +94,7 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
       if (Object.keys(errors).length > 0) {
         return err({ message: 'Validation failed.', validationErrors: errors });
       }
-      const result = await definition.submit(clone(draft.value));
+      const result = await definition.submit(values);
       if (result.ok && isCurrent()) {
         if (definition.savedValues) draft.value = clone(definition.savedValues(result.data));
         initial.value = clone(draft.value);

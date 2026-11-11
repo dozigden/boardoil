@@ -1,5 +1,4 @@
-import { computed, isRef, ref, type Ref } from 'vue';
-import { buildStylePropertiesJsonFromDraft } from '../utils/styleDraftAdapter';
+import type { Ref } from 'vue';
 import type { BorderMode, StyleDraft, TextColorMode } from '../utils/styleTypes';
 import { DEFAULT_PRESET_INDEX } from '../utils/presetTheme';
 
@@ -7,30 +6,8 @@ const DEFAULT_BACKGROUND_COLOR = '#69C1CE';
 const DEFAULT_TEXT_COLOR = '#111827';
 const DEFAULT_BORDER_COLOR = '#D8CDEC';
 
-export function useStyleDraft(initialDraft: StyleDraft | null | Ref<StyleDraft | null> = null) {
-  const draft = isRef(initialDraft) ? initialDraft : ref<StyleDraft | null>(initialDraft);
-
-  const stylePropertiesJson = computed(() => {
-    if (!draft.value) {
-      return null;
-    }
-
-    return buildStylePropertiesJsonFromDraft(draft.value);
-  });
-
-  function setDraft(nextDraft: StyleDraft | null) {
-    draft.value = nextDraft;
-  }
-
-  function clearDraft() {
-    draft.value = null;
-  }
-
+export function useStyleDraft(draft: Ref<StyleDraft>) {
   function setStyleName(styleName: StyleDraft['styleName']) {
-    if (!draft.value) {
-      return;
-    }
-
     draft.value = {
       ...draft.value,
       styleName,
@@ -46,10 +23,6 @@ export function useStyleDraft(initialDraft: StyleDraft | null | Ref<StyleDraft |
   }
 
   function setTextMode(value: string) {
-    if (!draft.value) {
-      return;
-    }
-
     const textColorMode: TextColorMode = value === 'custom' ? 'custom' : 'auto';
     draft.value = {
       ...draft.value,
@@ -58,10 +31,6 @@ export function useStyleDraft(initialDraft: StyleDraft | null | Ref<StyleDraft |
   }
 
   function setBorderMode(value: string) {
-    if (!draft.value) {
-      return;
-    }
-
     const borderMode = resolveBorderMode(value);
 
     draft.value = {
@@ -71,10 +40,6 @@ export function useStyleDraft(initialDraft: StyleDraft | null | Ref<StyleDraft |
   }
 
   function setField<Key extends keyof StyleDraft>(field: Key, value: StyleDraft[Key]) {
-    if (!draft.value) {
-      return;
-    }
-
     draft.value = {
       ...draft.value,
       [field]: value
@@ -82,10 +47,6 @@ export function useStyleDraft(initialDraft: StyleDraft | null | Ref<StyleDraft |
   }
 
   return {
-    draft,
-    stylePropertiesJson,
-    setDraft,
-    clearDraft,
     setStyleName,
     setTextMode,
     setBorderMode,

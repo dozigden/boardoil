@@ -1,5 +1,5 @@
 <template>
-  <div v-if="draftStyle" class="style-control">
+  <div class="style-control">
     <select aria-label="Style" :value="draftStyle.styleName" :disabled="disabled" @change="onStyleNameChange">
       <option v-for="name in allowedStyleNames" :key="name" :value="name">{{ styleLabels[name] }}</option>
     </select>
@@ -112,11 +112,11 @@ const props = withDefaults(defineProps<{
   presetColours: () => PRESET_TOKENS
 });
 const emit = defineEmits<{ 'update:modelValue': [value: StyleDraft] }>();
-const model = computed<StyleDraft | null>({
+const draftStyle = computed<StyleDraft>({
   get: () => props.modelValue,
-  set: value => { if (value) emit('update:modelValue', value); }
+  set: value => emit('update:modelValue', value)
 });
-const { draft: draftStyle, setStyleName, setTextMode, setBorderMode, setField: setDraftStyleField } = useStyleDraft(model);
+const { setStyleName, setTextMode, setBorderMode, setField: setDraftStyleField } = useStyleDraft(draftStyle);
 const styleLabels = { auto: 'Auto', presets: 'Presets', solid: 'Solid', gradient: 'Gradient' };
 
 function onStyleNameChange(event: Event) {

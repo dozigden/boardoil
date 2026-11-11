@@ -34,7 +34,6 @@ export type FormDefinition<T extends object, R> = {
   fields: readonly FormFieldDefinition<T>[];
   reassess?: (values: T) => FormAssessment<T> | Promise<FormAssessment<T>>;
   savedValues?: (result: R) => T;
-  normalize?: (values: T) => T;
   validate?: (values: T) => FormErrors<T>;
   canSubmit?: (values: T) => boolean;
   // Preserve the owning board's feedback boundary when an operation completes late.
