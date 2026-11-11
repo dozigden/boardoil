@@ -198,7 +198,12 @@ export function useGooLayer(
       const columnContentRect = trackedCard.clipElement
         ? resolveClipContentRect(trackedCard.clipElement, clipRectByElement)
         : null;
-      if (reason !== 'scroll' && trackedCard.clipElement) {
+      if (columnContentRect && !intersectsExpandedRect(rect, columnContentRect, resolveCullingMarginPx())) {
+        continue;
+      }
+
+      // Bound the SVG filter to nearby cards, including a buffer for soft joins.
+      if (trackedCard.clipElement) {
         const localRect = resolveLocalCardRect(rect, trackedCard.clipElement);
         const localItems = getOrCreateLocalItems(localItemsByColumnId, trackedCard.columnId);
         localItems.push({
@@ -210,9 +215,6 @@ export function useGooLayer(
         });
       }
 
-      if (columnContentRect && !intersectsExpandedRect(rect, columnContentRect, resolveCullingMarginPx())) {
-        continue;
-      }
       items.push({
         id: trackedCard.itemId,
         groupKey: trackedCard.groupKey,
@@ -228,9 +230,7 @@ export function useGooLayer(
 
     if (items.length === 0) {
       gooGroups.value = [];
-      if (reason !== 'scroll') {
-        gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
-      }
+      gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
       if (gooPerfDebugEnabled) {
         recordPerfSample(performance.now() - refreshStart, 0, 0);
       }
@@ -242,9 +242,7 @@ export function useGooLayer(
       left: boardSurface.scrollLeft,
       top: boardSurface.scrollTop
     });
-    if (reason !== 'scroll') {
-      gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
-    }
+    gooGroupsByColumnId.value = buildColumnGooGroups(localItemsByColumnId);
     if (gooPerfDebugEnabled) {
       const buildMs = performance.now() - buildStart;
       const refreshMs = performance.now() - refreshStart;
