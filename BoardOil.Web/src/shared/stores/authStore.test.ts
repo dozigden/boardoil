@@ -115,7 +115,7 @@ describe('authStore', () => {
 
     const success = await store.login('member', 'Password1234!');
 
-    expect(success).toBe(true);
+    expect(success.ok).toBe(true);
     expect(store.user?.userName).toBe('member');
     expect(store.isAuthenticated).toBe(true);
     expect(store.requiresInitialAdminSetup).toBe(false);
@@ -134,7 +134,7 @@ describe('authStore', () => {
 
     const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
 
-    expect(success).toBe(true);
+    expect(success.ok).toBe(true);
     expect(authApi.registerInitialAdmin).toHaveBeenCalledWith('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
     expect(store.user?.userName).toBe('admin');
     expect(store.isAuthenticated).toBe(true);
@@ -189,9 +189,9 @@ describe('authStore', () => {
       authApi.getCsrfToken.mockResolvedValue(err({ kind: 'network', message: 'Token request failed.' }));
 
       if (operation === 'login') {
-        expect(await store.login('member', 'Password1234!')).toBe(false);
+        expect(await store.login('member', 'Password1234!')).toEqual(err({ kind: 'network', message: 'Token request failed.' }));
       } else if (operation === 'registerInitialAdmin') {
-        expect(await store.registerInitialAdmin('member', 'member@example.test', 'Password1234!', 'Europe/London')).toBe(false);
+        expect((await store.registerInitialAdmin('member', 'member@example.test', 'Password1234!', 'Europe/London')).ok).toBe(false);
       } else {
         await store.initialize();
       }
@@ -200,7 +200,8 @@ describe('authStore', () => {
       expect(store.isAuthenticated).toBe(false);
       expect(store.requiresInitialAdminSetup).toBe(false);
       expect(store.busy).toBe(false);
-      expect(store.errorMessage).toContain('Token request failed.');
+      if (operation === 'login') expect(store.errorMessage).toBeNull();
+      else expect(store.errorMessage).toContain('Token request failed.');
       if (operation === 'registerInitialAdmin') {
         expect(store.initialized).toBe(true);
         expect(store.errorMessage).toContain('Your admin account was created');
@@ -220,16 +221,17 @@ describe('authStore', () => {
       authApi.getCsrfToken.mockResolvedValue(ok({ csrfToken: 'bob-token', userId: 2 }));
 
       if (operation === 'login') {
-        expect(await store.login('alice', 'Password1234!')).toBe(false);
+        expect(await store.login('alice', 'Password1234!')).toEqual(err({ kind: 'api', message: 'The signed-in account changed. Please sign in again.' }));
       } else if (operation === 'registerInitialAdmin') {
-        expect(await store.registerInitialAdmin('alice', 'alice@example.test', 'Password1234!', 'Europe/London')).toBe(false);
+        expect((await store.registerInitialAdmin('alice', 'alice@example.test', 'Password1234!', 'Europe/London')).ok).toBe(false);
       } else {
         await store.initialize();
       }
 
       expect(store.isAuthenticated).toBe(false);
       expect(store.user).toBeNull();
-      expect(store.errorMessage).toContain('The signed-in account changed. Please sign in again.');
+      if (operation === 'login') expect(store.errorMessage).toBeNull();
+      else expect(store.errorMessage).toContain('The signed-in account changed. Please sign in again.');
       expect(setCsrfToken).not.toHaveBeenCalledWith('bob-token');
       expect(setCsrfToken).toHaveBeenLastCalledWith(null);
     }
@@ -245,34 +247,34 @@ describe('authStore', () => {
 
     const success = await store.login('admin', 'Password1234!');
 
-    expect(success).toBe(true);
+    expect(success.ok).toBe(true);
     expect(authApi.registerInitialAdmin).toHaveBeenCalledTimes(1);
     expect(store.isAuthenticated).toBe(true);
     expect(store.errorMessage).toBeNull();
     expect(setCsrfToken).toHaveBeenLastCalledWith('csrf-token');
   });
 
-  it('login exposes API error message on failure', async () => {
+  it('login returns the full failure for form feedback', async () => {
     const store = useAuthStore();
     const apiError: AppError = { kind: 'api', message: 'Invalid username or password.' };
     authApi.login.mockResolvedValue(err(apiError));
 
     const success = await store.login('member', 'bad');
 
-    expect(success).toBe(false);
-    expect(store.errorMessage).toBe('Invalid username or password.');
+    expect(success).toEqual(err(apiError));
+    expect(store.errorMessage).toBeNull();
     expect(store.isAuthenticated).toBe(false);
   });
 
-  it('registerInitialAdmin exposes API error message on failure', async () => {
+  it('registerInitialAdmin returns backend field errors for form feedback', async () => {
     const store = useAuthStore();
-    const apiError: AppError = { kind: 'api', message: 'Initial admin already exists.' };
+    const apiError: AppError = { kind: 'api', message: 'Validation failed.', validationErrors: { userName: ['Username is required.'] } };
     authApi.registerInitialAdmin.mockResolvedValue(err(apiError));
 
     const success = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
 
-    expect(success).toBe(false);
-    expect(store.errorMessage).toBe('Initial admin already exists.');
+    expect(success).toEqual(err(apiError));
+    expect(store.errorMessage).toBeNull();
     expect(store.isAuthenticated).toBe(false);
   });
 

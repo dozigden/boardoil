@@ -84,3 +84,33 @@ test('failed timezone loading can be retried before initial admin creation', asy
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(attempts).toBe(2);
 });
+
+test('setup uses backend field errors and keeps confirmation as the only local check', async ({ page }) => {
+  await page.route('**/api/auth/timezone-options', route => route.fulfill({ json: timezoneOptions }));
+  let registrations = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/auth/register-initial-admin') registrations++;
+  });
+  await page.goto('/setup-initial-admin');
+  const userName = page.getByLabel('Username', { exact: true });
+  const password = page.getByLabel('Password', { exact: true });
+  const confirmation = page.getByLabel('Confirm password', { exact: true });
+  const email = page.getByLabel('Email', { exact: true });
+  await password.fill('short');
+  await page.getByRole('button', { name: 'Create admin', exact: true }).click();
+  await expect(confirmation).toHaveAccessibleDescription('Passwords do not match.');
+  await expect(confirmation).toBeFocused();
+  expect(registrations).toBe(0);
+  await confirmation.fill('short');
+  await email.fill('invalid-email');
+  await page.getByRole('button', { name: 'Create admin', exact: true }).click();
+  await expect(userName).toHaveAccessibleDescription('Username is required.');
+  await expect(userName).toBeFocused();
+  await expect(password).toHaveAccessibleDescription('Password must be at least 10 characters.');
+  await expect(password).toHaveValue('short');
+  await expect(confirmation).toHaveValue('short');
+  await expect(email).toHaveValue('invalid-email');
+  await expect(page.getByText('Display name is required.', { exact: true })).toHaveCount(0);
+  expect(registrations).toBe(1);
+  await page.screenshot({ path: test.info().outputPath('initial-admin-validation.png') });
+});

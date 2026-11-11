@@ -29,7 +29,7 @@ public sealed class AuthService(
 {
     public async Task<ApiResult<AuthSessionTokens>> RegisterInitialAdminAsync(RegisterInitialAdminRequest request)
     {
-        var validation = ValidateCredentials(request.UserName, request.UserName, request.Email, request.Password);
+        var validation = ValidateCredentials(request.UserName, request.Email, request.Password);
         if (validation.Count > 0)
         {
             return ApiErrors.ValidationFailed(validation);
@@ -389,7 +389,7 @@ public sealed class AuthService(
     private static MachinePatDto ToMachinePatDto(EntityPersonalAccessToken token) =>
         MachinePatRules.ToMachinePatDto(token);
 
-    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string displayName, string email, string password)
+    private static IReadOnlyList<ValidationError> ValidateCredentials(string userName, string email, string password)
     {
         var errors = new List<ValidationError>();
 
@@ -400,15 +400,6 @@ public sealed class AuthService(
         else if (userName.Trim().Length is < 1 or > 64)
         {
             errors.Add(new ValidationError("userName", "Username must be between 1 and 64 characters."));
-        }
-
-        if (string.IsNullOrWhiteSpace(displayName))
-        {
-            errors.Add(new ValidationError("displayName", "Display name is required."));
-        }
-        else if (displayName.Trim().Length is < 1 or > 64)
-        {
-            errors.Add(new ValidationError("displayName", "Display name must be between 1 and 64 characters."));
         }
 
         errors.AddRange(EmailAddressRules.Validate(email, "email"));

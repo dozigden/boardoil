@@ -3,6 +3,8 @@ import { defineStore } from 'pinia';
 import { createAuthApi } from '../api/authApi';
 import { setCsrfToken, setUnauthorizedHandler } from '../api/http';
 import { router } from '../../router';
+import { err, ok } from '../types/result';
+import type { AppError } from '../types/appError';
 import type { AuthUser } from '../types/authTypes';
 import { buildLoginRedirectQuery } from '../../site/auth/redirectTarget';
 
@@ -74,7 +76,8 @@ export const useAuthStore = defineStore('auth', () => {
         return;
       }
 
-      await restoreSession(meResult.data);
+      const restored = await restoreSession(meResult.data);
+      if (!restored.ok) errorMessage.value = restored.error.message;
       initialized.value = true;
     } finally {
       busy.value = false;
@@ -87,10 +90,7 @@ export const useAuthStore = defineStore('auth', () => {
     errorMessage.value = null;
     try {
       const result = await api.login(userName, password);
-      if (!result.ok) {
-        errorMessage.value = result.error.message;
-        return false;
-      }
+      if (!result.ok) return result;
 
       return await restoreSession(result.data.user);
     } finally {
@@ -103,18 +103,17 @@ export const useAuthStore = defineStore('auth', () => {
     errorMessage.value = null;
     try {
       const result = await api.registerInitialAdmin(userName, email, password, systemTimeZoneId);
-      if (!result.ok) {
-        errorMessage.value = result.error.message;
-        return false;
-      }
+      if (!result.ok) return result;
 
       const restored = await restoreSession(result.data.user);
-      if (!restored) {
-        errorMessage.value = `Your admin account was created, but sign-in could not be completed. Please sign in. ${errorMessage.value}`;
+      if (!restored.ok) {
+        const message = `Your admin account was created, but sign-in could not be completed. Please sign in. ${restored.error.message}`;
+        errorMessage.value = message;
         // Setup succeeded. Do not let navigation retry restoration or offer
         // another registration after a failed follow-up token request.
         initialized.value = true;
         await router.replace({ name: 'login' });
+        return err({ ...restored.error, message });
       }
       return restored;
     } finally {
@@ -126,18 +125,14 @@ export const useAuthStore = defineStore('auth', () => {
     CLEAR_SESSION();
     requiresInitialAdminSetup.value = false;
     const csrfResult = await api.getCsrfToken();
-    if (!csrfResult.ok) {
-      errorMessage.value = csrfResult.error.message;
-      return false;
-    }
+    if (!csrfResult.ok) return csrfResult;
 
     if (csrfResult.data.userId !== authenticatedUser.id) {
-      errorMessage.value = 'The signed-in account changed. Please sign in again.';
-      return false;
+      return err<AppError>({ kind: 'api', message: 'The signed-in account changed. Please sign in again.' });
     }
 
     SET_SESSION(authenticatedUser, csrfResult.data.csrfToken);
-    return true;
+    return ok(authenticatedUser);
   }
 
   async function changeOwnPassword(currentPassword: string, newPassword: string) {

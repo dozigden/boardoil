@@ -63,6 +63,7 @@ public sealed class AuthServiceTests : TestBaseDb
         Assert.Contains("userName", result.ValidationErrors!.Keys);
         Assert.Contains("email", result.ValidationErrors.Keys);
         Assert.Contains("password", result.ValidationErrors.Keys);
+        Assert.DoesNotContain("displayName", result.ValidationErrors.Keys);
     }
 
     [Fact]
