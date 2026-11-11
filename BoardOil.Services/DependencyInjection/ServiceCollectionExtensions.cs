@@ -66,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBoardBootstrapService, BoardBootstrapService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IBoardService, BoardService>();
+        services.AddScoped<BoardReorderService>();
         services.AddScoped<IBoardResaveService, BoardResaveService>();
         services.AddScoped<IBoardCloneService, BoardCloneService>();
         services.AddScoped<IBoardExportService, BoardExportService>();

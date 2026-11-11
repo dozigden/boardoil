@@ -22,10 +22,14 @@ public sealed class BoardService(
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory,
-    BoardOil.Services.Attachment.CardAttachmentService attachments) : IBoardService
+    BoardOil.Services.Attachment.CardAttachmentService attachments,
+    BoardReorderService reorderService) : IBoardService
 {
     private const int MaxBoardNameLength = 120;
     private const int MaxBoardDescriptionLength = 5_000;
+
+    public Task<ApiResult> ReorderBoardAsync(int boardId, ReorderBoardRequest request, int actorUserId) =>
+        reorderService.ExecuteAsync(boardId, request, actorUserId);
 
     public async Task<ApiResult<IReadOnlyList<BoardSummaryDto>>> GetBoardsAsync(int actorUserId)
     {

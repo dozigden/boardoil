@@ -8,6 +8,7 @@ public static class ToolDiscoveryOrder
     public const int BoardGet = 300;
     public const int BoardCreate = 310;
     public const int BoardUpdate = 325;
+    public const int BoardReorder = 330;
     public const int CardSearch = 350;
     public const int CardGet = 400;
     public const int CardOptionsGet = 500;
