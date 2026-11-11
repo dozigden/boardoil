@@ -33,14 +33,15 @@ import FormSubmitIcon from './FormSubmitIcon.vue';
 import { useForm } from './useForm';
 
 const props = defineProps<{ definition: FormDefinition<T, R>; discardMessage: string }>();
+const definition = props.definition;
 const emit = defineEmits<{ saved: [value: R] }>();
 let active = true;
 const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, dirty, reset, canSubmit, setValue, submit: submitForm } = useForm({
-  ...props.definition,
-  isCurrent: () => active && (props.definition.isCurrent?.() ?? true)
+  ...definition,
+  isCurrent: () => active && (definition.isCurrent?.() ?? true)
 });
-const submitLabel = computed(() => typeof props.definition.submitLabel === 'function'
-  ? props.definition.submitLabel(draft.value) : props.definition.submitLabel);
+const submitLabel = computed(() => typeof definition.submitLabel === 'function'
+  ? definition.submitLabel(draft.value) : definition.submitLabel);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
 const auth = useAuthStore();

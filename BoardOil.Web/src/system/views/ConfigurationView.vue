@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import LoadingIndicator from '../../shared/components/LoadingIndicator.vue';
 import FormPage from '../../shared/forms/FormPage.vue';
 import { createSystemApi } from '../../shared/api/systemApi';
@@ -50,12 +50,9 @@ import { configurationForm } from '../forms/configurationForm';
 const systemApi = createSystemApi();
 const feedback = useUiFeedbackStore();
 const configuration = ref<ConfigurationDto | null>(null);
-const timeZoneOptions = ref<{ value: string; label: string }[]>([]);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
-const form = computed(() => configuration.value && !loadError.value
-  ? configurationForm(configuration.value, timeZoneOptions.value, systemApi.updateConfiguration)
-  : null);
+const form = shallowRef<ReturnType<typeof configurationForm> | null>(null);
 let disposed = false;
 onBeforeUnmount(() => { disposed = true; });
 onMounted(loadConfiguration);
@@ -74,8 +71,9 @@ async function loadConfiguration() {
     loadError.value = `Could not load timezone choices: ${optionsResult.error.message}`;
     return;
   }
-  timeZoneOptions.value = optionsResult.data.options.map(option => ({ value: option.id, label: option.displayName }));
+  const timeZoneOptions = optionsResult.data.options.map(option => ({ value: option.id, label: option.displayName }));
   configuration.value = configurationResult.data;
+  form.value = configurationForm(configurationResult.data, timeZoneOptions, systemApi.updateConfiguration);
 }
 
 function configurationSaved(value: ConfigurationDto) {

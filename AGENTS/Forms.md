@@ -9,6 +9,7 @@ Read this before changing the shared forms engine or migrating a form to it. See
 
 ## Definitions and Drafts
 
+- Each mounted form shell uses one definition for the entire editing session, including presentation and callbacks. Create it once after loading initial data; mount a new shell for a different session. Use callbacks for live choices and permissions, and `savedValues` for adopting successful responses rather than replacing the definition.
 - Field definitions use common settings plus named control types. TypeScript checks draft field names, control settings and callback drafts; form authors are responsible for matching controls and choice values to the named draft property. Keep this contract simple rather than reintroducing mapped/conditional value matching.
 - Form definitions supply initial values, fields, normalisation, local validation and a Result-returning submit callback. Local errors need only `message` and `validationErrors`; do not invent API metadata. `useForm` owns draft snapshots, dirty/reset state, duplicate-submission protection, retry clearing and result publication. Drafts are plain structured-cloneable data, with top-level `File | null` fields retaining immutable file identity across snapshots; custom controls replace values through `update:modelValue` rather than mutating nested props.
 

@@ -19,16 +19,17 @@ import { useForm } from '../../shared/forms/useForm';
 import { useValidationStore } from '../../shared/stores/validationStore';
 
 const props = defineProps<{ definition: FormDefinition<T, R>; busyLabel: string }>();
+const definition = props.definition;
 const emit = defineEmits<{ saved: [value: R] }>();
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
 let active = true;
 const { draft, fields, busy, locked, canSubmit, setValue, submit: submitForm } = useForm({
-  ...props.definition,
-  isCurrent: () => active && (props.definition.isCurrent?.() ?? true)
+  ...definition,
+  isCurrent: () => active && (definition.isCurrent?.() ?? true)
 });
-const submitLabel = computed(() => typeof props.definition.submitLabel === 'function'
-  ? props.definition.submitLabel(draft.value) : props.definition.submitLabel);
+const submitLabel = computed(() => typeof definition.submitLabel === 'function'
+  ? definition.submitLabel(draft.value) : definition.submitLabel);
 validation.clearValidation();
 onBeforeUnmount(() => {
   active = false;

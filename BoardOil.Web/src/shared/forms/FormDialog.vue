@@ -49,10 +49,11 @@ import { useForm } from './useForm';
 
 // Mount one instance per editing session; a new session gets fresh initial values.
 const props = defineProps<{ definition: FormDefinition<T, R> }>();
+const definition = props.definition;
 const emit = defineEmits<{ close: []; saved: [value: R] }>();
-const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, canSubmit, setValue, submit: submitForm, runAction: runFormAction } = useForm(props.definition);
-const submitLabel = computed(() => typeof props.definition.submitLabel === 'function'
-  ? props.definition.submitLabel(draft.value) : props.definition.submitLabel);
+const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, canSubmit, setValue, submit: submitForm, runAction: runFormAction } = useForm(definition);
+const submitLabel = computed(() => typeof definition.submitLabel === 'function'
+  ? definition.submitLabel(draft.value) : definition.submitLabel);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
 validation.clearValidation();
