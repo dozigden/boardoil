@@ -15,6 +15,7 @@ using BoardOil.Data.Abstractions.Tag;
 using BoardOil.Data.Abstractions.Users;
 using BoardOil.Services.Style;
 using BoardOil.Services.Slick;
+using BoardOil.Services.Tag;
 using BoardOil.Services.Users;
 using System.Text;
 using System.Text.Json;
@@ -181,8 +182,8 @@ public sealed class CardArchiveService(
         var title = snapshotCard.Title.Trim();
         var cardsInColumn = await cardRepository.GetCardsInColumnOrderedAsync(targetColumn.Id);
         var resolvedAssignedUser = await ResolveAssignedUserAsync(boardId, snapshot.AssignedUserEmail);
-        var resolvedSlick = await CardSlickMutation.ResolveSlickAsync(boardId, snapshotCard.SlickName, slickRepository, styleDefaultService);
-        var tagResolution = await ResolveTagsForRestoreAsync(boardId, snapshotCard.TagNames);
+        var resolvedSlick = await ResolveSlickForRestoreAsync(boardId, snapshot);
+        var tagResolution = await ResolveTagsForRestoreAsync(boardId, snapshotCard);
         var restoredCard = new EntityBoardCard
         {
             BoardId = boardId,
@@ -474,6 +475,50 @@ public sealed class CardArchiveService(
             .ToList();
     }
 
+    private async Task<EntitySlick?> ResolveSlickForRestoreAsync(int boardId, ArchivedCardSnapshotCurrentDto snapshot)
+    {
+        var slickName = snapshot.Card.SlickName;
+        if (string.IsNullOrWhiteSpace(slickName))
+        {
+            return null;
+        }
+
+        var existing = await ResolveSlickByNameAsync(boardId, slickName);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var style = ParseArchivedStyle(snapshot.SlickStyleName, snapshot.SlickStylePropertiesJson);
+        if (style is not PresetStyleDefinition && style is not SolidStyleDefinition)
+        {
+            return await CardSlickMutation.ResolveSlickAsync(boardId, slickName, slickRepository, styleDefaultService);
+        }
+
+        var canonicalName = slickName.Trim();
+        var created = new EntitySlick
+        {
+            BoardId = boardId,
+            Name = canonicalName,
+            NormalisedName = canonicalName.ToUpperInvariant(),
+            StyleName = StyleDefinitionCodec.GetStyleName(style),
+            StylePropertiesJson = StyleDefinitionCodec.Serialise(style),
+        };
+        slickRepository.Add(created);
+        return created;
+    }
+
+    private static StyleDefinition? ParseArchivedStyle(string? styleName, string? stylePropertiesJson)
+    {
+        if (string.IsNullOrWhiteSpace(styleName))
+        {
+            return null;
+        }
+
+        // Archive snapshots may contain styles written before the current domain contract.
+        return StyleDefinitionCodec.ParseCompatible(styleName, stylePropertiesJson).Definition;
+    }
+
     private async Task<CardDto> EnrichAssignedUserImageAsync(CardDto card)
     {
         if (card.AssignedUserId is null)
@@ -517,12 +562,12 @@ public sealed class CardArchiveService(
             .ToList();
     }
 
-    private async Task<CardTagResolution> ResolveTagsForRestoreAsync(int boardId, IReadOnlyList<string> tagNames)
+    private async Task<CardTagResolution> ResolveTagsForRestoreAsync(int boardId, CardDto snapshotCard)
     {
         var resolvedTags = new List<EntityTag>();
         var createdTags = false;
         var processedNormalisedNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var tagName in NormaliseTagNames(tagNames))
+        foreach (var tagName in NormaliseTagNames(snapshotCard.TagNames))
         {
             var normalisedName = tagName.ToUpperInvariant();
             if (!processedNormalisedNames.Add(normalisedName))
@@ -537,14 +582,19 @@ public sealed class CardArchiveService(
                 continue;
             }
 
+            var archivedTag = snapshotCard.Tags?.FirstOrDefault(x =>
+                string.Equals(x?.Name?.Trim(), tagName, StringComparison.OrdinalIgnoreCase));
+            var style = ParseArchivedStyle(archivedTag?.StyleName, archivedTag?.StylePropertiesJson)
+                ?? StyleDefinitionCodec.CreateDefault(StyleKind.Presets);
+            var emoji = TagEmojiValidator.ValidateAndNormalise(archivedTag?.Emoji, "snapshot.tags.emoji");
             var createdTag = new EntityTag
             {
                 BoardId = boardId,
                 Name = tagName,
                 NormalisedName = normalisedName,
-                StyleName = StyleDefinitionCodec.PresetsStyleName,
-                StylePropertiesJson = StyleDefinitionCodec.Serialise(
-                    StyleDefinitionCodec.CreateDefault(StyleKind.Presets)),
+                StyleName = StyleDefinitionCodec.GetStyleName(style),
+                StylePropertiesJson = StyleDefinitionCodec.Serialise(style),
+                Emoji = emoji.CanonicalEmoji,
             };
             tagRepository.Add(createdTag);
             createdTags = true;

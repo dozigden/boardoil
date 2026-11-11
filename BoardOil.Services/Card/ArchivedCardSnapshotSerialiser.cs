@@ -50,7 +50,9 @@ public static class ArchivedCardSnapshotSerialiser
             card.ExternalUrl,
             card.AssignedUser?.Email,
             card.CompletedChecklistItemCount,
-            card.TotalChecklistItemCount);
+            card.TotalChecklistItemCount,
+            card.Slick?.StyleName,
+            card.Slick?.StylePropertiesJson);
 
         var envelope = new ArchivedCardSnapshotEnvelopeV1(
             SchemaName,
@@ -195,7 +197,9 @@ public static class ArchivedCardSnapshotSerialiser
             card,
             payload.Comments?.ToList() ?? [],
             payload.OriginalColumnName,
-            payload.AssignedUserEmail);
+            payload.AssignedUserEmail,
+            payload.SlickStyleName,
+            payload.SlickStylePropertiesJson);
         return true;
     }
 
@@ -229,7 +233,9 @@ public sealed record ArchivedCardSnapshotV1Payload(
     string? ExternalUrl = null,
     string? AssignedUserEmail = null,
     int CompletedChecklistItemCount = 0,
-    int TotalChecklistItemCount = 0);
+    int TotalChecklistItemCount = 0,
+    string? SlickStyleName = null,
+    string? SlickStylePropertiesJson = null);
 
 public sealed record ArchivedCardSnapshotCommentV1Payload(
     string Text,
@@ -248,4 +254,6 @@ public sealed record ArchivedCardSnapshotCurrentDto(
     CardDto Card,
     IReadOnlyList<ArchivedCardSnapshotCommentV1Payload> Comments,
     string? OriginalColumnName,
-    string? AssignedUserEmail);
+    string? AssignedUserEmail,
+    string? SlickStyleName = null,
+    string? SlickStylePropertiesJson = null);

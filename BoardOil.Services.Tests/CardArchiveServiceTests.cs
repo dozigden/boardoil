@@ -217,7 +217,7 @@ public sealed class CardArchiveServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldRecreateSlickWithDefaultStyle()
+    public async Task ArchiveCardAsync_ThenUnarchiveCardAsync_WhenSnapshotSlickNoLongerExists_ShouldRecreateSlickWithArchivedStyle()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -248,14 +248,6 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         DbContextForArrange.ChangeTracker.Clear();
         var slickToDelete = await DbContextForArrange.Slicks.SingleAsync(x => x.Id == slick.Id);
         DbContextForArrange.Slicks.Remove(slickToDelete);
-        DbContextForArrange.Slicks.Add(new SlickEntity
-        {
-            BoardId = boardId,
-            Name = "Existing preset",
-            NormalisedName = "EXISTING PRESET",
-            StyleName = "presets",
-            StylePropertiesJson = """{"presetIndex":0}"""
-        });
         await DbContextForArrange.SaveChangesAsync();
         var unarchiveResult = await service.UnarchiveCardAsync(boardId, archiveResult.Data!.Id, ActorUserId);
 
@@ -265,10 +257,10 @@ public sealed class CardArchiveServiceTests : TestBaseDb
         Assert.Equal("Release train", unarchiveResult.Data!.SlickName);
         var recreatedSlick = await DbContextForAssert.Slicks.SingleAsync(x => x.BoardId == boardId && x.Name == "Release train");
         Assert.Equal("RELEASE TRAIN", recreatedSlick.NormalisedName);
-        Assert.Equal("presets", recreatedSlick.StyleName);
-        var defaultStyle = Assert.IsType<PresetStyleDefinition>(
-            StyleDefinitionCodec.ParseCompatible(recreatedSlick.StyleName, recreatedSlick.StylePropertiesJson).Definition);
-        Assert.InRange(defaultStyle.PresetIndex, 1, StyleDefinitionCodec.PresetCount - 1);
+        Assert.Equal("solid", recreatedSlick.StyleName);
+        var archivedStyle = Assert.IsType<SolidStyleDefinition>(
+            StyleDefinitionCodec.ParseForWrite(recreatedSlick.StyleName, recreatedSlick.StylePropertiesJson).Definition);
+        Assert.Equal("#2E8B57", archivedStyle.BackgroundColour);
         Assert.Equal(recreatedSlick.Id, unarchiveResult.Data.SlickId);
         Assert.NotNull(unarchiveResult.Data.Slick);
         Assert.Equal(recreatedSlick.StylePropertiesJson, unarchiveResult.Data.Slick.StylePropertiesJson);

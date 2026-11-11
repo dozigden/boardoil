@@ -38,6 +38,9 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.Equal(card.AssignedUser!.Email, knownPayload.Payload.AssignedUserEmail);
         Assert.Equal(["Bug"], knownPayload.Payload.TagNames);
         Assert.Equal(card.Slick!.Name, knownPayload.Payload.SlickName);
+        Assert.Equal(1, knownPayload.Version);
+        Assert.Equal(card.Slick.StyleName, knownPayload.Payload.SlickStyleName);
+        Assert.Equal(card.Slick.StylePropertiesJson, knownPayload.Payload.SlickStylePropertiesJson);
         Assert.NotNull(knownPayload.Payload.Comments);
         var firstComment = Assert.Single(knownPayload.Payload.Comments!);
         Assert.Equal("Archived note", firstComment.Text);
@@ -107,6 +110,8 @@ public sealed class ArchivedCardSnapshotSerialiserTests
         Assert.NotNull(snapshot);
         Assert.Equal(card.BoardColumn.Title, snapshot!.OriginalColumnName);
         Assert.Equal(card.AssignedUser!.Email, snapshot!.AssignedUserEmail);
+        Assert.Equal(card.Slick.StyleName, snapshot.SlickStyleName);
+        Assert.Equal(card.Slick.StylePropertiesJson, snapshot.SlickStylePropertiesJson);
         var snapshotComment = Assert.Single(snapshot.Comments);
         Assert.Equal("Archived note", snapshotComment.Text);
         Assert.Equal(11, snapshotComment.AuthorUserId);
