@@ -109,20 +109,32 @@ test('attachment additions and deletions update another open card through realti
 
 test('a lost upload response reconciles the saved file without offering a conflicting retry', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression lost attachment response');
-  await api.createCard(board, 'Todo', 'Card');
+  const card = await api.createCard(board, 'Todo', 'Card');
   const boardPage = new BoardPage(page);
   const panel = new AttachmentPanel(page);
   const bytes = Buffer.from([1, 2, 3]);
   await boardPage.open(board.id);
   await boardPage.openCard('Todo', 'Card');
-  await page.route('**/cards/*/attachments', async route => {
+  const attachmentPath = `/api/boards/${board.id}/cards/${card.id}/attachments`;
+  let uploadRequests = 0;
+  await page.route(`**${attachmentPath}`, async route => {
     if (route.request().method() !== 'POST') { await route.continue(); return; }
+    uploadRequests++;
     const response = await route.fetch();
     expect(response.ok()).toBe(true);
     await route.abort('failed');
   });
 
-  await panel.upload('saved.bin', bytes);
+  await test.step('Save the upload and lose its response', async () => {
+    await Promise.all([
+      page.waitForEvent('requestfailed', request =>
+        request.method() === 'POST' && new URL(request.url()).pathname === attachmentPath),
+      panel.startUpload('saved.bin', bytes)
+    ]);
+  });
+
+  await expect(panel.downloadLink('saved.bin')).toBeVisible();
+  await expect(panel.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
 
   const warning = page.getByRole('dialog', { name: 'Attachment warning', exact: true });
   await expect(warning).toBeVisible();
@@ -132,6 +144,10 @@ test('a lost upload response reconciles the saved file without offering a confli
   await expect(warning).toBeHidden();
   await expect(panel.region().getByRole('button', { name: 'Dismiss', exact: true })).toHaveCount(0);
   expect(await panel.download('saved.bin')).toEqual({ name: 'saved.bin', bytes });
+  expect(await api.getAttachments(board.id, card.id)).toEqual([
+    expect.objectContaining({ originalFileName: 'saved.bin' })
+  ]);
+  expect(uploadRequests).toBe(1);
 });
 
 test('a browser image upload includes and displays its thumbnail', async ({ api, authenticatedPage: page }) => {

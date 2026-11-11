@@ -16,9 +16,13 @@ export class AttachmentPanel {
     await this.region().getByLabel('Choose attachments').dispatchEvent('cancel', { bubbles: true, cancelable: false });
   }
 
-  public async upload(name: string, buffer: Buffer, mimeType = 'application/octet-stream') {
+  public async startUpload(name: string, buffer: Buffer, mimeType = 'application/octet-stream') {
     await expect(this.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
     await this.region().getByLabel('Choose attachments').setInputFiles({ name, mimeType, buffer });
+  }
+
+  public async upload(name: string, buffer: Buffer, mimeType = 'application/octet-stream') {
+    await this.startUpload(name, buffer, mimeType);
     await expect(this.downloadLink(name)).toBeVisible();
     await expect(this.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
   }

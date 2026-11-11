@@ -285,6 +285,11 @@ export class BoardOilApi {
     return await readEnvelope<SmokeAttachment>(response);
   }
 
+  public async getAttachments(boardId: number, cardId: number) {
+    const list = await this.read<{ items: SmokeAttachment[] }>(`/api/boards/${boardId}/cards/${cardId}/attachments`);
+    return list.items;
+  }
+
   public async archiveCard(boardId: number, cardId: number) {
     const response = await this.request.post(`/api/boards/${boardId}/cards/${cardId}/archive`, {
       data: {}, headers: { 'X-BoardOil-CSRF': this.csrfToken }
