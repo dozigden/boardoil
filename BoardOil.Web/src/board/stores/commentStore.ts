@@ -78,7 +78,7 @@ export const useCommentStore = defineStore('comment', () => {
       ...(commentIdsBeforeResync[cardId] ?? []),
       ...(commentsByCardId.value[cardId] ?? []).map(comment => comment.id)
     ]);
-    const result = await runBusy(() => api.getCardComments(boardId, cardId), boardId);
+    const result = await runApiOperation(() => api.getCardComments(boardId, cardId), boardId);
     if (!result.ok) {
       return result;
     }
@@ -94,7 +94,7 @@ export const useCommentStore = defineStore('comment', () => {
   }
 
   async function addCardComment(boardId: number, cardId: number, text: string) {
-    const result = await runBusy(() => api.createCardComment(boardId, cardId, text), boardId);
+    const result = await runApiOperation(() => api.createCardComment(boardId, cardId, text), boardId);
     if (!result.ok) {
       return result;
     }
@@ -115,7 +115,7 @@ export const useCommentStore = defineStore('comment', () => {
   }
 
   async function updateCardComment(boardId: number, cardId: number, commentId: number, text: string) {
-    const result = await runBusy(() => api.updateCardComment(boardId, cardId, commentId, text), boardId);
+    const result = await runApiOperation(() => api.updateCardComment(boardId, cardId, commentId, text), boardId);
     if (!result.ok) {
       return result;
     }
@@ -130,7 +130,7 @@ export const useCommentStore = defineStore('comment', () => {
   }
 
   async function deleteCardComment(boardId: number, cardId: number, commentId: number) {
-    const result = await runBusy(() => api.deleteCardComment(boardId, cardId, commentId), boardId);
+    const result = await runApiOperation(() => api.deleteCardComment(boardId, cardId, commentId), boardId);
     if (!result.ok) {
       return result;
     }
@@ -148,7 +148,7 @@ export const useCommentStore = defineStore('comment', () => {
     return deletedCommentIds.value.has(commentId);
   }
 
-  async function runBusy<T>(operation: () => Promise<Result<T, AppError>>, boardId: number) {
+  async function runApiOperation<T>(operation: () => Promise<Result<T, AppError>>, boardId: number) {
     if (activeBoardId.value === boardId) {
       busy.value = true;
     }
