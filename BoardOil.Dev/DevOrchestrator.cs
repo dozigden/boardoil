@@ -66,7 +66,7 @@ internal sealed class DevOrchestrator
             var delayTask = Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
             while (Console.KeyAvailable)
             {
-                HandleKey(Console.ReadKey(intercept: true), cancellationToken);
+                await HandleKeyAsync(Console.ReadKey(intercept: true), cancellationToken);
                 Render();
             }
 
@@ -74,7 +74,7 @@ internal sealed class DevOrchestrator
         }
     }
 
-    private void HandleKey(ConsoleKeyInfo key, CancellationToken cancellationToken)
+    private async Task HandleKeyAsync(ConsoleKeyInfo key, CancellationToken cancellationToken)
     {
         if (key.Modifiers.HasFlag(ConsoleModifiers.Control) && key.Key == ConsoleKey.C)
         {
@@ -112,6 +112,14 @@ internal sealed class DevOrchestrator
                 break;
             case ConsoleKey.A:
                 BeginOperation(() => StartDefaultServicesAsync(cancellationToken));
+                break;
+            case ConsoleKey.M:
+                if (activeOperation is { IsCompleted: false })
+                {
+                    statusMessage = "Wait for the current service operation before opening the test agent.";
+                    break;
+                }
+                await RunOperationAsync(() => OpenTestAgentAsync(cancellationToken));
                 break;
             case ConsoleKey.X:
                 BeginOperation(StopAllWithStatusAsync);
@@ -262,6 +270,52 @@ internal sealed class DevOrchestrator
         }
     }
 
+    private async Task OpenTestAgentAsync(CancellationToken cancellationToken)
+    {
+        Console.Clear();
+        Console.CursorVisible = true;
+        Console.WriteLine("Opening the MCP test agent...");
+        try
+        {
+            DevTestAgent.EnsureAvailable();
+            await StartDefaultServicesAsync(cancellationToken);
+            if (!services[0].IsRunning || !services[1].IsRunning)
+            {
+                throw new InvalidOperationException("API/Web could not start. Check their logs.");
+            }
+            Console.TreatControlCAsInput = false;
+            Console.CancelKeyPress += KeepDashboardAlive;
+            await DevTestAgent.RunAsync(repoRoot, databaseManager.Current.DatabasePath, cancellationToken);
+            statusMessage = "Test agent closed; its development token has been revoked.";
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            var logPath = Path.Combine(repoRoot, ".data", "dev", "logs", "agent.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            await File.AppendAllTextAsync(logPath, $"{DateTimeOffset.Now:O} {exception}{Environment.NewLine}", CancellationToken.None);
+            Console.WriteLine();
+            Console.WriteLine($"Could not open the test agent: {exception.Message}");
+            Console.WriteLine($"Details saved to {logPath}");
+            Console.WriteLine("Press Enter to return to the dev dashboard.");
+            while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
+            statusMessage = "Test agent failed to open. Details: .data/dev/logs/agent.log";
+        }
+        finally
+        {
+            Console.CancelKeyPress -= KeepDashboardAlive;
+            Console.TreatControlCAsInput = true;
+            Console.CursorVisible = false;
+            // Terminal replies and keystrokes left by the child must not become dashboard commands.
+            while (Console.KeyAvailable)
+            {
+                _ = Console.ReadKey(intercept: true);
+            }
+            Console.Clear();
+        }
+
+        static void KeepDashboardAlive(object? sender, ConsoleCancelEventArgs args) => args.Cancel = true;
+    }
+
     private ManagedService CreateApiService()
     {
         var apiProject = Path.Combine(repoRoot, "BoardOil.Api", "BoardOil.Api.csproj");
@@ -403,7 +457,7 @@ internal sealed class DevOrchestrator
 
         WriteLine(string.Empty, width);
         WriteLine(
-            "Keys: Up/Down  Space start/stop  R restart  A start API/Web  X stop all  B branch DB  S shared DB  T new temp DB  L logs  1-3 select  Q quit",
+            "Keys: Up/Down  Space start/stop  R restart  A start API/Web  M test agent  X stop all  B branch DB  S shared DB  T new temp DB  L logs  1-3 select  Q quit",
             width,
             ConsoleColor.Yellow);
         WriteLine($"Status: {statusMessage}", width, ConsoleColor.White);
