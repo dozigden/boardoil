@@ -9,8 +9,18 @@ export function createLoginForm(login: FormDefinition<LoginDraft, AuthUser>['sub
     submitLabel: 'Login',
     initialValues: () => ({ userName: '', password: '' }),
     fields: [
-      { name: 'userName', label: 'Username', type: 'text', autocomplete: 'username' },
-      { name: 'password', label: 'Password', type: 'password', autocomplete: 'current-password' }
+      {
+        name: 'userName',
+        label: 'Username',
+        type: 'text',
+        autocomplete: 'username'
+      },
+      {
+        name: 'password',
+        label: 'Password',
+        type: 'password',
+        autocomplete: 'current-password'
+      }
     ],
     submit: login
   });

@@ -2,7 +2,12 @@
   <form class="form-page" @submit.prevent="submit">
     <header class="form-page-header">
       <h2>{{ definition.title }}</h2>
-      <button type="submit" class="btn" :class="{ 'btn--reassessing': reassessing }" :disabled="!canSubmit || !dirty">
+      <button
+        type="submit"
+        class="btn"
+        :class="{ 'btn--reassessing': reassessing }"
+        :disabled="!canSubmit || !dirty"
+      >
         <FormSubmitIcon v-if="definition.reassess" :loading="reassessing" />
         <span>{{ busy ? 'Saving...' : submitLabel }}</span>
       </button>
@@ -36,7 +41,20 @@ const props = defineProps<{ definition: FormDefinition<T, R>; discardMessage: st
 const definition = props.definition;
 const emit = defineEmits<{ saved: [value: R] }>();
 let active = true;
-const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, dirty, reset, canSubmit, setValue, submit: submitForm } = useForm({
+const {
+  draft,
+  fields,
+  busy,
+  locked,
+  reassessing,
+  reassessmentError,
+  reassess,
+  dirty,
+  reset,
+  canSubmit,
+  setValue,
+  submit: submitForm
+} = useForm({
   ...definition,
   isCurrent: () => active && (definition.isCurrent?.() ?? true)
 });
@@ -67,7 +85,10 @@ onBeforeRouteLeave(async to => {
   if (busy.value) return false;
   if (!dirty.value) return true;
   return await confirm({
-    title: 'Discard unsaved changes', message: props.discardMessage, confirmLabel: 'Discard', danger: true
+    title: 'Discard unsaved changes',
+    message: props.discardMessage,
+    confirmLabel: 'Discard',
+    danger: true
   });
 });
 onMounted(() => window.addEventListener('beforeunload', onBeforeUnload));

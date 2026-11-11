@@ -46,7 +46,14 @@ const boardName = computed(() => boardStore.board?.name ?? '');
 const isOwner = computed(() => boardStore.isCurrentUserOwner);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
-const { draft, fields, locked, canSubmit, setValue, submit: submitForm } = useForm(createBoardDeleteForm({
+const {
+  draft,
+  fields,
+  locked,
+  canSubmit,
+  setValue,
+  submit: submitForm
+} = useForm(createBoardDeleteForm({
   boardName: () => boardName.value,
   canDelete: () => isOwner.value,
   isCurrent: () => boardStore.currentBoardId === boardId,

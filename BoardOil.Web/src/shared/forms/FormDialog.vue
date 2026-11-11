@@ -1,5 +1,11 @@
 <template>
-  <FixedChromeDialog open :title="definition.title" :close-label="definition.closeLabel ?? definition.cancelLabel" @close="cancel" @submit="submit">
+  <FixedChromeDialog
+    open
+    :title="definition.title"
+    :close-label="definition.closeLabel ?? definition.cancelLabel"
+    @close="cancel"
+    @submit="submit"
+  >
     <FormFeedback ref="feedback" class="form-dialog-fields" :category="definition.category">
       <slot name="before-fields" :values="draft" :busy="locked" />
       <FormReassessment v-if="definition.reassess" :error="reassessmentError" @retry="reassess" />
@@ -11,20 +17,40 @@
         <div class="fixed-chrome-dialog-actions">
           <div v-if="definition.actions?.length" class="fixed-chrome-dialog-actions-left">
             <button
-              v-for="action in definition.actions" :key="action.name"
-              type="button" class="btn" :class="{ 'btn--danger': action.danger }"
-              :disabled="locked" :aria-label="action.label" :title="action.label" @click="runAction(action)"
+              v-for="action in definition.actions"
+              :key="action.name"
+              type="button"
+              class="btn"
+              :class="{ 'btn--danger': action.danger }"
+              :disabled="locked"
+              :aria-label="action.label"
+              :title="action.label"
+              @click="runAction(action)"
             >
               <component v-if="action.icon" :is="action.icon" :size="16" aria-hidden="true" />
               <span v-else>{{ action.label }}</span>
             </button>
           </div>
           <div class="fixed-chrome-dialog-actions-left">
-            <button type="submit" class="btn" :class="{ 'btn--reassessing': reassessing }" :disabled="!canSubmit" :aria-label="submitLabel" :title="submitLabel">
+            <button
+              type="submit"
+              class="btn"
+              :class="{ 'btn--reassessing': reassessing }"
+              :disabled="!canSubmit"
+              :aria-label="submitLabel"
+              :title="submitLabel"
+            >
               <FormSubmitIcon :loading="reassessing" />
               <span>{{ definition.submitText ?? submitLabel }}</span>
             </button>
-            <button type="button" class="btn btn--secondary" :disabled="busy" :aria-label="definition.cancelLabel ?? 'Cancel'" title="Cancel" @click="cancel">
+            <button
+              type="button"
+              class="btn btn--secondary"
+              :disabled="busy"
+              :aria-label="definition.cancelLabel ?? 'Cancel'"
+              title="Cancel"
+              @click="cancel"
+            >
               <X :size="16" aria-hidden="true" />
               <span>Cancel</span>
             </button>
@@ -51,7 +77,19 @@ import { useForm } from './useForm';
 const props = defineProps<{ definition: FormDefinition<T, R> }>();
 const definition = props.definition;
 const emit = defineEmits<{ close: []; saved: [value: R] }>();
-const { draft, fields, busy, locked, reassessing, reassessmentError, reassess, canSubmit, setValue, submit: submitForm, runAction: runFormAction } = useForm(definition);
+const {
+  draft,
+  fields,
+  busy,
+  locked,
+  reassessing,
+  reassessmentError,
+  reassess,
+  canSubmit,
+  setValue,
+  submit: submitForm,
+  runAction: runFormAction
+} = useForm(definition);
 const submitLabel = computed(() => typeof definition.submitLabel === 'function'
   ? definition.submitLabel(draft.value) : definition.submitLabel);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);

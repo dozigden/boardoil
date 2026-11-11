@@ -9,7 +9,9 @@ export function createUserThemeForm(mode: ThemeMode, save: FormDefinition<ThemeD
     submitLabel: 'Save',
     initialValues: () => ({ mode }),
     fields: [{
-      name: 'mode', label: 'Appearance mode', type: 'radio',
+      name: 'mode',
+      label: 'Appearance mode',
+      type: 'radio',
       options: [
         { value: 'system', label: 'System' },
         { value: 'light', label: 'Light' },

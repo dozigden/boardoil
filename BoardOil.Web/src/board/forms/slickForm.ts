@@ -32,16 +32,30 @@ export function createSlickForm(slick: Slick | null, operations: SlickOperations
       style: createRestrictedStyleDraft(slick ?? fallbackStyle, new Set(allowedStyleNames), fallbackStyle)
     }),
     fields: [
-      { name: 'name', label: 'Name', type: 'text', autocomplete: 'off', placeholder: slick ? 'Slick name' : 'New slick name' },
-      { name: 'style', label: 'Style', type: 'style', allowedStyleNames, presetColours: SLICK_PRESET_TOKENS,
-        errorFields: ['styleName', 'stylePropertiesJson'] }
+      {
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        autocomplete: 'off',
+        placeholder: slick ? 'Slick name' : 'New slick name'
+      },
+      {
+        name: 'style',
+        label: 'Style',
+        type: 'style',
+        allowedStyleNames,
+        presetColours: SLICK_PRESET_TOKENS,
+        errorFields: ['styleName', 'stylePropertiesJson']
+      }
     ],
     reassess: slick ? undefined : async values => {
       const defaultStyle = await operations.loadDefaultStyle();
-      return { values: {
-        ...values,
-        style: createRestrictedStyleDraft(defaultStyle ?? fallbackStyle, new Set(allowedStyleNames), fallbackStyle)
-      } };
+      return {
+        values: {
+          ...values,
+          style: createRestrictedStyleDraft(defaultStyle ?? fallbackStyle, new Set(allowedStyleNames), fallbackStyle)
+        }
+      };
     },
     isCurrent: operations.isCurrent,
     submit: values => operations.save({
@@ -50,8 +64,12 @@ export function createSlickForm(slick: Slick | null, operations: SlickOperations
       stylePropertiesJson: buildStylePropertiesJsonFromDraft(values.style)
     }),
     actions: slick && operations.delete ? [{
-      name: 'delete', label: 'Delete slick', icon: Trash2, danger: true,
-      confirm: operations.delete.confirm, run: operations.delete.run
+      name: 'delete',
+      label: 'Delete slick',
+      icon: Trash2,
+      danger: true,
+      confirm: operations.delete.confirm,
+      run: operations.delete.run
     }] : []
   });
 }

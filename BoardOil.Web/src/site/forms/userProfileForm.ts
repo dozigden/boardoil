@@ -7,8 +7,18 @@ export function createUserProfileForm(profile: OwnUserProfile, save: FormDefinit
     submitLabel: 'Save profile',
     initialValues: () => profileValues(profile),
     fields: [
-      { name: 'displayName', label: 'Display name', type: 'text', autocomplete: 'name' },
-      { name: 'email', label: 'Email', type: 'email', autocomplete: 'email' }
+      {
+        name: 'displayName',
+        label: 'Display name',
+        type: 'text',
+        autocomplete: 'name'
+      },
+      {
+        name: 'email',
+        label: 'Email',
+        type: 'email',
+        autocomplete: 'email'
+      }
     ],
     savedValues: profileValues,
     submit: save

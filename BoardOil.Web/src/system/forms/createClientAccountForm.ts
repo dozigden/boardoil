@@ -19,17 +19,54 @@ export function createClientAccountForm(save: FormDefinition<CreateClientAccount
     cancelLabel: 'Cancel creation',
     closeLabel: 'Cancel client account creation',
     initialValues: () => ({
-      userName: '', displayName: '', email: '', role: 'Standard', tokenName: 'Initial token',
-      scopes: ['api:read', 'api:write', 'api:admin', 'api:system'], expiry: createTokenExpiryDraft()
+      userName: '',
+      displayName: '',
+      email: '',
+      role: 'Standard',
+      tokenName: 'Initial token',
+      scopes: ['api:read', 'api:write', 'api:admin', 'api:system'],
+      expiry: createTokenExpiryDraft()
     }),
     fields: [
-      { name: 'userName', label: 'Username', type: 'text' },
-      { name: 'displayName', label: 'Display name', type: 'text' },
-      { name: 'email', label: 'Email', type: 'email', autocomplete: 'email' },
-      { name: 'role', label: 'Role', type: 'select', options: [{ value: 'Standard', label: 'Standard' }, { value: 'Admin', label: 'Admin' }] },
-      { name: 'tokenName', label: 'Token name', type: 'text' },
-      { name: 'scopes', label: 'Scopes', type: 'tokenScopes', allowedScopes: tokenScopeDefinitions.map(scope => scope.id) },
-      { name: 'expiry', label: 'Expiry', type: 'tokenExpiry', errorFields: ['expiresInDays'] }
+      {
+        name: 'userName',
+        label: 'Username',
+        type: 'text'
+      },
+      {
+        name: 'displayName',
+        label: 'Display name',
+        type: 'text'
+      },
+      {
+        name: 'email',
+        label: 'Email',
+        type: 'email',
+        autocomplete: 'email'
+      },
+      {
+        name: 'role',
+        label: 'Role',
+        type: 'select',
+        options: [{ value: 'Standard', label: 'Standard' }, { value: 'Admin', label: 'Admin' }]
+      },
+      {
+        name: 'tokenName',
+        label: 'Token name',
+        type: 'text'
+      },
+      {
+        name: 'scopes',
+        label: 'Scopes',
+        type: 'tokenScopes',
+        allowedScopes: tokenScopeDefinitions.map(scope => scope.id)
+      },
+      {
+        name: 'expiry',
+        label: 'Expiry',
+        type: 'tokenExpiry',
+        errorFields: ['expiresInDays']
+      }
     ],
     validate: ({ expiry }) => expiry.nonExpiring && !expiry.confirmed
       ? { expiry: ['Confirm non-expiring token risk before creating.'] }

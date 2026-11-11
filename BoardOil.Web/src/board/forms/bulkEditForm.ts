@@ -25,30 +25,51 @@ export function createBulkEditForm(operations: BulkEditOperations) {
   function fields(values: BulkEditDraft): FormFieldDefinition<BulkEditDraft>[] {
     const result: FormFieldDefinition<BulkEditDraft>[] = [
       {
-        name: 'targetColumnId', label: 'Column', type: 'select', errorFields: ['move.targetColumnId'],
+        name: 'targetColumnId',
+        label: 'Column',
+        type: 'select',
+        errorFields: ['move.targetColumnId'],
         options: () => [{ value: null, label: 'No change' }, ...operations.columns().map(column => ({ value: column.id, label: column.title }))]
       },
       {
-        name: 'slickOperation', label: 'Slick', type: 'select', reassessOnChange: true, clearFields: ['targetSlickName'],
+        name: 'slickOperation',
+        label: 'Slick',
+        type: 'select',
+        reassessOnChange: true,
+        clearFields: ['targetSlickName'],
         options: [{ value: 'none', label: 'No change' }, { value: 'clear', label: 'No slick' }, { value: 'set', label: 'Set slick' }]
       }
     ];
     if (values.slickOperation === 'set') result.push({
-      name: 'targetSlickName', label: 'Slick to set', type: 'select', errorFields: ['slick.name'],
+      name: 'targetSlickName',
+      label: 'Slick to set',
+      type: 'select',
+      errorFields: ['slick.name'],
       options: () => [{ value: null, label: 'Select slick' }, ...operations.slicks().map(slick => ({ value: slick.name, label: slick.name }))]
     });
     result.push({
-      name: 'tagStates', label: 'Tags', type: 'custom', component: BulkTagFormControl,
+      name: 'tagStates',
+      label: 'Tags',
+      type: 'custom',
+      component: BulkTagFormControl,
       errorFields: ['addTagNames', 'removeTagNames']
     });
     return result;
   }
 
-  const initialValues = (): BulkEditDraft => ({ targetColumnId: null, slickOperation: 'none', targetSlickName: null, tagStates: {} });
+  const initialValues = (): BulkEditDraft => ({
+    targetColumnId: null,
+    slickOperation: 'none',
+    targetSlickName: null,
+    tagStates: {}
+  });
 
   return defineForm<BulkEditDraft, Card[]>({
-    title: 'Bulk Edit Selected Cards', submitLabel: 'Apply edits', closeLabel: 'Close bulk edit',
-    initialValues, fields: fields(initialValues()),
+    title: 'Bulk Edit Selected Cards',
+    submitLabel: 'Apply edits',
+    closeLabel: 'Close bulk edit',
+    initialValues,
+    fields: fields(initialValues()),
     reassess: values => {
       if (values.slickOperation !== 'set') values.targetSlickName = null;
       return { values, fields: fields(values) };
@@ -70,7 +91,11 @@ export function createBulkEditForm(operations: BulkEditOperations) {
         if (state === 'include') addTagNames.push(name);
         if (state === 'exclude') removeTagNames.push(name);
       }
-      const options: BulkEditCardsOptions = { moveTargetColumnId: values.targetColumnId, addTagNames, removeTagNames };
+      const options: BulkEditCardsOptions = {
+        moveTargetColumnId: values.targetColumnId,
+        addTagNames,
+        removeTagNames
+      };
       if (values.slickOperation === 'clear') options.slickName = null;
       if (values.slickOperation === 'set') options.slickName = values.targetSlickName;
       return operations.save(options);

@@ -21,21 +21,32 @@ export function configurationForm(
   save: FormDefinition<UpdateConfigurationRequest, ConfigurationDto>['submit']
 ) {
   return defineForm<ConfigurationDraft, ConfigurationDto>({
-    title: 'Configuration', submitLabel: 'Save',
+    title: 'Configuration',
+    submitLabel: 'Save',
     initialValues: () => draftFromConfiguration(configuration),
     savedValues: draftFromConfiguration,
     fields: [
       {
-        name: 'oauthLifecycleDiagnosticsEnabled', label: 'Log OAuth requests', type: 'checkbox',
+        name: 'oauthLifecycleDiagnosticsEnabled',
+        label: 'Log OAuth requests',
+        type: 'checkbox',
         help: 'When enabled, BoardOil retains OAuth identities, requested scopes, hashed token fingerprints, trace identifiers, and user-agent metadata.'
       },
       {
-        name: 'mcpPublicBaseUrl', label: 'MCP public base URL', type: 'text', clearable: true,
-        placeholder: 'https://boardoil.example.com', autocomplete: 'off', spellcheck: false,
+        name: 'mcpPublicBaseUrl',
+        label: 'MCP public base URL',
+        type: 'text',
+        clearable: true,
+        placeholder: 'https://boardoil.example.com',
+        autocomplete: 'off',
+        spellcheck: false,
         help: 'Leave blank to use automatic relative discovery URLs, recommended for Docker and proxy setups.'
       },
       {
-        name: 'systemTimeZoneId', label: 'System timezone', type: 'searchableSelect', options: timeZones,
+        name: 'systemTimeZoneId',
+        label: 'System timezone',
+        type: 'searchableSelect',
+        options: timeZones,
         help: 'Used for scheduled job run times. Changing it resets schedule catch-up from now.'
       }
     ],

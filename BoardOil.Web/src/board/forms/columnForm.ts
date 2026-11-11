@@ -17,13 +17,22 @@ export function createColumnForm(column: Column | null, operations: ColumnOperat
     cancelLabel: column ? 'Cancel editing' : 'Cancel new column',
     initialValues: () => ({ title: column?.title ?? '' }),
     fields: [{
-      name: 'title', label: column ? 'Title' : 'Column title', type: 'text',
-      autocomplete: 'off', placeholder: column ? undefined : 'New column title',
+      name: 'title',
+      label: column ? 'Title' : 'Column title',
+      type: 'text',
+      autocomplete: 'off',
+      placeholder: column ? undefined : 'New column title',
       disabled: () => !operations.canEdit()
     }],
     isCurrent: operations.isCurrent,
     canSubmit: operations.canEdit,
     submit: operations.save,
-    actions: operations.delete ? [{ name: 'delete', label: 'Delete column', icon: Trash2, danger: true, run: operations.delete }] : []
+    actions: operations.delete ? [{
+      name: 'delete',
+      label: 'Delete column',
+      icon: Trash2,
+      danger: true,
+      run: operations.delete
+    }] : []
   });
 }

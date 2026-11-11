@@ -15,9 +15,15 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
   const reassessmentError = ref('');
   const locked = computed(() => busy.value || reassessing.value);
   let disposed = false;
-  if (getCurrentScope()) onScopeDispose(() => { disposed = true; });
+  if (getCurrentScope()) onScopeDispose(() => {
+    disposed = true;
+  });
   const dirty = computed(() => !equalFormDrafts(draft.value, initial.value));
-  const canSubmit = computed(() => !locked.value && !reassessmentError.value && (definition.canSubmit?.(draft.value) ?? true));
+  const canSubmit = computed(() =>
+    !locked.value
+    && !reassessmentError.value
+    && (definition.canSubmit?.(draft.value) ?? true)
+  );
   const isCurrent = () => definition.isCurrent?.() ?? true;
 
   function setValue<K extends Extract<keyof T, string>>(field: K, value: T[K]) {
@@ -66,7 +72,10 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
     return runReassessment();
   }
 
-  async function runOperation<V>(operation: () => Promise<Result<V, FormError>>, confirm?: () => Promise<boolean>) {
+  async function runOperation<V>(
+    operation: () => Promise<Result<V, FormError>>,
+    confirm?: () => Promise<boolean>
+  ) {
     if (locked.value || !isCurrent()) return;
     busy.value = true;
     try {
@@ -109,5 +118,19 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
 
   void runReassessment(true);
 
-  return { draft, fields, busy, locked, reassessing, reassessmentError, dirty, canSubmit, setValue, reset, reassess, submit, runAction };
+  return {
+    draft,
+    fields,
+    busy,
+    locked,
+    reassessing,
+    reassessmentError,
+    dirty,
+    canSubmit,
+    setValue,
+    reset,
+    reassess,
+    submit,
+    runAction
+  };
 }

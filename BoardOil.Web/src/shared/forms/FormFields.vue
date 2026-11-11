@@ -68,7 +68,12 @@
       :required="field.required"
       @change="event => updateSelection(field, event)"
     >
-      <option v-for="option in optionsFor(field)" :key="String(option.value)" :value="option.value ?? ''" :disabled="option.disabled">{{ option.label }}</option>
+      <option
+        v-for="option in optionsFor(field)"
+        :key="String(option.value)"
+        :value="option.value ?? ''"
+        :disabled="option.disabled"
+      >{{ option.label }}</option>
     </select>
     <span
       v-else-if="field.type === 'text' || field.type === 'email' || field.type === 'password'"
@@ -88,8 +93,13 @@
         @input="event => updateInput(field.name, event)"
         @compositionend="event => updateInput(field.name, event)"
       />
-      <button v-if="field.clearable" type="button" class="btn btn--secondary" :disabled="isDisabled(field) || !values[field.name]"
-        @click="updateValue(field.name, '')">Clear</button>
+      <button
+        v-if="field.clearable"
+        type="button"
+        class="btn btn--secondary"
+        :disabled="isDisabled(field) || !values[field.name]"
+        @click="updateValue(field.name, '')"
+      >Clear</button>
     </span>
   </FormField>
 </template>
@@ -105,7 +115,11 @@ import FileFormControl from '../components/FileFormControl.vue';
 import RadioFormControl from '../components/RadioFormControl.vue';
 import type { FormFieldDefinition, FormOption } from './formDefinition';
 
-const props = defineProps<{ fields: readonly FormFieldDefinition<T>[]; values: T; busy: boolean }>();
+const props = defineProps<{
+  fields: readonly FormFieldDefinition<T>[];
+  values: T;
+  busy: boolean
+}>();
 const emit = defineEmits<{ change: [field: Extract<keyof T, string>, value: T[Extract<keyof T, string>]] }>();
 
 function isDisabled(field: FormFieldDefinition<T>) {

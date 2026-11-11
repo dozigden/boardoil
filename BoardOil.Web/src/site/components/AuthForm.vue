@@ -24,7 +24,15 @@ const emit = defineEmits<{ saved: [value: R] }>();
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
 const validation = useValidationStore();
 let active = true;
-const { draft, fields, busy, locked, canSubmit, setValue, submit: submitForm } = useForm({
+const {
+  draft,
+  fields,
+  busy,
+  locked,
+  canSubmit,
+  setValue,
+  submit: submitForm
+} = useForm({
   ...definition,
   isCurrent: () => active && (definition.isCurrent?.() ?? true)
 });

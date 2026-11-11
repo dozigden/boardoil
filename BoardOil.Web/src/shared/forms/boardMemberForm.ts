@@ -17,10 +17,16 @@ export function createBoardMemberForm(operations: MemberOperations) {
     initialValues: () => ({ userId: operations.users()[0]?.id ?? 0, role: 'Contributor' }),
     fields: [
       {
-        name: 'userId', label: 'User', type: 'select',
+        name: 'userId',
+        label: 'User',
+        type: 'select',
         disabled: () => !operations.canManage(),
         options: () => [
-          { value: 0, label: operations.users().length ? 'Select a user' : 'No users available', disabled: true },
+          {
+            value: 0,
+            label: operations.users().length ? 'Select a user' : 'No users available',
+            disabled: true
+          },
           ...operations.users().map(user => ({
             value: user.id,
             label: `${user.displayName} (@${user.userName}, #${user.id})${user.isActive ? '' : ' - Inactive'}`
@@ -28,7 +34,9 @@ export function createBoardMemberForm(operations: MemberOperations) {
         ]
       },
       {
-        name: 'role', label: 'Role', type: 'select',
+        name: 'role',
+        label: 'Role',
+        type: 'select',
         disabled: () => !operations.canManage(),
         options: [{ value: 'Contributor', label: 'Contributor' }, { value: 'Owner', label: 'Owner' }]
       }

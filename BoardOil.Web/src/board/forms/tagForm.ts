@@ -6,7 +6,11 @@ import { buildStylePropertiesJsonFromDraft, createStyleDraft } from '../../share
 import { DEFAULT_TAG_STYLE_PROPERTIES_JSON } from '../../shared/utils/tagStyles';
 import type { StyleDraft } from '../../shared/utils/styleTypes';
 
-export type TagDraft = { name: string; emoji: string | null; style: StyleDraft };
+export type TagDraft = {
+  name: string;
+  emoji: string | null;
+  style: StyleDraft
+};
 const fallbackStyle: StyleDefault = { styleName: 'presets', stylePropertiesJson: DEFAULT_TAG_STYLE_PROPERTIES_JSON };
 
 type TagOperations = {
@@ -32,9 +36,24 @@ export function createTagForm(tag: Tag | null, operations: TagOperations) {
       style: createStyleDraft(tag ?? fallbackStyle)
     }),
     fields: [
-      { name: 'name', label: 'Name', type: 'text', autocomplete: 'off', placeholder: tag ? 'Tag name' : 'New tag name' },
-      { name: 'emoji', label: 'Emoji', type: 'emoji' },
-      { name: 'style', label: 'Style', type: 'style', errorFields: ['styleName', 'stylePropertiesJson'] }
+      {
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        autocomplete: 'off',
+        placeholder: tag ? 'Tag name' : 'New tag name'
+      },
+      {
+        name: 'emoji',
+        label: 'Emoji',
+        type: 'emoji'
+      },
+      {
+        name: 'style',
+        label: 'Style',
+        type: 'style',
+        errorFields: ['styleName', 'stylePropertiesJson']
+      }
     ],
     reassess: tag ? undefined : async values => {
       const defaultStyle = await operations.loadDefaultStyle();
@@ -48,8 +67,12 @@ export function createTagForm(tag: Tag | null, operations: TagOperations) {
       stylePropertiesJson: buildStylePropertiesJsonFromDraft(values.style)
     }),
     actions: tag && operations.delete ? [{
-      name: 'delete', label: 'Delete tag', icon: Trash2, danger: true,
-      confirm: operations.delete.confirm, run: operations.delete.run
+      name: 'delete',
+      label: 'Delete tag',
+      icon: Trash2,
+      danger: true,
+      confirm: operations.delete.confirm,
+      run: operations.delete.run
     }] : []
   });
 }

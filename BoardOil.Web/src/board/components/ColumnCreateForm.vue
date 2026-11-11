@@ -25,7 +25,14 @@ const boardId = store.currentBoardId!;
 const validation = useValidationStore();
 const root = ref<HTMLFormElement | null>(null);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);
-const { draft, fields, locked, canSubmit, setValue, submit: submitForm } = useForm(createColumnForm(null, {
+const {
+  draft,
+  fields,
+  locked,
+  canSubmit,
+  setValue,
+  submit: submitForm
+} = useForm(createColumnForm(null, {
   save: store.createColumn,
   canEdit: () => store.isCurrentUserOwner,
   isCurrent: () => store.currentBoardId === boardId

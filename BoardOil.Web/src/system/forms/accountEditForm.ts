@@ -21,12 +21,40 @@ export function createAccountEditForm<R>(
       isActive: account.isActive
     }),
     fields: [
-      { name: 'userName', label: 'Username', type: 'text', disabled: () => true },
-      { name: 'displayName', label: 'Display name', type: 'text' },
-      { name: 'email', label: 'Email', type: 'email', autocomplete: 'email' },
-      { name: 'role', label: 'Role', type: 'select', options: [{ value: 'Standard', label: 'Standard' }, { value: 'Admin', label: 'Admin' }] },
-      { name: 'isActive', label: 'Active account', type: 'checkbox' }
+      {
+        name: 'userName',
+        label: 'Username',
+        type: 'text',
+        disabled: () => true
+      },
+      {
+        name: 'displayName',
+        label: 'Display name',
+        type: 'text'
+      },
+      {
+        name: 'email',
+        label: 'Email',
+        type: 'email',
+        autocomplete: 'email'
+      },
+      {
+        name: 'role',
+        label: 'Role',
+        type: 'select',
+        options: [{ value: 'Standard', label: 'Standard' }, { value: 'Admin', label: 'Admin' }]
+      },
+      {
+        name: 'isActive',
+        label: 'Active account',
+        type: 'checkbox'
+      }
     ],
-    submit: ({ displayName, email, role, isActive }) => save({ displayName, email, role, isActive })
+    submit: ({ displayName, email, role, isActive }) => save({
+      displayName,
+      email,
+      role,
+      isActive
+    })
   });
 }

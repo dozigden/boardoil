@@ -26,7 +26,10 @@ export function createCardTransferForm(operations: TransferOperations) {
   function fields(columns: readonly Column[]): readonly FormFieldDefinition<CardTransferDraft>[] {
     return [
       {
-        name: 'destinationBoardId', label: 'Destination board', type: 'select', reassessOnChange: true,
+        name: 'destinationBoardId',
+        label: 'Destination board',
+        type: 'select',
+        reassessOnChange: true,
         clearFields: ['destinationColumnId', 'transferPolicy'],
         options: () => {
           const boards = boardsLoaded ? operations.boards() : [];
@@ -35,7 +38,9 @@ export function createCardTransferForm(operations: TransferOperations) {
         }
       },
       {
-        name: 'destinationColumnId', label: 'Destination column', type: 'select',
+        name: 'destinationColumnId',
+        label: 'Destination column',
+        type: 'select',
         disabled: () => columns.length === 0,
         options: values => {
           if (!columns.length) return [{ value: null, label: values.destinationBoardId === null ? 'Select a board first' : 'No columns available' }];
@@ -43,31 +48,60 @@ export function createCardTransferForm(operations: TransferOperations) {
         }
       },
       {
-        name: 'transferPolicy', label: 'Board-specific content', type: 'radio',
+        name: 'transferPolicy',
+        label: 'Board-specific content',
+        type: 'radio',
         options: values => [
-          { value: 'destinationDefaults', label: 'Use destination defaults', description: 'Use the default card type and remove tags and slick.' },
-          { value: 'keepMatching', label: 'Keep matching only', description: "Use the destination card type, tags, and slick where they match, otherwise they're cleared." },
-          { value: 'copyMissing', label: 'Copy missing', description: 'Any card type, tags, or slick that are missing will be created on the destination board.', disabled: !canCopyMissing(values) }
+          {
+            value: 'destinationDefaults',
+            label: 'Use destination defaults',
+            description: 'Use the default card type and remove tags and slick.'
+          },
+          {
+            value: 'keepMatching',
+            label: 'Keep matching only',
+            description: "Use the destination card type, tags, and slick where they match, otherwise they're cleared."
+          },
+          {
+            value: 'copyMissing',
+            label: 'Copy missing',
+            description: 'Any card type, tags, or slick that are missing will be created on the destination board.',
+            disabled: !canCopyMissing(values)
+          }
         ]
       }
     ];
   }
 
   return defineForm<CardTransferDraft, CardTransferResult>({
-    title: 'Move card to another board', submitLabel: 'Move card', closeLabel: 'Cancel moving card',
-    initialValues: () => ({ destinationBoardId: null, destinationColumnId: null, transferPolicy: defaultCardTransferPolicy }),
+    title: 'Move card to another board',
+    submitLabel: 'Move card',
+    closeLabel: 'Cancel moving card',
+    initialValues: () => ({
+      destinationBoardId: null,
+      destinationColumnId: null,
+      transferPolicy: defaultCardTransferPolicy
+    }),
     fields: fields([]),
     reassess: async values => {
       if (!boardsLoaded) {
         boardsLoaded = await operations.loadBoards();
-        if (!boardsLoaded) return { values, fields: fields([]), error: 'Could not load destination boards.' };
+        if (!boardsLoaded) return {
+          values,
+          fields: fields([]),
+          error: 'Could not load destination boards.'
+        };
       }
       values.destinationColumnId = null;
       if (values.transferPolicy === 'copyMissing' && !canCopyMissing(values)) values.transferPolicy = defaultCardTransferPolicy;
       if (values.destinationBoardId === null) return { values, fields: fields([]) };
 
       const result = await operations.loadColumns(values.destinationBoardId);
-      if (!result.ok) return { values, fields: fields([]), error: result.error.message };
+      if (!result.ok) return {
+        values,
+        fields: fields([]),
+        error: result.error.message
+      };
       values.destinationColumnId = result.data[0]?.id ?? null;
       return { values, fields: fields(result.data) };
     },
