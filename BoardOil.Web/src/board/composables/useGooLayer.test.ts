@@ -38,6 +38,44 @@ describe('column goo viewport', () => {
     scrollTo(10000);
     expect(layer.gooGroupsByColumnId.value.size).toBe(0);
   });
+
+  it('measures each column once per refresh without remeasuring cards on scroll', () => {
+    const { layer, clips, cards, scrollTo } = makeScrollableLayer([{}, { left: 340 }]);
+    const initialMeasurements = cards.map(card => card.getBoundingClientRect.mock.calls.length);
+    expect(clips.map(clip => clip.getBoundingClientRect.mock.calls.length)).toEqual([1, 1]);
+
+    scrollTo(7500);
+
+    expect(clips.map(clip => clip.getBoundingClientRect.mock.calls.length)).toEqual([2, 2]);
+    expect(cards.map(card => card.getBoundingClientRect.mock.calls.length)).toEqual(initialMeasurements);
+    expect(layer.gooGroupsByColumnId.value.get(1)![0]!.blobs.map(blob => blob.id)).toContain('card-80');
+    expect(layer.gooGroupsByColumnId.value.get(2)![0]!.blobs.map(blob => blob.id)).toContain('card-81');
+
+    layer.refreshGooLayout();
+
+    expect(clips.map(clip => clip.getBoundingClientRect.mock.calls.length)).toEqual([3, 3]);
+  });
+
+  it('preserves local and board coordinates with padding, scrollbar gutters and independent scrolling', () => {
+    const { layer, clips, board, scrollTo } = makeScrollableLayer([
+      { paddingLeft: 12, paddingTop: 10, clientLeft: 6 },
+      { left: 340, paddingLeft: 18, paddingTop: 20, clientLeft: 9 }
+    ]);
+
+    scrollTo(300);
+    scrollTo(100, 2);
+    clips.forEach(clip => { clip.left -= 120; });
+    board.scrollLeft = 120;
+    scrollTo(300);
+
+    const first = layer.gooGroupsByColumnId.value.get(1)![0]!.blobs.find(blob => blob.id === 'card-4')!;
+    const second = layer.gooGroupsByColumnId.value.get(2)![0]!.blobs.find(blob => blob.id === 'card-82')!;
+    expect(first).toMatchObject({ left: 29, top: 350 });
+    expect(second).toMatchObject({ left: 35, top: 160 });
+    const boardBlobs = layer.gooGroups.value[0]!.blobs;
+    expect(boardBlobs.find(blob => blob.id === 'card-4')).toMatchObject({ left: 35, top: 150 });
+    expect(boardBlobs.find(blob => blob.id === 'card-82')).toMatchObject({ left: 384, top: 160 });
+  });
 });
 
 describe('syncObservedBoardCardElements', () => {
@@ -83,7 +121,14 @@ function makeObserver(): Pick<ResizeObserver, 'observe' | 'unobserve'> {
   };
 }
 
-function makeScrollableLayer() {
+type TestColumnLayout = {
+  left?: number;
+  paddingLeft?: number;
+  paddingTop?: number;
+  clientLeft?: number;
+};
+
+function makeScrollableLayer(columnLayouts: TestColumnLayout[] = [{}]) {
   class Element {
     isConnected = true;
   }
@@ -91,25 +136,36 @@ function makeScrollableLayer() {
   let onScroll = () => {};
   vi.stubGlobal('HTMLElement', Element);
   vi.stubGlobal('window', { location: { search: '' }, removeEventListener: vi.fn() });
-  vi.stubGlobal('getComputedStyle', () => ({
-    paddingLeft: '0', paddingRight: '0', paddingTop: '0', paddingBottom: '0'
+  vi.stubGlobal('getComputedStyle', (element: { paddingLeft: number; paddingTop: number }) => ({
+    paddingLeft: String(element.paddingLeft), paddingRight: '0', paddingTop: String(element.paddingTop), paddingBottom: '0'
   }));
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
     pendingFrame = callback;
     return 1;
   });
   vi.stubGlobal('cancelAnimationFrame', () => { pendingFrame = null; });
-  const clip = Object.assign(new Element(), {
-    scrollTop: 0, scrollLeft: 0, clientLeft: 0,
-    getBoundingClientRect: () => ({ left: 0, top: 100, width: 300, height: 500 })
+  const clips = columnLayouts.map(layout => {
+    const clip = Object.assign(new Element(), {
+      left: layout.left ?? 0,
+      paddingLeft: layout.paddingLeft ?? 0,
+      paddingTop: layout.paddingTop ?? 0,
+      scrollTop: 0, scrollLeft: 0, clientLeft: layout.clientLeft ?? 0,
+      getBoundingClientRect: vi.fn(() => ({ left: clip.left, top: 100, width: 300, height: 500 }))
+    });
+    return clip;
   });
-  const cards = Array.from({ length: 80 }, (_, index) => Object.assign(new Element(), {
-    dataset: { cardId: String(index + 1) },
-    closest: () => clip,
-    getBoundingClientRect: vi.fn(() => ({
-      left: 20, top: 100 + index * 100 - clip.scrollTop, width: 250, height: 80
-    }))
-  }));
+  const cards = Array.from({ length: 80 * clips.length }, (_, index) => {
+    const clip = clips[Math.floor(index / 80)]!;
+    return Object.assign(new Element(), {
+      dataset: { cardId: String(index + 1) },
+      closest: () => clip,
+      getBoundingClientRect: vi.fn(() => ({
+        left: clip.left + clip.clientLeft + clip.paddingLeft + 20 - clip.scrollLeft,
+        top: 100 + clip.paddingTop + (index % 80) * 100 - clip.scrollTop,
+        width: 250, height: 80
+      }))
+    });
+  });
   const board = Object.assign(new Element(), {
     scrollTop: 0, scrollLeft: 0,
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 600 }),
@@ -121,7 +177,7 @@ function makeScrollableLayer() {
   cleanup.push(() => scope.stop());
   const layer = scope.run(() => useGooLayer(
     computed(() => cards.map((_, index) => ({
-      cardId: index + 1, columnId: 1, itemId: `card-${index + 1}`, groupKey: 'slick-1', colour: '#03a9f4'
+      cardId: index + 1, columnId: Math.floor(index / 80) + 1, itemId: `card-${index + 1}`, groupKey: 'slick-1', colour: '#03a9f4'
     }))),
     computed(() => 'membership'),
     computed(() => 'style'),
@@ -137,8 +193,10 @@ function makeScrollableLayer() {
   return {
     layer,
     cards,
-    scrollTo(top: number) {
-      clip.scrollTop = top;
+    clips,
+    board,
+    scrollTo(top: number, columnId = 1) {
+      clips[columnId - 1]!.scrollTop = top;
       onScroll();
       flushFrame();
     }

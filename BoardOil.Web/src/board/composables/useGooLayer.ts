@@ -37,6 +37,11 @@ type ClipPadding = {
   bottom: number;
 };
 
+type ClipGeometry = {
+  elementRect: RectLike;
+  contentRect: RectLike;
+};
+
 type GooPerfSample = {
   frameCount: number;
   refreshMs: number;
@@ -161,8 +166,9 @@ export function useGooLayer(
       return;
     }
 
+    const clipGeometryByElement = new Map<HTMLElement, ClipGeometry>();
     if (gooStructureDirty) {
-      rebuildTrackedGooCards(boardSurface);
+      rebuildTrackedGooCards(boardSurface, clipGeometryByElement);
     } else if (gooStylesDirty) {
       refreshTrackedGooColours();
     }
@@ -176,7 +182,6 @@ export function useGooLayer(
     const boardRect = boardSurface.getBoundingClientRect();
     const items: GooItem[] = [];
     const localItemsByColumnId = new Map<number, GooItem[]>();
-    const clipRectByElement = new Map<HTMLElement, RectLike>();
     const preferFastPath = reason !== 'structure' && reason !== 'layout' && !gooStructureDirty;
     let sawDetachedCard = false;
     for (const trackedCard of trackedGooCards) {
@@ -190,13 +195,13 @@ export function useGooLayer(
         trackedCard.geometry = null;
       }
 
-      const rect = resolveCardRectForRefresh(trackedCard, preferFastPath, clipRectByElement);
+      const rect = resolveCardRectForRefresh(trackedCard, preferFastPath, clipGeometryByElement);
       if (!rect) {
         continue;
       }
 
       const columnContentRect = trackedCard.clipElement
-        ? resolveClipContentRect(trackedCard.clipElement, clipRectByElement)
+        ? resolveClipGeometry(trackedCard.clipElement, clipGeometryByElement).contentRect
         : null;
       if (columnContentRect && !intersectsExpandedRect(rect, columnContentRect, resolveCullingMarginPx())) {
         continue;
@@ -204,7 +209,7 @@ export function useGooLayer(
 
       // Bound the SVG filter to nearby cards, including a buffer for soft joins.
       if (trackedCard.clipElement) {
-        const localRect = resolveLocalCardRect(rect, trackedCard.clipElement);
+        const localRect = resolveLocalCardRect(rect, trackedCard.clipElement, clipGeometryByElement);
         const localItems = getOrCreateLocalItems(localItemsByColumnId, trackedCard.columnId);
         localItems.push({
           id: trackedCard.itemId,
@@ -250,9 +255,8 @@ export function useGooLayer(
     }
   }
 
-  function rebuildTrackedGooCards(boardSurface: HTMLElement) {
+  function rebuildTrackedGooCards(boardSurface: HTMLElement, clipGeometryByElement: Map<HTMLElement, ClipGeometry>) {
     const cardElementsById = new Map<number, HTMLElement>();
-    const clipRectByElement = new Map<HTMLElement, RectLike>();
     const cardElements = boardSurface.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]');
     for (const cardElement of cardElements) {
       const rawCardId = cardElement.dataset.cardId;
@@ -280,7 +284,7 @@ export function useGooLayer(
 
       const clipElement = cardElement.closest<HTMLElement>('.column-content');
       const geometry = clipElement
-        ? measureTrackedCardGeometry(cardElement, clipElement, clipRectByElement)
+        ? measureTrackedCardGeometry(cardElement, clipElement, clipGeometryByElement)
         : null;
       nextTrackedCards.push({
         cardId: descriptor.cardId,
@@ -342,8 +346,12 @@ export function useGooLayer(
     return groupsByColumnId;
   }
 
-  function resolveLocalCardRect(cardRect: RectLike, clipElement: HTMLElement): RectLike {
-    const clipRect = clipElement.getBoundingClientRect();
+  function resolveLocalCardRect(
+    cardRect: RectLike,
+    clipElement: HTMLElement,
+    clipGeometryByElement: Map<HTMLElement, ClipGeometry>
+  ): RectLike {
+    const clipRect = resolveClipGeometry(clipElement, clipGeometryByElement).elementRect;
     return {
       // The local SVG starts after the scroller's reserved left scrollbar gutter.
       left: cardRect.left - clipRect.left - clipElement.clientLeft + clipElement.scrollLeft,
@@ -353,10 +361,10 @@ export function useGooLayer(
     };
   }
 
-  function resolveClipContentRect(
+  function resolveClipGeometry(
     clipElement: HTMLElement,
-    cache: Map<HTMLElement, RectLike>
-  ): RectLike {
+    cache: Map<HTMLElement, ClipGeometry>
+  ): ClipGeometry {
     const cached = cache.get(clipElement);
     if (cached) {
       return cached;
@@ -371,18 +379,19 @@ export function useGooLayer(
       width: Math.max(0, rect.width - padding.left - padding.right + (gooConfig.clipHorizontalInsetPx * 2)),
       height: Math.max(0, rect.height - padding.top - padding.bottom)
     };
-    cache.set(clipElement, contentRect);
-    return contentRect;
+    const geometry = { elementRect: rect, contentRect };
+    cache.set(clipElement, geometry);
+    return geometry;
   }
 
   function resolveCardRectForRefresh(
     trackedCard: TrackedGooCard,
     preferFastPath: boolean,
-    clipRectByElement: Map<HTMLElement, RectLike>
+    clipGeometryByElement: Map<HTMLElement, ClipGeometry>
   ): RectLike | null {
     const clipElement = trackedCard.clipElement;
     if (preferFastPath && clipElement && trackedCard.geometry) {
-      const clipRect = resolveClipContentRect(clipElement, clipRectByElement);
+      const clipRect = resolveClipGeometry(clipElement, clipGeometryByElement).contentRect;
       return projectTrackedCardRect(clipRect, trackedCard.geometry, clipElement.scrollLeft, clipElement.scrollTop);
     }
 
@@ -392,7 +401,7 @@ export function useGooLayer(
 
     const rect = trackedCard.cardElement.getBoundingClientRect();
     if (clipElement) {
-      updateTrackedCardGeometry(trackedCard, rect, clipElement, clipRectByElement);
+      updateTrackedCardGeometry(trackedCard, rect, clipElement, clipGeometryByElement);
     } else {
       trackedCard.geometry = null;
     }
@@ -403,19 +412,19 @@ export function useGooLayer(
     trackedCard: TrackedGooCard,
     cardRect: DOMRect | RectLike,
     clipElement: HTMLElement,
-    clipRectByElement: Map<HTMLElement, RectLike>
+    clipGeometryByElement: Map<HTMLElement, ClipGeometry>
   ) {
-    const clipRect = resolveClipContentRect(clipElement, clipRectByElement);
+    const clipRect = resolveClipGeometry(clipElement, clipGeometryByElement).contentRect;
     trackedCard.geometry = buildTrackedCardGeometry(cardRect, clipRect, clipElement.scrollLeft, clipElement.scrollTop);
   }
 
   function measureTrackedCardGeometry(
     cardElement: HTMLElement,
     clipElement: HTMLElement,
-    clipRectByElement: Map<HTMLElement, RectLike>
+    clipGeometryByElement: Map<HTMLElement, ClipGeometry>
   ): TrackedGooCardGeometry {
     const cardRect = cardElement.getBoundingClientRect();
-    const clipRect = resolveClipContentRect(clipElement, clipRectByElement);
+    const clipRect = resolveClipGeometry(clipElement, clipGeometryByElement).contentRect;
     return buildTrackedCardGeometry(cardRect, clipRect, clipElement.scrollLeft, clipElement.scrollTop);
   }
 
