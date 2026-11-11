@@ -41,7 +41,7 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
-  const apiProxyTarget = env.VITE_BO_API_PROXY_TARGET?.trim() || 'http://localhost:5000';
+  const apiProxyTarget = env.VITE_BO_API_PROXY_TARGET?.trim() || 'http://127.0.0.1:5000';
   const oauthProxyTarget = env.VITE_BO_OAUTH_PROXY_TARGET?.trim() || apiProxyTarget;
 
   const config = {
@@ -56,6 +56,7 @@ export default defineConfig(({ command, mode }) => {
       })
     ],
     server: {
+      host: '127.0.0.1',
       proxy: {
         '/api': apiProxyTarget,
         '/images': apiProxyTarget,
