@@ -4,6 +4,7 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const gridStep = 3, originY = -36;
 const nx = WIDTH / gridStep + 1, ny = Math.ceil((HEIGHT - originY * 2) / gridStep) + 1;
 const field = new Float32Array(nx * ny), renderRadius = 17;
+const surfaces = new WeakMap();
 
 function addCardCoating(cards) {
   // This is a rendering floor, not extra simulated liquid. Smooth union joins
@@ -24,10 +25,10 @@ function addCardCoating(cards) {
     }
   }
 }
-export function drawLiquid(ctx, liquid, { coverage, particles, colour, stroke }) {
+function buildSurface(liquid, coverage) {
   const visibleCards = liquid.cards.some(card => card.y + card.height / 2 + 24 >= originY && card.y - card.height / 2 - 24 <= HEIGHT - originY);
   const visibleParticles = liquid.particles.some(p => p.y >= originY - renderRadius && p.y <= HEIGHT - originY + renderRadius);
-  if (!visibleParticles && (!coverage || !visibleCards)) return 0;
+  if (!visibleParticles && (!coverage || !visibleCards)) return { loops: [], path: new Path2D(), coverage };
   field.fill(0);
   for (const p of liquid.particles) {
     if (p.y < originY - renderRadius || p.y > HEIGHT - originY + renderRadius) continue;
@@ -45,15 +46,23 @@ export function drawLiquid(ctx, liquid, { coverage, particles, colour, stroke })
   // Clipping the field at the viewport itself would discard open outlines.
   field.fill(0, 0, nx); field.fill(0, (ny - 1) * nx);
   const loops = traceContours(field, nx, ny, 0, originY, gridStep);
-  ctx.beginPath();
+  const path = new Path2D();
   for (const loop of loops) {
-    ctx.moveTo(...loop[0]); for (let i = 1; i < loop.length; i++) ctx.lineTo(...loop[i]); ctx.closePath();
+    path.moveTo(...loop[0]); for (let i = 1; i < loop.length; i++) path.lineTo(...loop[i]); path.closePath();
   }
-  ctx.fillStyle = colour; ctx.fill('evenodd'); ctx.strokeStyle = stroke; ctx.lineWidth = .65; ctx.stroke();
+  return { loops, path, coverage };
+}
+export function drawLiquid(ctx, liquid, { coverage, particles, colour, stroke, reuseSurface = false, onSurface }) {
+  let surface = surfaces.get(liquid);
+  if (!reuseSurface || !surface || surface.coverage !== coverage) {
+    surface = buildSurface(liquid, coverage); surfaces.set(liquid, surface);
+  }
+  onSurface?.(surface.loops);
+  ctx.fillStyle = colour; ctx.fill(surface.path, 'evenodd'); ctx.strokeStyle = stroke; ctx.lineWidth = .65; ctx.stroke(surface.path);
   if (particles) {
     ctx.fillStyle = '#163c2c'; ctx.beginPath();
     for (const p of liquid.particles) { ctx.moveTo(p.x + 1.5, p.y); ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2); }
     ctx.fill();
   }
-  return loops.length;
+  return surface.loops.length;
 }

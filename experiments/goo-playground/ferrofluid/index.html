@@ -3,14 +3,18 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>BoardOil · Magnetic liquid</title>
-  <link rel="stylesheet" href="./style.css?scene=development">
+  <link rel="stylesheet" href="./style.css?scene=activity">
 </head>
 <body><main>
   <header><div><p class="eyebrow">BOARDOIL / LIQUID STUDY</p><h1>A little magnetic.</h1></div><a href="../baseline/">Saved baseline ↗</a></header>
   <p class="intro" id="intro">Scroll each column independently, in either direction.</p>
+  <div class="renderer-picker">
+    <label class="scene-label">Goo <select id="renderer"><option value="liquid">Liquid</option><option value="smooth">Smooth · saved baseline</option></select></label>
+    <span>Switch at any time to compare the same card positions and colours.</span>
+  </div>
   <div class="toolbar">
     <label class="scene-label">Scene <select id="scene"><option value="development">Development board</option><option value="board">Small board</option><option value="pair">Two cards</option></select></label>
-    <button id="reset">Reset liquid</button><button id="pause" aria-pressed="false">Pause</button>
+    <button id="reset">Reset scene</button><button id="pause" aria-pressed="false">Pause</button>
     <button id="motion" aria-pressed="false">Move for me</button>
     <label class="check"><input id="coverage" type="checkbox" checked> Keep cards covered</label>
     <label class="check"><input id="particles" type="checkbox"> See particles</label>
@@ -20,10 +24,12 @@
   <div class="viewport"><div id="stage">
     <canvas id="liquid" width="960" height="520" aria-label="Simulated liquid around movable cards"></canvas>
   </div></div>
-  <div class="controls">
-    <label>Magnetic pull <output id="attractionValue"></output><input id="attraction" type="range" min="0" max="2" step="0.05" value="0.65"><small>How firmly the cards hold the liquid</small></label>
-    <label>Viscosity <output id="viscosityValue"></output><input id="viscosity" type="range" min="0" max="2" step="0.05" value="0.8"><small>Resistance to neighbouring particles sliding</small></label>
-    <label>Cohesion <output id="cohesionValue"></output><input id="cohesion" type="range" min="0" max="2" step="0.05" value="1"><small>How strongly the liquid holds together</small></label>
-  </div>
+  <fieldset id="liquid-controls" class="controls"><legend>Liquid behaviour</legend>
+    <label>Magnetic pull <output id="attractionValue"></output><input id="attraction" type="range" min="0" max="2" step="0.05" value="0.30"><small>How firmly the cards hold the liquid</small></label>
+    <label>Viscosity <output id="viscosityValue"></output><input id="viscosity" type="range" min="0" max="2" step="0.05" value="0.40"><small>Resistance to neighbouring particles sliding</small></label>
+    <label>Cohesion <output id="cohesionValue"></output><input id="cohesion" type="range" min="0" max="2" step="0.05" value="0.50"><small>How strongly the liquid holds together</small></label>
+  </fieldset>
+  <div class="sleep-control"><label class="check" title="Also sleeps after 10 seconds without interaction. Pausing stops the timer."><input id="sleep" type="checkbox" checked> Sleep when settled</label><span id="slick-activity" role="group" aria-label="Slick activity"></span><span id="sleep-status" role="status" aria-live="polite"></span></div>
+  <p id="renderer-note" class="renderer-note" aria-live="polite"></p>
   <footer><span id="status">Gathering the liquid…</span><p id="scene-hint"></p><p>Ferrofluid-inspired particle motion. <a href="https://diglib.eg.org/items/7cad7994-b781-40ce-ad04-0bf61dc94279">About the particle method ↗</a></p></footer>
 </main><script type="module">import(`./playground.js?load=${Date.now()}`);</script></body></html>

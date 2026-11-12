@@ -1,5 +1,7 @@
 const { Liquid, WIDTH, HEIGHT, DT } = await import(`./physics.js?load=${Date.now()}`);
 const { drawLiquid } = await import(`./render.js?load=${Date.now()}`);
+const { drawSmooth } = await import(`./smooth.js?load=${Date.now()}`);
+const { Settling } = await import(`./settling.js?load=${Date.now()}`);
 const { snapshot, slickColours, populateSnapshotCard } = await import(`./snapshot.js?load=${Date.now()}`);
 const $ = id => document.getElementById(id);
 const stage = $('stage'), ctx = $('liquid').getContext('2d');
@@ -10,13 +12,34 @@ const settings = {};
 for (const name of ['attraction', 'viscosity', 'cohesion']) {
   const input = $(name), output = $(`${name}Value`);
   const update = () => { settings[name] = Number(input.value); output.value = Number(input.value).toFixed(2); };
-  input.addEventListener('input', update); update();
+  input.addEventListener('input', () => { update(); wakeAll(); }); update();
 }
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 let cards = [], liquids = [], scrollers = [], scrollPositions = [], cardElements = [];
+let slickIndicators = [];
 let paused = false, moving = false, clock = 0, last = 0, accumulator = 0, drag;
 let board = true, development = false, frameNumber = 0, dirty = true;
-function stopMotion() { moving = false; $('motion').setAttribute('aria-pressed', 'false'); }
+let renderer = 'liquid', renderCount = 0, lastWorkMs = 0;
+let rafId = 0, inFrame = false, ready = false;
+const settling = new Settling();
+function requestFrame() {
+  if (!ready || rafId || inFrame || document.hidden) return;
+  last = 0; rafId = requestAnimationFrame(frame);
+}
+function invalidate() { dirty = true; requestFrame(); }
+function wakeAll() {
+  for (const liquid of liquids) settling.wake(liquid);
+  invalidate();
+}
+function visible(liquid) {
+  return liquid.cards.some(c => c.y + c.height / 2 >= HEADER - 120 && c.y - c.height / 2 <= HEIGHT + 120);
+}
+function shouldAnimate() {
+  if (paused || document.hidden) return false;
+  if (moving) return true;
+  return renderer === 'liquid' && liquids.some(l => !$('sleep').checked || !settling.sleeping(l));
+}
+function stopMotion() { moving = false; $('motion').setAttribute('aria-pressed', 'false'); invalidate(); }
 function positionCards() {
   cards.forEach((card, i) => {
     let x = card.x - card.width / 2, y = card.y - card.height / 2;
@@ -26,7 +49,7 @@ function positionCards() {
     }
     cardElements[i].style.left = `${x}px`; cardElements[i].style.top = `${y}px`;
   });
-  dirty = true;
+  invalidate();
 }
 function scrollWeight(x, column) {
   if (x <= centres[0]) return Number(column === 0);
@@ -48,12 +71,18 @@ function syncScroll() {
   const deltas = scrollers.map((el, i) => el.scrollTop - scrollPositions[i]);
   if (!deltas.some(delta => delta !== 0)) return;
   scrollPositions = scrollers.map(el => el.scrollTop);
-  for (const liquid of liquids) for (const p of liquid.particles) {
-    let dy = 0;
-    for (let c = 0; c < deltas.length; c++) dy -= deltas[c] * scrollWeight(p.x, c);
-    p.y += dy;
-    // Scrolling changes the view, not velocity. Never reseed on scroll.
-    if (p.py !== undefined) p.py += dy;
+  for (const liquid of liquids) {
+    let transported = false;
+    for (const p of liquid.particles) {
+      let dy = 0;
+      for (let c = 0; c < deltas.length; c++) dy -= deltas[c] * scrollWeight(p.x, c);
+      p.y += dy;
+      if (dy !== 0) transported = true;
+      // Scrolling changes the view, not velocity. Never reseed on scroll.
+      if (p.py !== undefined) p.py += dy;
+    }
+    // Other visible slicks can meet obstacles from the moving column too.
+    if (transported || visible(liquid) || liquid.cards.some(c => deltas[c.column])) settling.wake(liquid);
   }
   positionCards();
 }
@@ -74,6 +103,9 @@ function moveCard(i, x, y) {
     if (i === 0) x = Math.min(x, other.x - 188);
     else x = Math.max(x, other.x + 188);
     card.x = x; card.y = y;
+  }
+  for (const liquid of liquids) {
+    if (visible(liquid) || liquid.cards.includes(card)) settling.wake(liquid);
   }
   positionCards();
 }
@@ -127,8 +159,8 @@ function buildScene() {
   $('slick-jump-label').hidden = !development;
   $('slick-jump').value = '';
   $('intro').textContent = board
-    ? 'Scroll each column independently, in either direction. Drag cards up or down to stretch the liquid.'
-    : 'A thin layer stays with every card; the rest can flow. Drag a card slowly, then pull it away.';
+    ? 'Scroll each column independently, in either direction. Drag cards up or down to explore the connections.'
+    : 'Drag a card slowly, then pull it away. Compare how the two goo models respond.';
   $('motion').textContent = board ? 'Scroll for me' : 'Move for me';
   $('scene-hint').textContent = board
     ? 'Green and amber are separate slicks. Scroll up to move cards down from their starting positions; scroll down to reveal the next row.'
@@ -171,13 +203,22 @@ function buildScene() {
     cards.forEach((card, i) => makeCard(card, i, stage));
     positionCards(); liquids = [new Liquid(cards)];
   }
-  dirty = true;
+  slickIndicators = liquids.map((liquid, index) => {
+    const group = liquid.group ?? index;
+    const name = development ? snapshot.slicks[group].name : `Slick ${String.fromCharCode(65 + group)}`;
+    const dot = document.createElement('span');
+    dot.className = 'slick-indicator'; dot.setAttribute('role', 'img');
+    dot.style.setProperty('--slick-colour', colours[group].colour);
+    return { dot, name };
+  });
+  $('slick-activity').replaceChildren(...slickIndicators.map(({ dot }) => dot));
+  invalidate();
 }
 function buildDevelopment() {
   scrollPositions = snapshot.columns.map(() => SCROLL_ORIGIN);
   colours = snapshot.slicks.map(slickColours);
   $('board-title').textContent = `${snapshot.name} · ${snapshot.columns.reduce((n, c) => n + c.cards.length, 0)} cards`;
-  $('intro').textContent = 'The development board, with liquid slicks. Scroll each column independently; use “Jump to slick” to explore its groups.';
+  $('intro').textContent = 'Scroll each column independently; use “Jump to slick” to explore the development board’s groups.';
   $('scene-hint').textContent = `Local snapshot from ${snapshot.source.file}. Original card order, titles, types, tags and slick membership; card heights follow the rendered text. Reset restores this snapshot.`;
   snapshot.columns.forEach((source, column) => {
     const el = document.createElement('section'); el.className = 'column'; el.style.left = `${centres[column] - columnWidth / 2}px`;
@@ -231,28 +272,65 @@ $('slick-jump').addEventListener('change', event => {
 $('scene').addEventListener('change', buildScene);
 $('reset').addEventListener('click', buildScene);
 $('pause').addEventListener('click', () => {
-  paused = !paused; $('pause').textContent = paused ? 'Resume' : 'Pause'; $('pause').setAttribute('aria-pressed', String(paused)); dirty = true;
+  paused = !paused; $('pause').textContent = paused ? 'Resume' : 'Pause'; $('pause').setAttribute('aria-pressed', String(paused)); invalidate();
 });
-$('motion').addEventListener('click', () => { moving = !moving; $('motion').setAttribute('aria-pressed', String(moving)); });
+$('motion').addEventListener('click', () => { moving = !moving; $('motion').setAttribute('aria-pressed', String(moving)); invalidate(); });
 $('cards').addEventListener('change', event => {
-  cardElements.forEach(el => el.classList.toggle('hidden', !event.target.checked)); dirty = true;
+  cardElements.forEach(el => el.classList.toggle('hidden', !event.target.checked)); invalidate();
 });
-for (const name of ['coverage', 'particles']) $(name).addEventListener('change', () => { dirty = true; });
+$('coverage').addEventListener('change', wakeAll);
+$('particles').addEventListener('change', invalidate);
+$('sleep').addEventListener('change', wakeAll);
+window.addEventListener('resize', wakeAll);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { cancelAnimationFrame(rafId); rafId = 0; last = 0; }
+  else invalidate();
+});
+function changeRenderer() {
+  syncScroll();
+  renderer = $('renderer').value;
+  const smooth = renderer === 'smooth';
+  $('liquid-controls').disabled = smooth;
+  $('coverage').disabled = smooth; $('particles').disabled = smooth; $('sleep').disabled = smooth;
+  $('renderer-note').textContent = smooth
+    ? 'Smooth follows the cards immediately. Liquid is paused and will resume when you switch back.'
+    : 'Liquid stretches and settles over time. Pause to compare a frozen shape with Smooth.';
+  // Keep the DOM, scroll positions, controls and particle state. Switching only
+  // changes which engine draws and whether the particle solver advances.
+  accumulator = 0; invalidate();
+}
+$('renderer').addEventListener('change', changeRenderer);
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
   ctx.save(); ctx.beginPath(); ctx.rect(0, HEADER, WIDTH, HEIGHT - HEADER); ctx.clip();
   let loops = 0;
   liquids.forEach((liquid, group) => {
-    loops += drawLiquid(ctx, liquid, { coverage: $('coverage').checked, particles: $('particles').checked, ...colours[liquid.group ?? group] });
+    const palette = colours[liquid.group ?? group];
+    if (renderer === 'smooth') {
+      loops += drawSmooth(ctx, liquid.cards, palette.colour);
+    } else {
+      loops += drawLiquid(ctx, liquid, {
+        coverage: $('coverage').checked, particles: $('particles').checked, ...palette,
+        reuseSurface: settling.sleeping(liquid),
+        onSurface: contours => {
+          if ($('sleep').checked) settling.observe(liquid, contours, liquid.steps * DT);
+        },
+      });
+    }
   });
-  ctx.restore(); dirty = false;
+  ctx.restore(); dirty = false; renderCount++;
   return loops;
 }
 let loops = 0;
 function frame(now) {
-  const elapsed = Math.min((now - (last || now)) / 1000, .05); last = now;
+  rafId = 0; inFrame = true; frameNumber++;
+  const runningElapsed = (now - (last || now)) / 1000;
+  const elapsed = Math.min(runningElapsed, .05); last = now;
   const start = performance.now(); syncScroll();
-  if (!paused && !document.hidden) {
+  if (shouldAnimate()) {
+    if (renderer === 'liquid' && $('sleep').checked) {
+      for (const liquid of liquids) settling.advance(liquid, runningElapsed);
+    }
     // Bound catch-up work: slow devices slow the experiment, not grow a queue.
     accumulator = Math.min(accumulator + elapsed, DT * 4);
     while (accumulator >= DT) {
@@ -265,21 +343,56 @@ function frame(now) {
           syncScroll();
         } else moveCard(1, 580 + 90 * (1 - Math.cos(clock * .65)), 265 - 60 * Math.sin(clock * .8));
       }
-      for (const liquid of liquids) liquid.step(settings);
-      accumulator -= DT; dirty = true;
+      if (renderer === 'liquid') {
+        for (const liquid of liquids) {
+          if (!$('sleep').checked || !settling.sleeping(liquid)) liquid.step(settings);
+        }
+        dirty = true;
+      }
+      accumulator -= DT;
     }
   } else accumulator = 0;
+  const updated = dirty;
   if (dirty) loops = draw();
   const ms = performance.now() - start;
+  if (updated) lastWorkMs = ms;
   const particles = liquids.reduce((n, liquid) => n + liquid.particles.length, 0);
-  const active = liquids.reduce((n, liquid) => n + liquid.activeParticles().length, 0);
+  let active = 0;
+  if (renderer === 'liquid' && !paused) active = liquids.reduce((n, liquid) => {
+    if (settling.sleeping(liquid)) return n;
+    return n + liquid.activeParticles().length;
+  }, 0);
+  const sleeping = liquids.filter(l => settling.sleeping(l)).length, awake = liquids.length - sleeping;
+  const running = shouldAnimate();
   window.liquidDiagnostics = {
-    scene: $('scene').value, cards: cards.length, particles, active, steps: liquids[0].steps, loops, ms, paused, coverage: $('coverage').checked,
+    scene: $('scene').value, renderer, renderCount, cards: cards.length, particles, active, steps: liquids[0].steps, loops, ms, paused, coverage: $('coverage').checked,
+    frameCount: frameNumber, awake, sleeping, sleepEnabled: $('sleep').checked, animationScheduled: running,
+    stepsBySlick: liquids.map(l => l.steps), sleepingBySlick: liquids.map(l => settling.sleeping(l)),
+    limitedBySlick: liquids.map(l => settling.limited(l)),
     scroll: [...scrollPositions], groups: liquids.map(l => l.particles.length),
     finite: liquids.every(l => l.particles.every(p => Number.isFinite(p.x + p.y + p.vx + p.vy))),
   };
-  if (frameNumber++ % 30 === 0) $('status').textContent = `${cards.length} cards · ${active} active / ${particles} particles · ${ms.toFixed(1)} ms this frame`;
-  requestAnimationFrame(frame);
+  if (frameNumber % 30 === 0 || updated) {
+    let detail = 'Smooth';
+    if (renderer === 'liquid') detail = `Liquid · ${active} active / ${particles} particles`;
+    $('status').textContent = `${cards.length} cards · ${detail} · ${lastWorkMs.toFixed(1)} ms last update`;
+  }
+  let sleepStatus = `${awake} awake · ${sleeping} sleeping`;
+  if (renderer === 'smooth' || paused) sleepStatus = `Liquid paused · ${sleepStatus}`;
+  if ($('sleep-status').textContent !== sleepStatus) $('sleep-status').textContent = sleepStatus;
+  slickIndicators.forEach(({ dot, name }, index) => {
+    let state = 'active';
+    if (settling.sleeping(liquids[index])) state = 'sleeping';
+    if (paused || renderer === 'smooth') state = 'paused';
+    if (dot.dataset.state === state) return;
+    dot.dataset.state = state;
+    dot.title = `${name} · ${state}`;
+    if (state === 'sleeping' && settling.limited(liquids[index])) dot.title += ' · 10s limit';
+    dot.setAttribute('aria-label', dot.title);
+  });
+  inFrame = false;
+  if (running) rafId = requestAnimationFrame(frame);
+  else last = 0;
 }
 await document.fonts.load('600 14px Montserrat');
-buildScene(); requestAnimationFrame(frame);
+buildScene(); ready = true; changeRenderer(); requestFrame();
