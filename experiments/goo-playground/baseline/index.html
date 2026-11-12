@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoardOil · Goo playground</title>
+  <link rel="stylesheet" href="playground.css?v=overlay">
+</head>
+<body>
+  <header class="intro">
+    <div><p class="eyebrow">BOARDOIL / SAFARI EXPERIMENT</p><h1>Let it flow.</h1><p>Explore how slicks meet, stretch and separate.</p></div>
+    <div class="transport"><button id="motion" aria-pressed="false">Play motion</button><button id="reset">Reset scene</button></div>
+  </header>
+  <main>
+    <section class="controls" aria-label="Experiment controls">
+      <label>Scene<select id="scene"><option value="single">Single card</option><option value="pair" selected>Two cards</option><option value="diagonal">Diagonal join</option><option value="junction">Three-way join</option><option value="groups">Separate slicks</option><option value="board">Scrolling board · 90 cards</option></select></label>
+      <label>Renderer<select id="renderer"><option value="overlay">Overlay outlines</option><option value="field">Organic curves</option><option value="legacy">Current filter + bridges</option><option value="bare">Current filter, without bridges</option></select></label>
+      <label>Column gap <output id="gap-value">48 px</output><input id="gap" type="range" min="8" max="200" value="48"></label>
+      <label>Right-column offset <output id="offset-value">0 px</output><input id="offset" type="range" min="-180" max="180" value="0"></label>
+      <label>Merge reach <output id="reach-value">28 px</output><input id="reach" type="range" min="6" max="80" value="28"></label>
+      <label>Maximum neck <output id="neck-value">44 px</output><input id="neck" type="range" min="8" max="56" value="44"></label>
+    </section>
+    <div class="viewbar"><div class="toggles"><label><input id="cards" type="checkbox" checked> Show cards</label><label><input id="bounds" type="checkbox"> Show outline</label><label><input id="dark" type="checkbox" checked> Dark canvas</label></div><span id="readout" aria-live="off"></span></div>
+    <div id="outline-legend" class="outline-legend"><span class="original-key">Original · solid blue</span><span class="experiment-key">Experiment · dashed coral</span></div>
+    <div id="viewport">
+      <div id="world">
+        <div id="columns"></div>
+        <canvas id="goo" aria-label="Organic slick shapes connecting the cards"></canvas>
+        <div id="legacy" aria-hidden="true"></div>
+        <svg class="filter-defs" width="0" height="0" aria-hidden="true"><defs><filter id="playground-goo" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="linearRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 43 -12"/></filter><filter id="playground-outline" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="linearRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 43 -12" result="goo"/><feMorphology in="goo" operator="dilate" radius="0.75" result="outer"/><feMorphology in="goo" operator="erode" radius="0.75" result="inner"/><feComposite in="outer" in2="inner" operator="out" result="outline"/><feFlood flood-color="#68c9ff"/><feComposite in2="outline" operator="in"/></filter></defs></svg>
+      </div>
+    </div>
+    <footer><p>Drag cards vertically, or focus one and use the up/down arrow keys. Scroll up to move cards down, or down to move them up. Reset scene restores their starting positions.</p><p id="description">Solid blue traces the original filter; dashed coral traces the experiment. Both follow the same cards.</p></footer>
+    <details><summary>About this experiment</summary><p>The experimental renderer blends rounded card surrounds and bounded necks into one surface. Maximum neck limits cross-column connection thickness; merge reach controls stretching and separation. Connections use the shared vertical overlap, tilting when it runs out. Different slicks are drawn separately. Show outline reveals how the shapes meet. Timings cover JavaScript preparation and drawing commands, not browser paint or GPU time.</p><p>The comparison reproduces the current rounded-rectangle, bridge and blur recipe on this synthetic scene. It is not the full BoardOil renderer. This page uses no backend, account or saved board data.</p></details>
+  </main>
+  <script type="module">import(`./playground.js?load=${Date.now()}`);</script>
+</body>
+</html>

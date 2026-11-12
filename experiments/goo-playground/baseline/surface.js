@@ -1,0 +1,60 @@
+const { traceContours } = await import(`./contours.js?load=${Date.now()}`);
+
+export function blendedOutline(cards, necks) {
+  const step = 1.5;
+  const softness = 24;
+  const pad = softness + step * 2;
+  const originX = Math.floor((Math.min(...cards.map(r=>r.x))-pad)/step)*step;
+  const originY = Math.floor((Math.min(...cards.map(r=>r.y))-pad)/step)*step;
+  const nx = Math.ceil((Math.max(...cards.map(r=>r.x+r.width))+pad-originX)/step)+1;
+  const ny = Math.ceil((Math.max(...cards.map(r=>r.y+r.height))+pad-originY)/step)+1;
+  const distances = new Float32Array(nx*ny).fill(softness);
+
+  function merge(bounds, distance) {
+    const x0 = Math.max(1,Math.floor((bounds.x-pad-originX)/step));
+    const y0 = Math.max(1,Math.floor((bounds.y-pad-originY)/step));
+    const x1 = Math.min(nx-2,Math.ceil((bounds.x+bounds.width+pad-originX)/step));
+    const y1 = Math.min(ny-2,Math.ceil((bounds.y+bounds.height+pad-originY)/step));
+    for (let y=y0;y<=y1;y++) {
+      for (let x=x0;x<=x1;x++) {
+        const i=y*nx+x;
+        const d=distance(originX+x*step,originY+y*step);
+        const old=distances[i];
+        const blend=Math.max(0,1-Math.abs(old-d)/softness);
+        // Compact smooth union: remote surfaces cannot inflate a card.
+        distances[i]=Math.min(old,d)-softness*blend*blend/4;
+      }
+    }
+  }
+
+  for (const card of cards) {
+    const radius=Math.min(20,card.width/2,card.height/2);
+    const hw=card.width/2, hh=card.height/2;
+    const cx=card.x+hw, cy=card.y+hh;
+    merge(card,(x,y)=>{
+      const qx=Math.abs(x-cx)-hw+radius, qy=Math.abs(y-cy)-hh+radius;
+      const ox=Math.max(qx,0), oy=Math.max(qy,0);
+      return Math.sqrt(ox*ox+oy*oy)+Math.min(Math.max(qx,qy),0)-radius;
+    });
+  }
+  for (const neck of necks) {
+    const dx=neck.x1-neck.x0, dy=neck.y1-neck.y0;
+    const length=Math.hypot(dx,dy);
+    const ux=dx/length, uy=dy/length;
+    const cx=(neck.x0+neck.x1)/2, cy=(neck.y0+neck.y1)/2;
+    const r=neck.radius;
+    const rounding=Math.min(10,r,length/2);
+    merge({x:Math.min(neck.x0,neck.x1)-r,y:Math.min(neck.y0,neck.y1)-r,width:Math.abs(dx)+r*2,height:Math.abs(dy)+r*2},(x,y)=>{
+      // The neck ends within its cards. Circular end caps had extended into
+      // neighbouring row gaps and split the reference's continuous channels.
+      const px=x-cx, py=y-cy;
+      const a=Math.abs(px*ux+py*uy)-length/2+rounding;
+      const b=Math.abs(-px*uy+py*ux)-r+rounding;
+      const ox=Math.max(a,0), oy=Math.max(b,0);
+      return Math.sqrt(ox*ox+oy*oy)+Math.min(Math.max(a,b),0)-rounding;
+    });
+  }
+  const field=new Float32Array(nx*ny);
+  for(let i=0;i<distances.length;i++) field[i]=.5-distances[i];
+  return traceContours(field,nx,ny,originX,originY,step);
+}

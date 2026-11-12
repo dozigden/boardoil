@@ -1,0 +1,720 @@
+{
+  "name": "BoardOil Development",
+  "cardTypes": [
+    {
+      "name": "Story",
+      "emoji": "📙",
+      "isSystem": true,
+      "styleName": "auto",
+      "stylePropertiesJson": "{}"
+    },
+    {
+      "name": "Bug",
+      "emoji": "🕷️",
+      "isSystem": false,
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":4}"
+    },
+    {
+      "name": "Idea",
+      "emoji": "💡",
+      "isSystem": false,
+      "styleName": "solid",
+      "stylePropertiesJson": "{\"backgroundColor\":\"#62A0EA\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}"
+    },
+    {
+      "name": "OilTTY",
+      "emoji": "⌨️",
+      "isSystem": false,
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#241F31\",\"rightColor\":\"#2C054F\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}"
+    },
+    {
+      "name": "Release",
+      "emoji": "🏁",
+      "isSystem": false,
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":10}"
+    }
+  ],
+  "tags": [
+    {
+      "name": "API",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#F66151\",\"rightColor\":\"#400040\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🌐"
+    },
+    {
+      "name": "Blocked",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":9}",
+      "emoji": "⛔️"
+    },
+    {
+      "name": "Bug",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#F66151\",\"rightColor\":\"#A51D2D\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🪲"
+    },
+    {
+      "name": "Documentation",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":10}",
+      "emoji": "📝"
+    },
+    {
+      "name": "Feature",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#99C1F1\",\"rightColor\":\"#3584E4\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🎬️"
+    },
+    {
+      "name": "GH Issue",
+      "styleName": "solid",
+      "stylePropertiesJson": "{\"backgroundColor\":\"#5E5C64\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🐙"
+    },
+    {
+      "name": "MCP",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#FBF490\",\"rightColor\":\"#DDAF0F\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🤖"
+    },
+    {
+      "name": "Parent Story",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":0}",
+      "emoji": "🌴"
+    },
+    {
+      "name": "Roadmap",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#DC8ADD\",\"rightColor\":\"#613583\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🔮"
+    },
+    {
+      "name": "Security",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#ED333B\",\"rightColor\":\"#5C1A1A\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "🔒️"
+    },
+    {
+      "name": "Tech Debt",
+      "styleName": "solid",
+      "stylePropertiesJson": "{\"backgroundColor\":\"#26A269\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "💰️"
+    },
+    {
+      "name": "UI",
+      "styleName": "gradient",
+      "stylePropertiesJson": "{\"leftColor\":\"#DC8ADD\",\"rightColor\":\"#1A5FB4\",\"textColorMode\":\"auto\",\"borderMode\":\"auto\"}",
+      "emoji": "✨️"
+    }
+  ],
+  "slicks": [
+    {
+      "name": ".NET11",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":2}"
+    },
+    {
+      "name": "Agent Auth",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":5,\"textColorMode\":\"auto\"}"
+    },
+    {
+      "name": "Card Type Fields",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":0}"
+    },
+    {
+      "name": "Dependancy updates",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":3}"
+    },
+    {
+      "name": "Form Engine",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":11}"
+    },
+    {
+      "name": "MCP Backfill",
+      "styleName": "presets",
+      "stylePropertiesJson": "{\"presetIndex\":6}"
+    }
+  ],
+  "slickCohesionModeEnabled": true,
+  "source": {
+    "file": "BoardOil-Development.boardoil(2).zip",
+    "schemaVersion": 4,
+    "exportedByVersion": "1.8.0"
+  },
+  "columns": [
+    {
+      "title": "Todo",
+      "cards": [
+        {
+          "id": 968,
+          "title": "Consider decoupling shared auth state from the app router",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Tech Debt",
+            "UI"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 963,
+          "title": "BO Release v1.9",
+          "cardTypeName": "Release",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 955,
+          "title": "Add MCP board import and export",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "MCP"
+          ],
+          "slickName": "MCP Backfill"
+        },
+        {
+          "id": 949,
+          "title": "MCP style preset support",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "MCP"
+          ],
+          "slickName": "MCP Backfill"
+        },
+        {
+          "id": 933,
+          "title": "Backfill MCP features",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Parent Story"
+          ],
+          "slickName": "MCP Backfill"
+        },
+        {
+          "id": 977,
+          "title": "Improve mobile experience",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 948,
+          "title": "Soft delete",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 932,
+          "title": "Show other cards in the same slick",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 869,
+          "title": "Allow linking between stories",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 915,
+          "title": ".net 11",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 966,
+          "title": "Evaluate BoardOil on .NET 11 RC2",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Tech Debt"
+          ],
+          "slickName": ".NET11"
+        },
+        {
+          "id": 879,
+          "title": "Track TypeScript 7 toolchain compatibility and migration",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Blocked",
+            "Tech Debt"
+          ],
+          "slickName": "Dependancy updates"
+        },
+        {
+          "id": 887,
+          "title": "Upgrade frontend tooling to Node 26 after LTS transition",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Blocked",
+            "Tech Debt"
+          ],
+          "slickName": "Dependancy updates"
+        },
+        {
+          "id": 704,
+          "title": "Tech Debt: Track third-party dependency improvements",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Tech Debt"
+          ],
+          "slickName": "Dependancy updates"
+        },
+        {
+          "id": 780,
+          "title": "Track Codex MCP OAuth refresh-token persistence",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Blocked",
+            "MCP"
+          ],
+          "slickName": "Agent Auth"
+        },
+        {
+          "id": 755,
+          "title": "Support Home Assistant OAuth for MCP",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "MCP"
+          ],
+          "slickName": "Agent Auth"
+        },
+        {
+          "id": 736,
+          "title": "Non docker based install instructions",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 483,
+          "title": "Mermaid diagrams",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 244,
+          "title": "Story history",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 239,
+          "title": "Realtime updates for integrations",
+          "cardTypeName": "Idea",
+          "tagNames": [],
+          "slickName": null
+        }
+      ]
+    },
+    {
+      "title": "In Progress",
+      "cards": [
+        {
+          "id": 958,
+          "title": "Full detail card create",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "GH Issue"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 965,
+          "title": "BO v1.9 Release notes",
+          "cardTypeName": "Release",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 957,
+          "title": "Consider and add MCP board deletion",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "MCP"
+          ],
+          "slickName": "MCP Backfill"
+        },
+        {
+          "id": 980,
+          "title": "Prototype a typed forms engine with user and card-type forms",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        }
+      ]
+    },
+    {
+      "title": "Done",
+      "cards": [
+        {
+          "id": 1005,
+          "title": "Set the complete board card layout through MCP",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 1006,
+          "title": "Launch a preconfigured MCP test agent from dev.sh",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "MCP"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 1004,
+          "title": "Allow the authentication smoke journey to finish on cold CI workers",
+          "cardTypeName": "Bug",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 1003,
+          "title": "Reuse column bounds during goo scroll refreshes",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 1002,
+          "title": "Bind the development web server to IPv4 for Safari VM access",
+          "cardTypeName": "Bug",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 993,
+          "title": "Unarchiving slicks is different to unarchiving tags",
+          "cardTypeName": "Bug",
+          "tagNames": [],
+          "slickName": null
+        },
+        {
+          "id": 999,
+          "title": "Fix intermittent lost-upload-response attachment regression",
+          "cardTypeName": "Bug",
+          "tagNames": [
+            "Bug",
+            "UI"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 1001,
+          "title": "Update Vitest to resolve mocker security alerts",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Security",
+            "Tech Debt"
+          ],
+          "slickName": "Dependancy updates"
+        },
+        {
+          "id": 1000,
+          "title": "Simplify forms-engine structure and readability after branch review",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Tech Debt",
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 979,
+          "title": "Use shared validation feedback in Create User",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 976,
+          "title": "Audit validation feedback in other dialogs",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 975,
+          "title": "Show card-type validation messages inside the editor dialog",
+          "cardTypeName": "Bug",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 978,
+          "title": "Rename remaining runBusy API helpers to runApiOperation",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Tech Debt"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 998,
+          "title": "Review and migrate sign-in and initial setup forms",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 997,
+          "title": "Migrate profile and theme settings forms",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 996,
+          "title": "Migrate board membership forms",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 995,
+          "title": "Migrate column and board settings forms",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 990,
+          "title": "Review forms-engine proofs and plan wider adoption",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 994,
+          "title": "Migrate account editing and password reset to shared forms",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 988,
+          "title": "Explore Markdown fields and nested editing",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 986,
+          "title": "Prove forms for bulk card changes",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 989,
+          "title": "Make tag creation safe to recover after a failed save",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 985,
+          "title": "Reuse style fields across BoardOil editors",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 992,
+          "title": "Make forms-engine field types easier to understand",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 987,
+          "title": "Prove file selection in board creation",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 984,
+          "title": "Prove dependent selections with card transfer",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 983,
+          "title": "Prove shared form handling on settings pages",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 982,
+          "title": "Prove reusable token creation forms",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 991,
+          "title": "Align converted forms with backend-owned validation",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 981,
+          "title": "Audit forms-engine fit and prioritise bespoke field proofs",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "UI"
+          ],
+          "slickName": "Form Engine"
+        },
+        {
+          "id": 970,
+          "title": "Review Unicode text matching and normalisation across BoardOil",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Tech Debt"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 973,
+          "title": "Consider frontend update detection for long-lived browser tabs",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Tech Debt",
+            "UI"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 964,
+          "title": "MCP bulk operations",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": "MCP Backfill"
+        },
+        {
+          "id": 969,
+          "title": "Add conditionally available read-only MCP diagnostics",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "MCP"
+          ],
+          "slickName": "MCP Backfill"
+        },
+        {
+          "id": 971,
+          "title": "Investigate SQLite lock failures in scheduled job evaluation",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Bug"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 974,
+          "title": "Add System Support blade with database information",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Feature",
+            "UI"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 972,
+          "title": "Reduce noise from realtime connection error reporting",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Bug",
+            "UI"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 967,
+          "title": "Fix static demo build resolving MCP help content",
+          "cardTypeName": "Bug",
+          "tagNames": [
+            "Bug",
+            "UI"
+          ],
+          "slickName": null
+        },
+        {
+          "id": 868,
+          "title": "BO Release v1.8",
+          "cardTypeName": "Release",
+          "tagNames": [],
+          "slickName": null
+        }
+      ]
+    }
+  ]
+}
