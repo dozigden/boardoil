@@ -31,7 +31,7 @@ export const useUserProfileStore = defineStore('userProfile', () => {
       const result = await usersApi.updateMyProfile(model);
       if (result.ok) {
         SET_PROFILE(result.data);
-        authStore.setOwnProfile(result.data.displayName, result.data.userName, result.data.role);
+        authStore.setOwnProfile(result.data.displayName, result.data.userName, result.data.role, result.data.experimentalFeaturesEnabled);
       }
       return result;
     } finally {

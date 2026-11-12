@@ -233,7 +233,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(32, GetToolNames(payload).Length);
+        Assert.Equal(33, GetToolNames(payload).Length);
     }
 
     [Fact]
@@ -286,6 +286,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.BoardGet,
                 ToolNames.BoardCreate,
                 ToolNames.BoardUpdate,
+                ToolNames.BoardReorder,
                 ToolNames.CardSearch,
                 ToolNames.CardGet,
                 ToolNames.CardOptionsGet,
@@ -324,6 +325,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         {
             (ToolNames.BoardCreate, "created"),
             (ToolNames.BoardUpdate, "updated"),
+            (ToolNames.BoardReorder, "reordered"),
             (ToolNames.CardCreate, "created"),
             (ToolNames.CardUpdate, "updated"),
             (ToolNames.CardMove, "moved"),
@@ -352,6 +354,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardCreate, readOnly: false, destructive: false, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardUpdate, readOnly: false, destructive: true, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.BoardReorder, readOnly: false, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardSearch, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardOptionsGet, readOnly: true, destructive: false, idempotent: true);

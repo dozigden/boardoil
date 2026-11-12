@@ -120,7 +120,7 @@ public sealed class UserServiceTests : TestBaseDb
         var service = ResolveService<IUserService>();
 
         // Act
-        var result = await service.UpdateOwnProfileAsync(ActorUserId, new UpdateOwnUserProfileRequest("Changed Name", " OTHER@localhost "));
+        var result = await service.UpdateOwnProfileAsync(ActorUserId, new UpdateOwnUserProfileRequest("Changed Name", " OTHER@localhost ", true));
 
         // Assert
         Assert.False(result.Success);
@@ -129,25 +129,44 @@ public sealed class UserServiceTests : TestBaseDb
         var stored = DbContextForAssert.Users.Single(x => x.Id == ActorUserId);
         Assert.Equal(original.DisplayName, stored.DisplayName);
         Assert.Equal(original.Email, stored.Email);
+        Assert.False(stored.ExperimentalFeaturesEnabled);
     }
 
-    [Fact]
-    public async Task UpdateOwnProfileAsync_WithValidValues_ShouldPersistDisplayNameAndEmail()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UpdateOwnProfileAsync_WithValidValues_ShouldPersistProfileAndExperimentalOptIn(bool experimentalFeaturesEnabled)
     {
-        // Arrange
+        var actor = DbContextForArrange.Users.Single(x => x.Id == ActorUserId);
+        actor.ExperimentalFeaturesEnabled = !experimentalFeaturesEnabled;
+        var other = new EntityUser
+        {
+            UserName = "other-user",
+            DisplayName = "Other User",
+            Email = "other@localhost",
+            ExperimentalFeaturesEnabled = !experimentalFeaturesEnabled
+        };
+        DbContextForArrange.Users.Add(other);
+        await DbContextForArrange.SaveChangesAsync();
         var service = ResolveService<IUserService>();
 
-        // Act
-        var result = await service.UpdateOwnProfileAsync(ActorUserId, new UpdateOwnUserProfileRequest("Actor Updated", "actor-updated@localhost"));
+        var result = await service.UpdateOwnProfileAsync(ActorUserId,
+            new UpdateOwnUserProfileRequest("Actor Updated", "actor-updated@localhost", experimentalFeaturesEnabled));
 
-        // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("Actor Updated", result.Data!.DisplayName);
         Assert.Equal("actor-updated@localhost", result.Data.Email);
+        Assert.Equal(experimentalFeaturesEnabled, result.Data.ExperimentalFeaturesEnabled);
 
         var storedUser = DbContextForAssert.Users.Single(x => x.Id == ActorUserId);
         Assert.Equal("Actor Updated", storedUser.DisplayName);
         Assert.Equal("actor-updated@localhost", storedUser.Email);
+        Assert.Equal(experimentalFeaturesEnabled, storedUser.ExperimentalFeaturesEnabled);
+        Assert.Equal(!experimentalFeaturesEnabled, DbContextForAssert.Users.Single(x => x.Id == other.Id).ExperimentalFeaturesEnabled);
+        var profile = await service.GetOwnProfileAsync(ActorUserId);
+        Assert.Equal(experimentalFeaturesEnabled, profile.Data!.ExperimentalFeaturesEnabled);
+        var identity = await service.GetCurrentIdentityAsync(ActorUserId);
+        Assert.Equal(experimentalFeaturesEnabled, identity.Data!.ExperimentalFeaturesEnabled);
     }
 }

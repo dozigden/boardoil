@@ -131,6 +131,12 @@ function close() {
   setOpen(false);
 }
 
+function focusTrigger() {
+  triggerRef.value?.focus({ preventScroll: true });
+}
+
+defineExpose({ focusTrigger });
+
 function resetPlacementState() {
   verticalPlacement.value = 'bottom';
   panelTop.value = 0;

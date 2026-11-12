@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using BoardOil.Contracts.Auth;
 
 namespace BoardOil.Contracts.Users;
@@ -25,7 +26,8 @@ public sealed record OwnUserProfileDto(
     string UserName,
     string DisplayName,
     string Email,
-    string Role);
+    string Role,
+    bool ExperimentalFeaturesEnabled);
 
 public sealed record CreateUserRequest(string UserName, string DisplayName, string Email, string Password, string Role);
 
@@ -60,5 +62,8 @@ public sealed record CreatedClientAccountDto(
 
 public sealed record UpdateUserRequest(string DisplayName, string Email, string Role, bool IsActive);
 public sealed record UpdateClientAccountRequest(string DisplayName, string Email, string Role, bool IsActive);
-public sealed record UpdateOwnUserProfileRequest(string DisplayName, string Email);
+public sealed record UpdateOwnUserProfileRequest(
+    string DisplayName,
+    string Email,
+    [property: JsonRequired] bool ExperimentalFeaturesEnabled);
 public sealed record ResetUserPasswordRequest(string NewPassword);

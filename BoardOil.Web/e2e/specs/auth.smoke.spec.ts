@@ -2,6 +2,9 @@ import { ADMIN_PASSWORD, ADMIN_USER_NAME, authenticatePage, expect, test } from 
 import { BoardPage } from '../ui/BoardPage';
 
 test('login survives a protected-page reload and logout protects the board', async ({ api, page }) => {
+  // Four full navigations share this budget, including cold frontend compilation on CI.
+  test.setTimeout(60_000);
+
   const board = await api.createBoard('Smoke authentication');
   const boardPage = new BoardPage(page);
 

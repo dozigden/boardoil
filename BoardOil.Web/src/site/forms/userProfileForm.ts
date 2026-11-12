@@ -18,6 +18,12 @@ export function createUserProfileForm(profile: OwnUserProfile, save: FormDefinit
         label: 'Email',
         type: 'email',
         autocomplete: 'email'
+      },
+      {
+        name: 'experimentalFeaturesEnabled',
+        label: 'Experimental features',
+        help: 'Try features that are still in development.',
+        type: 'checkbox'
       }
     ],
     savedValues: profileValues,
@@ -26,5 +32,9 @@ export function createUserProfileForm(profile: OwnUserProfile, save: FormDefinit
 }
 
 function profileValues(profile: OwnUserProfile): UserProfileEditModel {
-  return { displayName: profile.displayName, email: profile.email };
+  return {
+    displayName: profile.displayName,
+    email: profile.email,
+    experimentalFeaturesEnabled: profile.experimentalFeaturesEnabled
+  };
 }

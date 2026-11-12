@@ -10,6 +10,7 @@ public sealed class EntityUser : ISupportCreatedAt, ISupportUpdatedAt
     public UserRole Role { get; set; } = UserRole.Standard;
     public UserIdentityType IdentityType { get; set; } = UserIdentityType.User;
     public bool IsActive { get; set; } = true;
+    public bool ExperimentalFeaturesEnabled { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }
 

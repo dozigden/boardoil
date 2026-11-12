@@ -5,7 +5,7 @@ export class BoardPage {
 
   public async open(boardId: number) {
     await this.page.goto(`/boards/${boardId}`);
-    await expect(this.column('Todo')).toBeVisible();
+    await this.column('Todo').waitFor({ state: 'visible' });
   }
 
   public column(title: string) {
@@ -53,6 +53,20 @@ export class BoardPage {
     await column.getByRole('button', { name: 'Add default card' }).click();
     await column.getByPlaceholder('Title').fill(cardTitle);
     await column.getByRole('button', { name: 'Save new card' }).click();
+  }
+
+  public async openCardDetails(columnTitle: string) {
+    await this.column(columnTitle).getByRole('button', { name: 'Choose card type', exact: true }).click();
+    await this.page.getByRole('menu', { name: 'Choose card type', exact: true })
+      .getByRole('button', { name: 'Add...', exact: true }).click();
+    await expect(this.page.getByRole('textbox', { name: 'Card title', exact: true })).toBeVisible();
+  }
+
+  public async startQuickCard(columnTitle: string, title: string, cardTypeName: string) {
+    await this.column(columnTitle).getByRole('button', { name: 'Choose card type', exact: true }).click();
+    await this.page.getByRole('menu', { name: 'Choose card type', exact: true })
+      .getByRole('button', { name: cardTypeName, exact: true }).click();
+    await this.column(columnTitle).getByPlaceholder('Title', { exact: true }).fill(title);
   }
 
   public async enterCardSelectionMode() {

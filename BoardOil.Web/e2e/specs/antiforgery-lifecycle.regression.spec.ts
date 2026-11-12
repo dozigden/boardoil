@@ -58,12 +58,18 @@ for (const refreshRequired of [false, true]) {
 }
 
 test('a same-account write survives access-cookie expiry without replacing the request token', async ({
-  api, authenticatedPage: page, context
+  api, page, context
 }) => {
-  const originalProfile = await api.getOwnProfile();
+  const userName = `csrf-expiry-${randomUUID().slice(0, 8)}`;
+  const password = 'RefreshPassword1234!';
+  await api.createUser(userName, password);
+  await authenticatePage(page, userName, password);
+  const profileApi = new BoardOilApi(page.request);
+  const originalProfile = await profileApi.getOwnProfile();
+  const updatedDisplayName = 'Saved after refresh';
   await page.goto('/user-admin/profile');
   await expect(page.getByLabel('Email', { exact: true })).toHaveValue(originalProfile.email);
-  // Submit the unchanged profile so this test does not alter the shared admin fixture.
+  await page.getByLabel('Display name', { exact: true }).fill(updatedDisplayName);
   await context.clearCookies({ name: 'boardoil_access' });
   const tokens: Array<string | undefined> = [];
   let refreshCount = 0;
@@ -90,5 +96,5 @@ test('a same-account write survives access-cookie expiry without replacing the r
   expect(refreshCount).toBe(1);
   expect(tokenAcquisitionCount).toBe(0);
   await expect(page).toHaveURL(/\/user-admin\/profile$/);
-  expect(await api.getOwnProfile()).toEqual(originalProfile);
+  expect(await profileApi.getOwnProfile()).toEqual({ ...originalProfile, displayName: updatedDisplayName });
 });

@@ -30,7 +30,8 @@ const originalProfile: OwnUserProfile = {
   userName: 'member',
   displayName: 'Original',
   email: 'original@example.test',
-  role: 'Standard'
+  role: 'Standard',
+  experimentalFeaturesEnabled: false
 };
 
 describe('userProfileStore', () => {
@@ -42,7 +43,8 @@ describe('userProfileStore', () => {
       id: originalProfile.id,
       userName: originalProfile.userName,
       displayName: originalProfile.displayName,
-      role: originalProfile.role
+      role: originalProfile.role,
+      experimentalFeaturesEnabled: originalProfile.experimentalFeaturesEnabled
     };
   });
 
@@ -58,8 +60,8 @@ describe('userProfileStore', () => {
     const auth = useAuthStore();
     await store.loadOwnProfile();
     const originalUser = auth.user;
-    const saved = { ...originalProfile, displayName: 'Updated', email: 'updated@example.test' };
-    const draft = { displayName: ' Updated ', email: saved.email };
+    const saved = { ...originalProfile, displayName: 'Updated', email: 'updated@example.test', experimentalFeaturesEnabled: true };
+    const draft = { displayName: ' Updated ', email: saved.email, experimentalFeaturesEnabled: true };
     let complete!: (result: Result<OwnUserProfile, AppError>) => void;
     usersApi.updateMyProfile.mockReturnValueOnce(new Promise(resolve => { complete = resolve; }));
 
@@ -67,13 +69,15 @@ describe('userProfileStore', () => {
     expect(store.busy).toBe(true);
     expect(store.ownProfile).toEqual(originalProfile);
     expect(auth.user).toBe(originalUser);
+    expect(auth.experimentalFeaturesEnabled).toBe(false);
     expect(usersApi.updateMyProfile).toHaveBeenCalledWith(draft);
 
     const result = outcome === 'success' ? ok(saved) : err<AppError>({ kind: 'api', message: 'Validation failed.', validationErrors: { email: ['Email already exists.'] } });
     complete(result);
     expect(await pending).toBe(result);
     expect(store.ownProfile).toEqual(outcome === 'success' ? saved : originalProfile);
-    expect(auth.user).toEqual(outcome === 'success' ? { ...originalUser, displayName: saved.displayName } : originalUser);
+    expect(auth.user).toEqual(outcome === 'success' ? { ...originalUser, displayName: saved.displayName, experimentalFeaturesEnabled: true } : originalUser);
+    expect(auth.experimentalFeaturesEnabled).toBe(outcome === 'success');
     expect(store.busy).toBe(false);
     expect(usersApi.getMyProfile).toHaveBeenCalledTimes(1);
     expect(draft.displayName).toBe(' Updated ');
@@ -84,7 +88,7 @@ describe('userProfileStore', () => {
     const auth = useAuthStore();
     await store.loadOwnProfile();
     usersApi.updateMyProfile.mockResolvedValueOnce(err({ kind: 'api', message: 'Save failed.' }));
-    await store.saveOwnProfile({ displayName: 'Updated', email: 'updated@example.test' });
+    await store.saveOwnProfile({ displayName: 'Updated', email: 'updated@example.test', experimentalFeaturesEnabled: false });
 
     store.reset();
 

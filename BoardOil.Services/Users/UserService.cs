@@ -5,6 +5,7 @@ using BoardOil.Contracts.Common;
 using BoardOil.Contracts.Users;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Users;
+using BoardOil.Services.Auth;
 
 namespace BoardOil.Services.Users;
 
@@ -33,11 +34,7 @@ public sealed class UserService(
             return Task.FromResult<ApiResult<AuthUserDto>>(ApiErrors.Unauthorized("User is not active."));
         }
 
-        return Task.FromResult<ApiResult<AuthUserDto>>(new AuthUserDto(
-            user.Id,
-            user.UserName,
-            user.DisplayName,
-            user.Role.ToString()));
+        return Task.FromResult<ApiResult<AuthUserDto>>(user.ToAuthUserDto());
     }
 
     public async Task<ApiResult<OwnUserProfileDto>> GetOwnProfileAsync(int actorUserId)
@@ -60,7 +57,8 @@ public sealed class UserService(
             user.UserName,
             user.DisplayName,
             user.Email,
-            user.Role.ToString());
+            user.Role.ToString(),
+            user.ExperimentalFeaturesEnabled);
     }
 
     public async Task<ApiResult<OwnUserProfileDto>> UpdateOwnProfileAsync(int actorUserId, UpdateOwnUserProfileRequest request)
@@ -93,6 +91,7 @@ public sealed class UserService(
 
         user.DisplayName = request.DisplayName.Trim();
         user.Email = request.Email.Trim();
+        user.ExperimentalFeaturesEnabled = request.ExperimentalFeaturesEnabled;
         await scope.SaveChangesAsync();
 
         return new OwnUserProfileDto(
@@ -100,7 +99,8 @@ public sealed class UserService(
             user.UserName,
             user.DisplayName,
             user.Email,
-            user.Role.ToString());
+            user.Role.ToString(),
+            user.ExperimentalFeaturesEnabled);
     }
 
     private static IReadOnlyList<ValidationError> ValidateDisplayNameAndEmail(string displayName, string email)

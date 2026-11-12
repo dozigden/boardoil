@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Column;
 
@@ -184,6 +185,12 @@ public sealed record BoardUpdateInput
     public string? Name { get; init; }
     public string? Description { get; init; }
     public BoardUpdateSettingsInput? Settings { get; init; }
+}
+
+public sealed record BoardReorderInput
+{
+    public int? BoardId { get; init; }
+    public IReadOnlyList<BoardCardOrder?>? Columns { get; init; }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

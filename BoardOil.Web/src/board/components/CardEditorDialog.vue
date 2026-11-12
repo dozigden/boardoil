@@ -2,19 +2,20 @@
   <FixedChromeDialog
     ref="editorDialogRef"
     class="card-editor-dialog"
-    :open="editingCard !== null"
-    :title="isDuplicatingCard ? 'Duplicate Card' : 'Edit Card'"
+    :open="isCreatingCard || editingCard !== null"
+    :title="dialogTitle"
     size="fill"
     body-mode="managed"
-    :close-label="isDuplicatingCard ? 'Cancel duplicate' : 'Cancel editing'"
+    :close-label="closeLabel"
+    :busy="cardBusy || isSavingCard"
     @close="closeCardEditor"
     @submit="saveCard"
     @keydown="handleCardEditorKeydown"
-    @opened="focusEmptyDescription"
+    @opened="focusInitialField"
   >
     <template #headerActions>
       <BoDropdown
-        v-if="cardDraft && !isDuplicatingCard"
+        v-if="cardDraft && !isNewCard"
         class="card-editor-actions-menu"
         align="right"
         label="Card actions"
@@ -68,8 +69,17 @@
       <div class="dialog-title-with-pill">
         <span v-if="selectedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ selectedCardTypeEmoji }}</span>
         <span v-if="isDuplicatingCard" class="badge">Duplicate</span>
+        <span v-if="isCreatingCard" class="badge">New</span>
+        <input
+          v-if="isCreatingCard && cardDraft"
+          ref="createTitleInputRef"
+          class="card-create-title"
+          aria-label="Card title"
+          :value="cardDraft.title"
+          @input="handleCreateTitleInput"
+        />
         <CardTitleEditor
-          v-if="cardDraft"
+          v-else-if="cardDraft"
           :card-id="isDuplicatingCard ? null : cardDraftId"
           :title="cardDraft.title"
           @update:title="updateDraftTitleFromEditor"
@@ -78,6 +88,7 @@
       </div>
     </template>
     <template v-if="cardDraft">
+      <FormErrorSummary v-if="isCreatingCard" ref="createErrorSummaryRef" category="card-create" />
       <div class="card-editor-layout">
         <div class="card-editor-main">
           <MdEditorToolbar
@@ -85,7 +96,7 @@
             class="card-editor-shared-toolbar"
             :state="activeToolbarState"
             :is-plain-text-mode="activeIsPlainTextMode"
-            :show-image-action="!isDuplicatingCard && attachments.mutable"
+            :show-image-action="!isNewCard && attachments.mutable"
             :image-action-disabled="attachments.busy || attachments.loading || attachments.maxUploadByteLength === 0"
             @action="runSharedToolbarAction"
             @image="selectActiveEditorImage"
@@ -114,7 +125,7 @@
               @image-upload-blocking-change="handleDescriptionImageBlockingChange"
             />
           </div>
-          <section v-if="!isDuplicatingCard" class="card-editor-comments-section" aria-label="Card comments">
+          <section v-if="!isNewCard" class="card-editor-comments-section" aria-label="Card comments">
             <div class="card-editor-comment-entry">
               <h3 class="card-editor-comments-title">Comments</h3>
               <div class="card-editor-comment-entry-row">
@@ -244,8 +255,9 @@
           <div class="card-editor-option-section">
             <CardTagEditor
               :tag-names="cardDraft.tagNames"
+              :allow-draft-tags="isCreatingCard"
               @update:tag-names="updateDraftTagNamesFromEditor"
-              :ensure-tags-exist="tagNames => ensureTagsExist(boardId, tagNames)"
+              :ensure-tags-exist="resolveDraftTags"
             />
           </div>
 
@@ -366,12 +378,12 @@
           <CardAttachments v-if="routeCardId !== null" :board-id="boardId" :card-id="routeCardId"
             :read-only="isDuplicatingCard" :duplicating="isDuplicatingCard" />
 
-          <div v-if="!isDuplicatingCard" class="card-editor-option-section">
+          <div v-if="!isNewCard" class="card-editor-option-section">
             <span class="card-editor-field-label">Created</span>
             <span>{{ formatCardDateTime(editingCard!.cardCreatedUtc) }}</span>
           </div>
 
-          <div v-if="!isDuplicatingCard" class="card-editor-option-section">
+          <div v-if="!isNewCard" class="card-editor-option-section">
             <span class="card-editor-field-label">Updated</span>
             <span>{{ formatCardDateTime(editingCard!.cardUpdatedUtc) }}</span>
           </div>
@@ -390,9 +402,9 @@
             :title="primaryActionLabel"
           >
             <Check :size="16" aria-hidden="true" />
-            <span>{{ isDuplicatingCard ? 'Create duplicate' : 'Save' }}</span>
+            <span>{{ primaryActionText }}</span>
           </button>
-          <button type="button" class="btn btn--secondary" aria-label="Cancel editing" title="Cancel" @click="closeCardEditor">
+          <button type="button" class="btn btn--secondary" :aria-label="closeLabel" title="Cancel" @click="closeCardEditor">
             <X :size="16" aria-hidden="true" />
             <span>Cancel</span>
           </button>
@@ -407,6 +419,8 @@ import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from '@luci
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+import FormErrorSummary from '../../shared/components/FormErrorSummary.vue';
+import { useValidationStore } from '../../shared/stores/validationStore';
 import MdEditor from '../../shared/components/MdEditor.vue';
 import CardAttachments from './CardAttachments.vue';
 import { useAttachmentStore } from '../stores/attachmentStore';
@@ -443,6 +457,15 @@ import type {
   MarkdownImageUploadOptions
 } from '../../shared/components/markdownImages';
 
+const props = defineProps<{ createDraft?: CardEditModel }>();
+const emit = defineEmits<{
+  close: [];
+  created: [cardId: number];
+}>();
+const isCreatingCard = computed(() => props.createDraft !== undefined);
+const createTitleInputRef = ref<HTMLInputElement | null>(null);
+const createErrorSummaryRef = ref<InstanceType<typeof FormErrorSummary> | null>(null);
+const validation = useValidationStore();
 const route = useRoute();
 const router = useRouter();
 const boardStore = useBoardStore();
@@ -476,6 +499,20 @@ const cardDraftId = ref<number | null>(null);
 const cardDraftSource = ref<CardEditModel | null>(null);
 const isCardDraftDirty = ref(false);
 const isDuplicatingCard = ref(false);
+const isSavingCard = ref(false);
+const isNewCard = computed(() => isCreatingCard.value || isDuplicatingCard.value);
+const dialogTitle = computed(() => {
+  if (isCreatingCard.value) return 'Create Card';
+  return isDuplicatingCard.value ? 'Duplicate Card' : 'Edit Card';
+});
+const closeLabel = computed(() => {
+  if (isCreatingCard.value) return 'Cancel creation';
+  return isDuplicatingCard.value ? 'Cancel duplicate' : 'Cancel editing';
+});
+const primaryActionText = computed(() => {
+  if (isCreatingCard.value) return 'Create';
+  return isDuplicatingCard.value ? 'Create duplicate' : 'Save';
+});
 const editorDialogRef = ref<InstanceType<typeof FixedChromeDialog> | null>(null);
 let stopDuplicateAnimation: (() => void) | undefined;
 const newCommentText = ref('');
@@ -521,7 +558,10 @@ const duplicateActionTitle = computed(() => isDuplicateDisabled.value
 const canCreateDuplicate = computed(() => (
   Boolean(cardDraft.value?.title.trim()) && cardDraft.value?.cardTypeId !== null
 ));
-const primaryActionLabel = computed(() => isDuplicatingCard.value ? 'Create duplicate card' : 'Save card');
+const primaryActionLabel = computed(() => {
+  if (isCreatingCard.value) return 'Create card';
+  return isDuplicatingCard.value ? 'Create duplicate card' : 'Save card';
+});
 const imageUploadBlocking = computed(() => descriptionImageBlocking.value || commentImageBlocking.value || editedCommentImageBlocking.value);
 const cardImageContext = computed<MarkdownImageContext | null>(() => {
   const cardId = routeCardId.value;
@@ -536,10 +576,11 @@ const cardImageContext = computed<MarkdownImageContext | null>(() => {
   };
 });
 const cardImageUpload = computed<MarkdownImageUpload | null>(() => {
-  return isDuplicatingCard.value || !attachments.mutable ? null : uploadCardImage;
+  return isNewCard.value || !attachments.mutable ? null : uploadCardImage;
 });
 
 const routeCardId = computed<number | null>(() => {
+  if (isCreatingCard.value) return null;
   const raw = route.params.cardId;
   const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN;
   return Number.isFinite(parsed) ? parsed : null;
@@ -898,6 +939,10 @@ function handleCardEditorKeydown(event: KeyboardEvent) {
   }
 
   event.preventDefault();
+  // A nested link/image dialog owns its actions; it must not submit the card.
+  if (event.target instanceof Element && event.target.closest('dialog') !== event.currentTarget) {
+    return;
+  }
   if (event.repeat || cardBusy.value) {
     return;
   }
@@ -923,6 +968,11 @@ async function closeCardEditorInternal(skipUnsavedGuard: boolean) {
   }
 
   clearDraft();
+  if (isCreatingCard.value) {
+    validation.clearValidation();
+    emit('close');
+    return;
+  }
   await router.push({ name: 'board', params: { boardId: boardId.value } });
 }
 
@@ -1163,7 +1213,21 @@ function initializeDraftFromCard(sourceBoardId: number, card: Card) {
   return true;
 }
 
-function focusEmptyDescription() {
+function handleCreateTitleInput(event: Event) {
+  updateDraftTitleFromEditor((event.target as HTMLInputElement).value);
+  validation.clearFieldErrors('title', 'card-create');
+}
+
+async function resolveDraftTags(tagNames: string[]) {
+  if (isCreatingCard.value) return tagNames;
+  return ensureTagsExist(boardId.value, tagNames);
+}
+
+function focusInitialField() {
+  if (isCreatingCard.value && !cardDraft.value?.title.trim()) {
+    createTitleInputRef.value?.focus();
+    return;
+  }
   if (cardDraft.value && cardDraft.value.description.trim().length === 0) {
     descriptionEditorRef.value?.focus();
   }
@@ -1283,41 +1347,67 @@ async function saveCardFromShortcut() {
 async function saveCardDraft(closeAfterSave: boolean) {
   const draft = cardDraft.value;
   const cardId = routeCardId.value;
-  if (!draft || draft.cardTypeId === null || cardBusy.value || imageUploadBlocking.value) {
+  if (!draft || isSavingCard.value || cardBusy.value || imageUploadBlocking.value) {
     return;
   }
 
-  if (isDuplicatingCard.value) {
-    if (cardId === null) { return; }
-    const created = await createCardAction(draft, { duplicateFromCardId: cardId });
-    if (created?.ok) {
-      feedback.showToast(`Created duplicate #${created.data.id}.`);
-      await closeCardEditorWithoutPrompt();
-      await nextTick();
-      revealCreatedDuplicate(created.data.id);
-    }
-    return;
-  }
-
-  if (cardId === null) {
-    return;
-  }
-
-  const submittedDraft = cloneCardEditModel(draft);
-  const saved = await saveCardAction(cardId, submittedDraft);
-  if (saved) {
-    feedback.showToast('Saved successfully.');
-    if (closeAfterSave) {
-      if (isEditedCommentDirty.value) {
-        syncDraftAfterSave(cardId, submittedDraft);
-        await closeCardEditor();
-        return;
+  let showCreateError = false;
+  isSavingCard.value = true;
+  try {
+    if (isCreatingCard.value) {
+      const targetBoardId = boardId.value;
+      const created = await createCardAction(cloneCardEditModel(draft), { suppressValidationFeedback: true });
+      if (!created || boardId.value !== targetBoardId) return;
+      validation.setValidationResult(created, 'card-create');
+      if (created.ok) {
+        clearDraft();
+        emit('created', created.data.id);
+      } else {
+        showCreateError = true;
       }
-      await closeCardEditorWithoutPrompt();
       return;
     }
 
-    syncDraftAfterSave(cardId, submittedDraft);
+    if (draft.cardTypeId === null) return;
+
+    if (isDuplicatingCard.value) {
+      if (cardId === null) { return; }
+      const created = await createCardAction(draft, { duplicateFromCardId: cardId });
+      if (created?.ok) {
+        feedback.showToast(`Created duplicate #${created.data.id}.`);
+        await closeCardEditorWithoutPrompt();
+        await nextTick();
+        revealCreatedDuplicate(created.data.id);
+      }
+      return;
+    }
+
+    if (cardId === null) {
+      return;
+    }
+
+    const submittedDraft = cloneCardEditModel(draft);
+    const saved = await saveCardAction(cardId, submittedDraft);
+    if (saved) {
+      feedback.showToast('Saved successfully.');
+      if (closeAfterSave) {
+        if (isEditedCommentDirty.value) {
+          syncDraftAfterSave(cardId, submittedDraft);
+          await closeCardEditor();
+          return;
+        }
+        await closeCardEditorWithoutPrompt();
+        return;
+      }
+
+      syncDraftAfterSave(cardId, submittedDraft);
+    }
+  } finally {
+    isSavingCard.value = false;
+    if (showCreateError) {
+      await nextTick();
+      createErrorSummaryRef.value?.focus();
+    }
   }
 }
 
@@ -1425,6 +1515,18 @@ watch(
       cancelled = true;
     });
 
+    if (props.createDraft) {
+      if (!nextBoard) return;
+      if (cardDraftBoardId.value !== nextBoardId) {
+        cardDraft.value = cloneCardEditModel(props.createDraft);
+        cardDraftSource.value = cloneCardEditModel(props.createDraft);
+        cardDraftBoardId.value = nextBoardId;
+        validation.clearValidation();
+      }
+      await ensureEditorLookupsLoaded(nextBoardId, () => cancelled);
+      return;
+    }
+
     if (nextCardId === null) {
       redirectToBoard(nextBoardId);
       return;
@@ -1461,6 +1563,12 @@ async function shouldBlockRouteNavigation(
   toCardId: unknown,
   fromCardId: unknown
 ) {
+  if (isCreatingCard.value) {
+    const shouldDiscard = await confirmDiscardUnsavedChanges();
+    if (shouldDiscard) emit('close');
+    return !shouldDiscard;
+  }
+
   if (fromName !== 'board-card') {
     return false;
   }
@@ -1510,6 +1618,13 @@ onBeforeRouteUpdate(async (to, from) => {
 </script>
 
 <style scoped>
+.card-create-title {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  margin: 0;
+}
+
 .card-editor-dialog :deep(.fixed-chrome-dialog__header) {
   /* Keep header menus above the sticky editor toolbar in the mobile layout. */
   z-index: 3;

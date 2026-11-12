@@ -5,6 +5,7 @@
         v-for="tagName in tagNamesModel"
         :key="tagName"
         :tag-name="tagName"
+        :enable-fallback="allowDraftTags"
         class="tag-pill-editable"
       >
         <button
@@ -80,6 +81,7 @@ import { useTagStore } from '../stores/tagStore';
 
 const props = withDefaults(defineProps<{
   ensureTagsExist: (tagNames: string[]) => Promise<string[]>;
+  allowDraftTags?: boolean;
   maxLength?: number;
   placeholder?: string;
 }>(), {

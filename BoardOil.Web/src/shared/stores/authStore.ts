@@ -18,6 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => user.value !== null);
   const isAdmin = computed(() => user.value?.role === 'Admin');
+  const experimentalFeaturesEnabled = computed(() => user.value?.experimentalFeaturesEnabled === true);
   let initializePromise: Promise<void> | null = null;
 
   function SET_SESSION(authenticatedUser: AuthUser, csrfToken: string) {
@@ -32,7 +33,7 @@ export const useAuthStore = defineStore('auth', () => {
     setCsrfToken(null);
   }
 
-  function UPDATE_OWN_PROFILE(displayName: string, userName: string, role: string) {
+  function UPDATE_OWN_PROFILE(displayName: string, userName: string, role: string, experimentalFeaturesEnabled: boolean) {
     if (!user.value) {
       return;
     }
@@ -41,7 +42,8 @@ export const useAuthStore = defineStore('auth', () => {
       ...user.value,
       userName,
       displayName,
-      role
+      role,
+      experimentalFeaturesEnabled
     };
   }
 
@@ -163,8 +165,8 @@ export const useAuthStore = defineStore('auth', () => {
     CLEAR_SESSION();
   }
 
-  function setOwnProfile(displayName: string, userName: string, role: string) {
-    UPDATE_OWN_PROFILE(displayName, userName, role);
+  function setOwnProfile(displayName: string, userName: string, role: string, experimentalFeaturesEnabled: boolean) {
+    UPDATE_OWN_PROFILE(displayName, userName, role, experimentalFeaturesEnabled);
   }
 
   return {
@@ -175,6 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
     requiresInitialAdminSetup,
     isAuthenticated,
     isAdmin,
+    experimentalFeaturesEnabled,
     initialize,
     login,
     registerInitialAdmin,

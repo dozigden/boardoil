@@ -1,5 +1,6 @@
 using BoardOil.Api.Auth;
 using BoardOil.Api.Configuration;
+using BoardOil.Api.Development;
 using BoardOil.Api.Endpoints;
 using BoardOil.Api.ErrorLogs;
 using BoardOil.Api.Extensions;
@@ -20,6 +21,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+DevMcpSessionCommand.ValidateEnvironment(builder.Configuration, builder.Environment);
 var runtimeOptions = BoardOilRuntimeOptions.FromConfiguration(builder.Configuration);
 var connectionString = runtimeOptions.ResolveConnectionString(builder.Configuration);
 var signingKeyPath = runtimeOptions.ResolveSigningKeyPath(connectionString);
@@ -141,6 +143,16 @@ app.InitialiseMcpServiceProvider();
 
 app.LogMcpStartupWarnings();
 
+if (DevMcpSessionCommand.IsRequested(builder.Configuration))
+{
+    if (builder.Configuration[DevMcpSessionCommand.CreateKey] is not null)
+    {
+        await app.Services.InitializeBoardOilEfInfrastructureAsync();
+    }
+    await DevMcpSessionCommand.ExecuteAsync(app.Services, builder.Configuration, builder.Environment);
+    await app.DisposeAsync();
+    return;
+}
 await app.Services.InitializeBoardOilEfInfrastructureAsync();
 await app.Services.CleanupAttachmentsAtStartupAsync();
 await app.Services.InitializeOAuthTokenAuditCaptureStateAsync();

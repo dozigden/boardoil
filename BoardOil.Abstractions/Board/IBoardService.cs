@@ -10,4 +10,5 @@ public interface IBoardService
     Task<ApiResult<BoardDto>> CreateBoardAsync(CreateBoardRequest request, int actorUserId);
     Task<ApiResult<BoardSummaryDto>> UpdateBoardAsync(int boardId, UpdateBoardRequest request, int actorUserId);
     Task<ApiResult> DeleteBoardAsync(int boardId, int actorUserId);
+    Task<ApiResult> ReorderBoardAsync(int boardId, ReorderBoardRequest request, int actorUserId);
 }
