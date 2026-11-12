@@ -53,6 +53,34 @@
           </div>
         </section>
       </template>
+      <template #fields="{ fields, values, busy, setValue }">
+        <div class="account-profile-settings">
+          <section class="panel panel-stack panel-stack--cozy">
+            <FormFields
+              :fields="fields.filter(field => field.name !== 'experimentalFeaturesEnabled')"
+              :values="values"
+              :busy="busy"
+              @change="setValue"
+            />
+          </section>
+          <section class="panel panel-stack panel-stack--cozy" aria-labelledby="experimental-features-heading">
+            <h3 id="experimental-features-heading" class="account-profile-experiments-title">
+              <ExperimentalFeatureIcon :size="20" aria-hidden="true" />
+              Experimental features
+            </h3>
+            <FormFields
+              :fields="fields.filter(field => field.name === 'experimentalFeaturesEnabled')"
+              :values="values"
+              :busy="busy"
+              @change="setValue"
+            />
+            <section class="account-profile-experiments" aria-labelledby="current-experiments-heading">
+              <h4 id="current-experiments-heading">Current experiments</h4>
+              <p>No experiments are currently running.</p>
+            </section>
+          </section>
+        </div>
+      </template>
     </FormPage>
 
     <input
@@ -79,7 +107,9 @@ import { EllipsisVertical } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref, shallowRef, watch } from 'vue';
 import LoadingIndicator from '../../shared/components/LoadingIndicator.vue';
+import ExperimentalFeatureIcon from '../../shared/components/ExperimentalFeatureIcon.vue';
 import FormPage from '../../shared/forms/FormPage.vue';
+import FormFields from '../../shared/forms/FormFields.vue';
 import { createUserProfileForm } from '../forms/userProfileForm';
 import ProfileImageCropDialog from '../components/ProfileImageCropDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
@@ -183,6 +213,11 @@ function profileSaved() {
 </script>
 
 <style scoped>
+.account-profile-settings { display: grid; gap: 0.9rem; }
+.account-profile-experiments-title { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.1rem; }
+.account-profile-experiments { margin-top: 0.5rem; }
+.account-profile-experiments h4 { margin: 0 0 0.35rem; font-size: 0.9rem; font-weight: 500; color: var(--bo-ink-muted); }
+.account-profile-experiments p { margin: 0; color: var(--bo-ink-muted); }
 .account-profile {
   display: grid;
   gap: 1rem;

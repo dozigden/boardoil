@@ -21,8 +21,7 @@ export function createUserProfileForm(profile: OwnUserProfile, save: FormDefinit
       },
       {
         name: 'experimentalFeaturesEnabled',
-        label: 'Experimental features',
-        help: 'Try features that are still in development.',
+        label: 'Enable experimental features',
         type: 'checkbox'
       }
     ],
