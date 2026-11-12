@@ -5,7 +5,7 @@ export class BoardPage {
 
   public async open(boardId: number) {
     await this.page.goto(`/boards/${boardId}`);
-    await expect(this.column('Todo')).toBeVisible();
+    await this.column('Todo').waitFor({ state: 'visible' });
   }
 
   public column(title: string) {

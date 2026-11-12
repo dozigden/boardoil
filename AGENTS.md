@@ -5,6 +5,7 @@ Read area guidance before working in that part of the system:
 - [AGENTS/Architecture.md](AGENTS/Architecture.md) - Read before making any new projects or adding dependancies
 - [AGENTS/ArchiveCards.md](AGENTS/ArchiveCards.md) - Read before working on archive cards
 - [AGENTS/CSharpCodingConventions.md](AGENTS/CSharpCodingConventions.md)
+- [AGENTS/TypeScriptCodingConventions.md](AGENTS/TypeScriptCodingConventions.md) - Read before changing TypeScript, including Vue scripts and browser tests
 - [AGENTS/Database.md](AGENTS/Database.md)
 - [AGENTS/Frontend.md](AGENTS/Frontend.md)
 - [AGENTS/Forms.md](AGENTS/Forms.md) - Read before changing the forms engine or migrating forms
@@ -50,6 +51,7 @@ Read area guidance before working in that part of the system:
 - Shell wrappers are provided for convenience/backward compatibility: `scripts/test-fast.sh`, `scripts/test-full.sh`, `scripts/test-fast.ps1`, `scripts/test-full.ps1` all delegate to the `.mjs` scripts.
 - Avoid ad-hoc direct test commands during normal iteration; prefer the repository test scripts so behavior stays consistent.
 - Follow C# coding conventions in `AGENTS/CSharpCodingConventions.md`.
+- Follow TypeScript coding conventions in `AGENTS/TypeScriptCodingConventions.md`.
 - Do not use nested ternary expressions. Use explicit branching (`if`/`switch`) or small helper functions instead.
 - Style handling policy:
   - style definitions are a closed BoardOil domain contract; backend services own supported style kinds, valid property shapes, normalisation, canonical persistence, and write/import validation.
