@@ -18,6 +18,7 @@ test('comment deletion confirms the selected comment, preserves failures and att
     const viewer = new CardEditorPage(secondPage);
     await page.goto(`/boards/${board.id}/card/${card.id}`);
     await secondPage.goto(`/boards/${board.id}/card/${card.id}`);
+    await viewer.commentContent().waitFor({ state: 'visible' });
     await expect(viewer.commentContent()).toHaveText('Selected comment to remove');
     await editor.requestCommentDeletion('Selected comment to remove');
     const prompt = page.getByRole('dialog', { name: 'Delete comment', exact: true });
