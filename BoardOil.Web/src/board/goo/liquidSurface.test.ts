@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { drawLiquid, drawLiquids } from './liquidSurface';
-import { Liquid } from './physics';
+import { cardDistance, Liquid } from './physics';
 import type { GooCard, Viewport } from './types';
 
 beforeAll(() => vi.stubGlobal('Path2D', class {
@@ -43,6 +43,18 @@ describe('bounded Liquid surface', () => {
     for (const [x, y] of outline[0]) {
       expect(Math.abs(x - 100)).toBeLessThan(17);
       expect(Math.abs(y - 100)).toBeLessThan(17);
+    }
+  });
+
+  it('keeps the unassigned-card clearance after smoothing particle density', () => {
+    const liquid = pool();
+    const neighbour: GooCard = { ...liquid.cards[0], id: 2, group: null, y: 290, height: 60 };
+    liquid.otherObstacles = [neighbour];
+    liquid.particles = Array.from({ length: 12 }, (_, i) => ({ x: 175 + i * 5, y: 258, vx: 0, vy: 0 }));
+    const outline = drawLiquid(context, liquid, viewport, '#95d4aa', false);
+    expect(outline.length).toBeGreaterThan(0);
+    for (const loop of outline) for (const [x, y] of loop) {
+      expect(cardDistance(x, y, neighbour).distance).toBeGreaterThanOrEqual(5.5);
     }
   });
 

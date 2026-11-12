@@ -13,7 +13,7 @@
     </defs>
   </svg>
 
-  <section class="board" :ref="setBoardRef">
+  <section class="board" :class="{ 'board--liquid': experimentalFeaturesEnabled && experimentalGooMode === 'liquid' }" :ref="setBoardRef">
     <ExperimentalGooLayer
       v-if="experimentalFeaturesEnabled"
       :mode="experimentalGooMode"
@@ -245,6 +245,7 @@ const {
   selectionGooBlobBorderRadiusPx
 } = motion;
 const clipping = useBoardColumnClipping(renderedColumns, motion.gooLayoutVersion, motion.refreshGooLayout);
+watch(experimentalGooMode, motion.refreshGooLayout, { flush: 'post' });
 const {
   newCardDrafts,
   newCardDraftErrors,
@@ -488,6 +489,10 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 
 .column-content > .card--slick-gap {
   margin-top: var(--column-card-gap);
+}
+
+.board--liquid .column-content > .card--slick-gap {
+  margin-top: calc(var(--column-card-gap) * 1.5);
 }
 
 .column-content > .card--slick-gap-top {

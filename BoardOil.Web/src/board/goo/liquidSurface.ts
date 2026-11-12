@@ -1,9 +1,11 @@
 import { cardDistance, type Liquid } from './physics';
 import { fieldsOverlap, liquidGridStep, resolveLiquidContacts, type LiquidField } from './liquidContacts';
+import { smoothParticleDensity } from './liquidDensity';
 import { traceContours } from './contours';
 import type { Outline, Viewport } from './types';
 
 const gridStep = liquidGridStep, renderRadius = 17, unassignedClearance = 6;
+const densityPadding = renderRadius + 3 * gridStep;
 type Surface = { loops: Outline; path: Path2D; field: LiquidField; rivals: LiquidField[] };
 type CachedLiquid = { field: LiquidField; surface?: Surface };
 export type LiquidPaint = { id: number; liquid: Liquid; colour: string; sleeping: boolean };
@@ -26,10 +28,10 @@ function buildField(liquid: Liquid, viewport: Viewport): LiquidField {
   if (!cards.length && !particles.length) return emptyField();
   // Keep the same global grid phase and viewport boundary, but omit empty
   // space outside this slick. Padding includes every kernel and coating tail.
-  const left = Math.min(...cards.map(c => c.x - c.width / 2 - 20), ...particles.map(p => p.x - renderRadius));
-  const right = Math.max(...cards.map(c => c.x + c.width / 2 + 20), ...particles.map(p => p.x + renderRadius));
-  const top = Math.min(...cards.map(c => c.y - c.height / 2 - 20), ...particles.map(p => p.y - renderRadius));
-  const bottom = Math.max(...cards.map(c => c.y + c.height / 2 + 20), ...particles.map(p => p.y + renderRadius));
+  const left = Math.min(...cards.map(c => c.x - c.width / 2 - 20), ...particles.map(p => p.x - densityPadding));
+  const right = Math.max(...cards.map(c => c.x + c.width / 2 + 20), ...particles.map(p => p.x + densityPadding));
+  const top = Math.min(...cards.map(c => c.y - c.height / 2 - 20), ...particles.map(p => p.y - densityPadding));
+  const bottom = Math.max(...cards.map(c => c.y + c.height / 2 + 20), ...particles.map(p => p.y + densityPadding));
   const originX = Math.max(viewLeft, Math.floor(left / gridStep) * gridStep - gridStep);
   const originY = Math.max(viewTop, Math.floor(top / gridStep) * gridStep - gridStep);
   const nx = Math.round((Math.min(viewRight, Math.ceil(right / gridStep) * gridStep + gridStep) - originX) / gridStep) + 1;
@@ -49,6 +51,7 @@ function buildField(liquid: Liquid, viewport: Viewport): LiquidField {
       if (q > 0) field[y * nx + x] += q * q * q * .7;
     }
   }
+  smoothParticleDensity(field, nx, ny);
   // Keep individual card indents in the outline; only physics merges stacks.
   for (const card of cards) {
     const x0 = Math.max(1, Math.floor((card.x - card.width / 2 - 20 - originX) / gridStep));
@@ -78,8 +81,8 @@ function buildField(liquid: Liquid, viewport: Viewport): LiquidField {
       if (field[i] <= 0) continue;
       const distance = cardDistance(x * gridStep + originX, y * gridStep + originY, card).distance;
       const limit = .5 + (distance - unassignedClearance) / 6;
-      const blend = Math.max(0, 1 - Math.abs(field[i] - limit) / .25);
-      field[i] = Math.max(0, Math.min(field[i], limit) - .25 * blend * blend / 4);
+      const blend = Math.max(0, 1 - Math.abs(field[i] - limit) / .6);
+      field[i] = Math.max(0, Math.min(field[i], limit) - .6 * blend * blend / 4);
     }
   }
   // Bound the particle contribution so a dense foreign pool cannot swallow a
