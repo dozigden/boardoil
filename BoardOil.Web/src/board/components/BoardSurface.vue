@@ -179,6 +179,7 @@ import type { SlickActivity } from '../goo/scene';
 import LiteGooLayer from './LiteGooLayer.vue';
 import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
 import { useBoardInlineCreation } from '../composables/useBoardInlineCreation';
+import { useBoardColumnClipping } from '../composables/useBoardColumnClipping';
 import { useBoardMotion } from '../composables/useBoardMotion';
 import { useCardStore } from '../stores/cardStore';
 import { useCardTypeStore } from '../stores/cardTypeStore';
@@ -243,6 +244,7 @@ const {
   selectionGooGroupsByColumnId,
   selectionGooBlobBorderRadiusPx
 } = motion;
+const clipping = useBoardColumnClipping(renderedColumns, motion.gooLayoutVersion, motion.refreshGooLayout);
 const {
   newCardDrafts,
   newCardDraftErrors,
@@ -312,6 +314,7 @@ const {
 function setBoardRef(element: unknown) {
   boardElement = element instanceof HTMLElement ? element : null;
   motion.setBoardRef(element);
+  clipping.setBoardRef(element);
 }
 
 function focusCreatedCard(cardId: number) {
@@ -400,7 +403,6 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 }
 
 .column {
-  --column-bottom-mask-height: 1rem;
   background: var(--bo-surface-panel);
   border: 1px solid var(--bo-border-soft);
   border-radius: 14px;
@@ -415,18 +417,19 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
   overflow: hidden;
 }
 
-.column::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--column-bottom-mask-height);
-  background: var(--bo-surface-panel);
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
-  pointer-events: none;
-  z-index: 3;
+.column--short {
+  overflow: visible;
+}
+
+.column--short .column-content {
+  overflow: visible;
+  margin-left: var(--column-scroll-gutter-left);
+  margin-right: var(--column-scroll-gutter-right);
+  clip-path: inset(0 0 -100vh 0);
+}
+
+.board > :deep(.goo-layer--full) {
+  clip-path: inset(var(--board-goo-clip-top, 0px) 0 var(--board-goo-clip-bottom, 0px) 0);
 }
 
 .column-stack {

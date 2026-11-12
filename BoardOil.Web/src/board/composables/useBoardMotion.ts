@@ -378,6 +378,7 @@ export function useBoardMotion(
   return {
     renderedColumns,
     gooLayoutVersion,
+    refreshGooLayout,
     floatingCards: movement.floatingCards,
     isRemovingCard: removals.has,
     resolveCardBoundaryClass: removals.boundaryClass,

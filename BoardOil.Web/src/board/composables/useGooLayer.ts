@@ -1,4 +1,5 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from 'vue';
+import { columnGooBottomExtensions } from '../utils/gooViewport';
 import { gooConfig } from '../utils/gooConfig';
 import { buildGooGroups, type GooItem, type GooRenderGroup, type RectLike } from '../utils/gooLayout';
 import {
@@ -377,7 +378,7 @@ export function useGooLayer(
       left: rect.left + padding.left - gooConfig.clipHorizontalInsetPx,
       top: rect.top + padding.top,
       width: Math.max(0, rect.width - padding.left - padding.right + (gooConfig.clipHorizontalInsetPx * 2)),
-      height: Math.max(0, rect.height - padding.top - padding.bottom)
+      height: Math.max(0, rect.height - padding.top - padding.bottom + (columnGooBottomExtensions.get(clipElement) ?? 0))
     };
     const geometry = { elementRect: rect, contentRect };
     cache.set(clipElement, geometry);

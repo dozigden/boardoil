@@ -1,6 +1,6 @@
 import { cardDistance, DT, Liquid, liquidSettings } from './physics';
 import { Settling } from './settling';
-import { drawLiquid } from './liquidSurface';
+import { drawLiquids } from './liquidSurface';
 import { buildOrganicPath } from './smooth';
 import type { ExperimentalGooMode, GooCard, Viewport } from './types';
 
@@ -90,6 +90,17 @@ export class GooScene {
     ctx.clearRect(0, 0, viewport.width, viewport.height);
     ctx.save(); ctx.translate(-viewport.left, -viewport.top);
     ctx.beginPath(); ctx.rect(viewport.left, viewport.clipTop, viewport.width, Math.max(0, viewport.clipBottom - viewport.clipTop)); ctx.clip();
+    if (mode === 'liquid' && !reducedMotion) {
+      const entries = this.appearances.flatMap(appearance => {
+        const pool = this.pools.get(appearance.id);
+        if (!pool) return [];
+        return [{ id: appearance.id, liquid: pool.liquid, colour: appearance.colour, sleeping: this.settling.sleeping(pool.liquid) }];
+      });
+      const outlines = drawLiquids(ctx, entries, viewport);
+      for (const [liquid, outline] of outlines) this.settling.observe(liquid, outline, liquid.steps * DT);
+      ctx.restore();
+      return;
+    }
     for (const appearance of this.appearances) {
       const pool = this.pools.get(appearance.id);
       if (!pool) continue;
@@ -110,9 +121,6 @@ export class GooScene {
           ctx.fillStyle = appearance.colour;
           ctx.fill(cached.path, 'evenodd');
         }
-      } else {
-        const outline = drawLiquid(ctx, liquid, viewport, appearance.colour, this.settling.sleeping(liquid));
-        this.settling.observe(liquid, outline, liquid.steps * DT);
       }
     }
     ctx.restore();

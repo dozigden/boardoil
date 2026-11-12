@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computed, effectScope } from 'vue';
 import { syncObservedBoardCardElements, useGooLayer } from './useGooLayer';
+import { columnGooBottomExtensions } from '../utils/gooViewport';
 
 const cleanup = vi.hoisted(() => [] as (() => void)[]);
 vi.mock('vue', async importOriginal => ({
@@ -15,6 +16,22 @@ afterEach(() => {
 });
 
 describe('column goo viewport', () => {
+  it('opens and restores the production bottom clip without shifting cached card geometry', () => {
+    const { layer, clips, cards, scrollTo } = makeScrollableLayer();
+    scrollTo(70);
+    const blob = () => layer.gooGroups.value[0]!.blobs.find(blob => blob.id === 'card-6')!;
+    const original = blob();
+    expect(original.clipInsets!.bottom).toBeGreaterThan(0);
+    const measurements = cards.map(card => card.getBoundingClientRect.mock.calls.length);
+    columnGooBottomExtensions.set(clips[0] as unknown as HTMLElement, 200);
+    scrollTo(70);
+    expect(blob().clipInsets?.bottom ?? 0).toBe(0);
+    expect(blob()).toMatchObject({ left: original.left, top: original.top, width: original.width, height: original.height });
+    expect(cards.map(card => card.getBoundingClientRect.mock.calls.length)).toEqual(measurements);
+    columnGooBottomExtensions.set(clips[0] as unknown as HTMLElement, 0);
+    scrollTo(70);
+    expect(blob().clipInsets).toEqual(original.clipInsets);
+  });
   it('bounds a tall slick to cards near the viewport while retaining an offscreen buffer', () => {
     const { layer } = makeScrollableLayer();
     const blobs = layer.gooGroupsByColumnId.value.get(1)![0]!.blobs;

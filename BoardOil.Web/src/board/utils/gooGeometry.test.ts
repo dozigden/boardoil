@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { columnReachesViewport } from './gooViewport';
 import {
   buildTrackedCardGeometry,
   intersectsExpandedRect,
@@ -7,6 +8,12 @@ import {
 } from './gooGeometry';
 
 describe('gooGeometry', () => {
+  it('only treats columns reaching their available height as bottom clipping boundaries', () => {
+    expect(columnReachesViewport(350, 700)).toBe(false);
+    expect(columnReachesViewport(698, 700)).toBe(false);
+    expect(columnReachesViewport(699.5, 700)).toBe(true);
+    expect(columnReachesViewport(700, 700)).toBe(true);
+  });
   it('projects fast-path rect from cached geometry using scroll offsets', () => {
     const clipRect = { left: 100, top: 200, width: 300, height: 500 };
     const cardRect = { left: 140, top: 260, width: 180, height: 72 };

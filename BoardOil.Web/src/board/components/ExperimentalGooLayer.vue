@@ -11,6 +11,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
+import { boardGooClips } from '../utils/gooViewport';
 import { buildSlickGooDescriptors } from '../utils/slickGooAdapter';
 import { GooScene, type SlickActivity, type SlickAppearance } from '../goo/scene';
 import { SmoothLayers, type ColumnOutline } from '../goo/smoothLayers';
@@ -118,6 +119,8 @@ function measure() {
     clipTop = Math.max(top, Math.min(...rects.map(r => r.top - originY)));
     clipBottom = Math.min(top + height, Math.max(...rects.map(r => r.bottom - originY)));
   }
+  const sharedClip = boardGooClips.get(board);
+  if (sharedClip) { clipTop = top + sharedClip.top; clipBottom = top + sharedClip.bottom; }
   for (const element of observed) if (!nextObserved.has(element)) { resizeObserver?.unobserve(element); observed.delete(element); }
   for (const element of nextObserved) if (!observed.has(element)) { resizeObserver?.observe(element); observed.add(element); }
   const slicks = new Map(props.slicks.map(slick => [slick.id, slick]));

@@ -47,6 +47,8 @@ Key files:
 
 - `BoardOil.Web/src/board/components/BoardSurface.vue`
 - `BoardOil.Web/src/board/composables/useBoardMotion.ts`
+- `BoardOil.Web/src/board/composables/useBoardColumnClipping.ts`
+- `BoardOil.Web/src/board/utils/gooViewport.ts`
 - `BoardOil.Web/src/board/composables/useBoardInlineCreation.ts`
 - `BoardOil.Web/src/board/composables/useCardLayoutAnimation.ts`
 - `BoardOil.Web/src/board/composables/useBoardCardRemovals.ts`
@@ -66,8 +68,10 @@ Key files:
 - Goo is layered with `z-index: 2`; column/card content is layered above it with `z-index: 3`.
   - This keeps goo visible but non-interactive (`pointer-events: none`).
 - Column clipping is intentional:
-  - Goo blobs are clipped to `.column-content` content rects.
-  - This prevents header bleed when cards scroll out of column view.
+  - The top always clips below the header. Card and goo shapes continue offscreen without shrinking bridges as cards leave view.
+  - A column clips at its content bottom only when it fills the available stack height (after the tail drop target and gap). Short column backgrounds are not lower viewport boundaries.
+  - `useBoardColumnClipping` observes layout, opens short-column overflow while preserving scrollbar spacing, and shares board clip bounds and short-column extensions with every renderer. Full-height columns retain native scrolling. Board-level goo is clipped after filtering/drawing; do not paint bottom masks over it.
+  - Native Smooth/Lite outlines keep their scrolling coordinates through short/full-height transitions. Verify card width, horizontal position, filtering and resize transitions when changing this handling.
 - Visual spacing between adjacent cards uses slick-boundary classes:
   - `.card--slick-gap` for slick/non-slick boundaries.
   - `.card--slick-gap-strong` for different slick-to-slick boundaries.
@@ -160,6 +164,8 @@ Prefer config tuning over ad-hoc component CSS for goo behavior changes.
 - The independent implementation lives in `src/board/goo`; it has no runtime dependency on `experiments/goo-playground`. Keep the saved playground available for visual comparison.
 - Smooth caches unfiltered SVG outlines in each column’s scrolling content, rebuilding only when column-local geometry, membership or colours change. Card-to-card blending retains inward side indents; bounded canvas patches add the softer cross-column shoulders. Keep these SVGs out of flex layout and verify that they do not extend column scroll ranges. Smooth scrolling does not transport dormant Liquid particles; switching back projects them to the current geometry. Liquid retains particles across scrolling and card movement; membership changes rebuild only affected slick pools. Its solver uses merged stack bodies while its minimum visible coating keeps individual card indents.
 - Liquid uses numeric neighbour-cell keys with a stride derived from each active pool’s width, so wide boards cannot alias buckets. Its contour grid retains the global 3px sampling phase but covers only the slick’s cards/particles inside the padded viewport; retain kernel/coating padding and verify clipped outlines when changing those bounds.
+- Liquid resolves overlapping render fields together into touching contact boundaries. Bounded density plus card-coating strength decides ownership, independently of paint order; the particle pools and solver remain separate. Cache both the raw field and its resolved outline. An awake neighbour may change a sleeping pool’s contact edge without waking its solver, and removing a neighbour must restore the unclipped outline. Only intersecting grids take part in contact resolution.
+- Liquid leaves a 6px rendered clearance around cards with no slick, so passing liquid cannot imply membership. This is separate from contact ownership between coloured slicks.
 - Liquid freezes offscreen particles outside the padded viewport, sleeps each settled visible outline and applies a ten-second running-time limit since its last geometry change. Hidden tabs and Smooth do not spend that allowance. Once all slicks sleep, its animation loop stops. Reduced motion renders the Smooth outline without running the solver.
 - The existing selection highlight remains separate from experimental slick rendering. Keep selection behaviour and slick membership independent.
 

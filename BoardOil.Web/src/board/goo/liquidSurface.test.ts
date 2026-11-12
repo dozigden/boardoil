@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { drawLiquid } from './liquidSurface';
+import { drawLiquid, drawLiquids } from './liquidSurface';
 import { Liquid } from './physics';
 import type { GooCard, Viewport } from './types';
 
@@ -44,5 +44,21 @@ describe('bounded Liquid surface', () => {
       expect(Math.abs(x - 100)).toBeLessThan(17);
       expect(Math.abs(y - 100)).toBeLessThan(17);
     }
+  });
+
+  it('resolves touching outlines independently of paint order and restores them when a rival leaves', () => {
+    const a = pool(), b = pool();
+    b.cards[0] = { ...b.cards[0], id: 2, group: 2, y: 324 };
+    a.particles = [-4, 0, 4].map(dx => ({ x: 200 + dx, y: 262, vx: 0, vy: 0 }));
+    b.particles = structuredClone(a.particles);
+    const entries = [{ id: 1, liquid: a, colour: '#95d4aa', sleeping: false },
+      { id: 2, liquid: b, colour: '#ddbc83', sleeping: false }];
+    const outlines = drawLiquids(context, entries, viewport);
+    const reversed = drawLiquids(context, [...entries].reverse().map(entry => ({ ...entry, sleeping: true })), viewport);
+    expect(reversed.get(a)).toBe(outlines.get(a));
+    expect(reversed.get(b)).toBe(outlines.get(b));
+    const alone = drawLiquid(context, a, viewport, entries[0].colour, true);
+    expect(alone).not.toEqual(outlines.get(a));
+    expect(drawLiquid(context, a, viewport, entries[0].colour, false)).toEqual(alone);
   });
 });
