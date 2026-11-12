@@ -3,6 +3,7 @@ export type AuthUser = {
   userName: string;
   displayName: string;
   role: 'Admin' | 'Standard' | string;
+  experimentalFeaturesEnabled: boolean;
 };
 
 export type AuthSession = {
@@ -58,11 +59,13 @@ export type OwnUserProfile = {
   displayName: string;
   email: string;
   role: 'Admin' | 'Standard' | string;
+  experimentalFeaturesEnabled: boolean;
 };
 
 export type UserProfileEditModel = {
   displayName: string;
   email: string;
+  experimentalFeaturesEnabled: boolean;
 };
 
 export type UserProfileImage = {

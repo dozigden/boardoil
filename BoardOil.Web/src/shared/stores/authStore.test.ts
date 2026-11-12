@@ -72,22 +72,23 @@ describe('authStore', () => {
     expect(store.requiresInitialAdminSetup).toBe(true);
   });
 
-  it('initialize restores session and csrf when /me returns a user', async () => {
+  it.each([false, true])('initialize restores session and experimental opt-in %s', async experimentalFeaturesEnabled => {
     const store = useAuthStore();
-    authApi.getMe.mockResolvedValue(ok<AuthUser | null>({ id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' }));
+    authApi.getMe.mockResolvedValue(ok<AuthUser | null>({ id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled }));
 
     await store.initialize();
 
     expect(store.initialized).toBe(true);
     expect(store.isAuthenticated).toBe(true);
     expect(store.isAdmin).toBe(true);
+    expect(store.experimentalFeaturesEnabled).toBe(experimentalFeaturesEnabled);
     expect(store.requiresInitialAdminSetup).toBe(false);
     expect(setCsrfToken).toHaveBeenCalledWith('csrf-token');
   });
 
   it('shares one session restoration between concurrent initialize calls', async () => {
     const store = useAuthStore();
-    const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' };
+    const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false };
     let completeMeRequest!: (result: ReturnType<typeof ok<AuthUser | null>>) => void;
     authApi.getMe.mockReturnValue(new Promise(resolve => { completeMeRequest = resolve; }));
 
@@ -106,7 +107,7 @@ describe('authStore', () => {
   it('login stores user and csrf token on success', async () => {
     const store = useAuthStore();
     const session: AuthSession = {
-      user: { id: 2, userName: 'member', displayName: 'Member', role: 'Standard' },
+      user: { id: 2, userName: 'member', displayName: 'Member', role: 'Standard', experimentalFeaturesEnabled: false },
       accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
       refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
     };
@@ -126,7 +127,7 @@ describe('authStore', () => {
   it('registerInitialAdmin stores user and csrf token on success', async () => {
     const store = useAuthStore();
     const session: AuthSession = {
-      user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
+      user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false },
       accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
       refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
     };
@@ -147,7 +148,7 @@ describe('authStore', () => {
   it.each(['login', 'registerInitialAdmin', 'initialize'] as const)(
     '%s waits for token acquisition before publishing authenticated state', async (operation) => {
       const store = useAuthStore();
-      const user: AuthUser = { id: 2, userName: 'member', displayName: 'Member', role: 'Standard' };
+      const user: AuthUser = { id: 2, userName: 'member', displayName: 'Member', role: 'Standard', experimentalFeaturesEnabled: false };
       authApi.login.mockResolvedValue(ok({ user }));
       authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
       authApi.getMe.mockResolvedValue(ok(user));
@@ -180,8 +181,8 @@ describe('authStore', () => {
   it.each(['login', 'registerInitialAdmin', 'initialize'] as const)(
     '%s clears local authentication and exposes token acquisition errors', async (operation) => {
       const store = useAuthStore();
-      const user: AuthUser = { id: 2, userName: 'member', displayName: 'Member', role: 'Standard' };
-      store.user = { id: 1, userName: 'old', displayName: 'Old user', role: 'Admin' };
+      const user: AuthUser = { id: 2, userName: 'member', displayName: 'Member', role: 'Standard', experimentalFeaturesEnabled: false };
+      store.user = { id: 1, userName: 'old', displayName: 'Old user', role: 'Admin', experimentalFeaturesEnabled: false };
       store.requiresInitialAdminSetup = true;
       authApi.login.mockResolvedValue(ok({ user }));
       authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
@@ -214,7 +215,7 @@ describe('authStore', () => {
   it.each(['login', 'registerInitialAdmin', 'initialize'] as const)(
     '%s rejects a token acquired for a different account', async (operation) => {
       const store = useAuthStore();
-      const user: AuthUser = { id: 1, userName: 'alice', displayName: 'Alice', role: 'Standard' };
+      const user: AuthUser = { id: 1, userName: 'alice', displayName: 'Alice', role: 'Standard', experimentalFeaturesEnabled: false };
       authApi.login.mockResolvedValue(ok({ user }));
       authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
       authApi.getMe.mockResolvedValue(ok(user));
@@ -239,7 +240,7 @@ describe('authStore', () => {
 
   it('allows sign-in after account creation succeeds but token acquisition fails', async () => {
     const store = useAuthStore();
-    const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' };
+    const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false };
     authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
     authApi.getCsrfToken.mockResolvedValueOnce(err({ kind: 'network', message: 'Token request failed.' }));
     await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
@@ -282,17 +283,19 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: true },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })
     );
     await store.login('admin', 'Password1234!');
+    expect(store.experimentalFeaturesEnabled).toBe(true);
 
     await store.logout();
 
     expect(store.user).toBeNull();
     expect(store.isAuthenticated).toBe(false);
+    expect(store.experimentalFeaturesEnabled).toBe(false);
     expect(setCsrfToken).toHaveBeenLastCalledWith(null);
   });
 
@@ -300,7 +303,7 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })
@@ -317,7 +320,7 @@ describe('authStore', () => {
 
   it('changeOwnPassword returns a failure for the form without clearing the session', async () => {
     const store = useAuthStore();
-    store.user = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' };
+    store.user = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false };
     const apiError: AppError = { kind: 'api', message: 'Validation failed.', validationErrors: { currentPassword: ['Current password is incorrect.'] } };
     authApi.changeOwnPassword.mockResolvedValue(err(apiError));
 
@@ -333,7 +336,7 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })
@@ -351,7 +354,7 @@ describe('authStore', () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
-        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin' },
+        user: { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false },
         accessTokenExpiresAtUtc: '2026-03-16T20:00:00Z',
         refreshTokenExpiresAtUtc: '2026-03-17T20:00:00Z'
       })

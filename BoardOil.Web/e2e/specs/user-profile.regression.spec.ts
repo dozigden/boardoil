@@ -1,6 +1,48 @@
 import { randomUUID } from 'node:crypto';
 import { authenticatePage, expect, test } from '../fixtures/boardOilTest';
 
+test('experimental features opt-in applies on Save and survives a new session', async ({ api, page }) => {
+  const userName = `experimental-${randomUUID().slice(0, 8)}`;
+  const password = 'ProfilePassword1234!';
+  await api.createUser(userName, password);
+  await authenticatePage(page, userName, password);
+  await page.goto('/user-admin/profile');
+  const experimental = page.getByRole('checkbox', { name: 'Experimental features', exact: true });
+  const save = page.getByRole('button', { name: 'Save profile', exact: true });
+
+  await test.step('leave an unsaved opt-in and discard it', async () => {
+    await expect(experimental).not.toBeChecked();
+    await expect(save).toBeDisabled();
+    await experimental.check();
+    await page.getByRole('link', { name: 'Theme', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Discard unsaved changes', exact: true })
+      .getByRole('button', { name: 'Discard', exact: true }).click();
+    await page.getByRole('link', { name: 'Profile', exact: true }).click();
+    await expect(experimental).not.toBeChecked();
+  });
+
+  await test.step('save the opt-in and restore it after signing in again', async () => {
+    await experimental.check();
+    await save.click();
+    await expect(save).toBeDisabled();
+    await page.screenshot({ path: test.info().outputPath('experimental-features-profile.png') });
+    await page.getByRole('button', { name: 'User menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Logout', exact: true }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await authenticatePage(page, userName, password);
+    await page.goto('/user-admin/profile');
+    await expect(experimental).toBeChecked();
+  });
+
+  await test.step('save an opt-out and retain it on reload', async () => {
+    await experimental.uncheck();
+    await save.click();
+    await expect(save).toBeDisabled();
+    await page.reload();
+    await expect(experimental).not.toBeChecked();
+  });
+});
+
 test('saving a profile updates the account display without refetching', async ({ api, page }) => {
   const userName = `profile-${randomUUID().slice(0, 8)}`;
   const password = 'ProfilePassword1234!';

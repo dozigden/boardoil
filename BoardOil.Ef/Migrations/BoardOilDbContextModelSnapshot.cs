@@ -1437,6 +1437,11 @@ namespace BoardOil.Ef.Migrations
                         .HasDefaultValue("")
                         .UseCollation("BO_EMAIL");
 
+                    b.Property<bool>("ExperimentalFeaturesEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<int>("IdentityType")
                         .HasColumnType("INTEGER");
 
