@@ -1,0 +1,9 @@
+export type Point = [number, number];
+export type Outline = Point[][];
+export type SurfaceRect = { x: number; y: number; width: number; height: number; column: number };
+export type Neck = { x0: number; y0: number; x1: number; y1: number; radius: number };
+export type GooCard = SurfaceRect & { id: number; group: number | null; radius: number };
+export type Particle = { x: number; y: number; vx: number; vy: number; px?: number; py?: number };
+export type Viewport = { left: number; top: number; width: number; height: number; clipTop: number; clipBottom: number };
+export type Bounds = { left: number; right: number; top: number; bottom: number };
+export type ExperimentalGooMode = 'smooth' | 'liquid';

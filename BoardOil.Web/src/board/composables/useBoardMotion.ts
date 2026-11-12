@@ -1,4 +1,4 @@
-import { computed, nextTick, onBeforeUnmount, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
 import type { BoardColumn, Card, Slick } from '../../shared/types/boardTypes';
 import { useGooLayer } from './useGooLayer';
 import { useBoardCardRemovals } from './useBoardCardRemovals';
@@ -29,7 +29,8 @@ export function useBoardMotion(
   selectedCardIds: Ref<number[]>,
   selectionMode: Ref<boolean>,
   gooRendererMode: GooRendererMode,
-  filters: ComputedRef<CardSearchAndTagFilter>
+  filters: ComputedRef<CardSearchAndTagFilter>,
+  experimentalGooEnabled: Ref<boolean> = computed(() => false)
 ) {
   let boardElement: HTMLElement | null = null;
   let pendingChange: LayoutChange | null = null;
@@ -56,6 +57,7 @@ export function useBoardMotion(
   const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
   const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
   const selectionStyle = createSelectionGooStyle();
+  const gooLayoutVersion = ref(0);
   const animationRunner = createBoardAnimationRunner(refreshGooLayout);
   onBeforeUnmount(animationRunner.dispose);
   const movement = useCardMovementAnimation(animationRunner);
@@ -68,8 +70,8 @@ export function useBoardMotion(
     }));
   });
   const goo = useGooLayer(
-    computed(() => buildSlickGooDescriptors(gooColumns.value, slicksById.value)),
-    computed(() => buildSlickGooMembershipSignature(gooColumns.value)),
+    computed(() => experimentalGooEnabled.value ? [] : buildSlickGooDescriptors(gooColumns.value, slicksById.value)),
+    computed(() => experimentalGooEnabled.value ? '' : buildSlickGooMembershipSignature(gooColumns.value)),
     computed(() => buildSlickGooStyleSignature(slicks.value)),
     movement.floatingCards
   );
@@ -87,6 +89,7 @@ export function useBoardMotion(
   function refreshGooLayout() {
     goo.refreshGooLayout();
     selectionGoo.refreshGooLayout();
+    gooLayoutVersion.value++;
   }
   const layoutAnimation = useCardLayoutAnimation(animationRunner);
   // Catalogue refreshes can recreate the filter object without changing the
@@ -374,6 +377,8 @@ export function useBoardMotion(
 
   return {
     renderedColumns,
+    gooLayoutVersion,
+    floatingCards: movement.floatingCards,
     isRemovingCard: removals.has,
     resolveCardBoundaryClass: removals.boundaryClass,
     setBoardRef,

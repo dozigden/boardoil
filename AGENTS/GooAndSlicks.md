@@ -153,6 +153,16 @@ Prefer config tuning over ad-hoc component CSS for goo behavior changes.
   - no header bleed
   - distinct slick separation
 
+## Experimental Renderers
+
+- `authStore.experimentalFeaturesEnabled` gates the floating board-page picker. Opted-in users start with `Smooth` and can select `Liquid`; the choice is local to the mounted board surface. Opting out restores the existing Full/Lite browser selection.
+- `ExperimentalGooLayer.vue` measures actual rendered cards, including `useBoardMotion`'s floating-card overrides. Ordinary scrolling projects cached positions by the changed column offset. Smooth’s column-local SVG outlines scroll natively with the cards; only cross-column bridges and travelling cards redraw on the board canvas in the scroll handler. Liquid keeps its existing animation-frame callback and uninterrupted simulation cadence. Resizing, catalogue/content changes and the motion runner's `gooLayoutVersion` invalidate those measurements. Theme changes refresh colours. Keep projected scrolling equivalent to a full DOM measurement. The hidden Full/Lite slick layer receives no descriptors while the experimental renderer is active; selection remains separate.
+- The independent implementation lives in `src/board/goo`; it has no runtime dependency on `experiments/goo-playground`. Keep the saved playground available for visual comparison.
+- Smooth caches unfiltered SVG outlines in each column’s scrolling content, rebuilding only when column-local geometry, membership or colours change. Card-to-card blending retains inward side indents; bounded canvas patches add the softer cross-column shoulders. Keep these SVGs out of flex layout and verify that they do not extend column scroll ranges. Smooth scrolling does not transport dormant Liquid particles; switching back projects them to the current geometry. Liquid retains particles across scrolling and card movement; membership changes rebuild only affected slick pools. Its solver uses merged stack bodies while its minimum visible coating keeps individual card indents.
+- Liquid uses numeric neighbour-cell keys with a stride derived from each active pool’s width, so wide boards cannot alias buckets. Its contour grid retains the global 3px sampling phase but covers only the slick’s cards/particles inside the padded viewport; retain kernel/coating padding and verify clipped outlines when changing those bounds.
+- Liquid freezes offscreen particles outside the padded viewport, sleeps each settled visible outline and applies a ten-second running-time limit since its last geometry change. Hidden tabs and Smooth do not spend that allowance. Once all slicks sleep, its animation loop stops. Reduced motion renders the Smooth outline without running the solver.
+- The existing selection highlight remains separate from experimental slick rendering. Keep selection behaviour and slick membership independent.
+
 ## Known Constraints
 
 - Goo is frontend-only visual behavior.
