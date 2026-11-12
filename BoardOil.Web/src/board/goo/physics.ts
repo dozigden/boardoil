@@ -72,7 +72,7 @@ export class Liquid {
           const t = (x - a.x) / (b.x - a.x);
           if (Math.abs(y - (a.y + (b.y - a.y) * t)) < 14) puddle = true;
         }
-        if (distance > 21 && !puddle) continue;
+        if (distance > 28 && !puddle) continue;
         if (this.obstacles.some(c => cardDistance(x, y, c).distance < 3)) continue;
         const jitter = Math.sin(x * 13.4 + y * 9.7) * .35;
         this.particles.push({ x: x + jitter, y: y - jitter, vx: 0, vy: 0 });
