@@ -1,3 +1,4 @@
+import { liquidSeedConfig, seedBridgePeers } from './liquidSeeding';
 import type { GooCard, Particle, Bounds } from './types';
 // A small 2D experiment derived from Clavet et al.'s double-density relaxation.
 // No springs or magnetic spike model.
@@ -62,20 +63,21 @@ export class Liquid {
   seedBoard(area: Bounds = this.bounds, accept: (x: number, y: number) => boolean = () => true) {
     // One initial coating per wetted surface, with finite puddles between peers.
     // Restrict later seeding to newly revealed portions of the viewport.
+    const { coating, bridgeHalfWidth, columnSpacing, rowSpacing, jitter: maxJitter } = liquidSeedConfig;
     const bodies = this.surfaceBodies();
     const necks = [];
     for (const a of this.cards) for (const b of this.cards) {
-      if (b.column !== a.column + 1 || Math.abs(a.centreY - b.centreY) > 150) continue;
+      if (b.column !== a.column + 1 || !seedBridgePeers(a, b)) continue;
       necks.push([a, b]);
     }
-    const top = Math.min(...this.cards.map(c => c.centreY - c.height / 2)) - 28;
-    const bottom = Math.max(...this.cards.map(c => c.centreY + c.height / 2)) + 28;
-    const firstRow = Math.max(0, Math.ceil((area.top - .35 - top) / 8.5));
-    for (let row = firstRow, y = top + firstRow * 8.5; y < Math.min(bottom, area.bottom + .35); y += 8.5, row++) {
-      const startX = this.bounds.left + (row % 2) * 5;
-      const firstColumn = Math.max(0, Math.ceil((area.left - .35 - startX) / 10));
-      for (let x = startX + firstColumn * 10; x < Math.min(this.bounds.right, area.right + .35); x += 10) {
-        const jitter = Math.sin(x * 13.4 + y * 9.7) * .35;
+    const top = Math.min(...this.cards.map(c => c.centreY - c.height / 2)) - coating;
+    const bottom = Math.max(...this.cards.map(c => c.centreY + c.height / 2)) + coating;
+    const firstRow = Math.max(0, Math.ceil((area.top - maxJitter - top) / rowSpacing));
+    for (let row = firstRow, y = top + firstRow * rowSpacing; y < Math.min(bottom, area.bottom + maxJitter); y += rowSpacing, row++) {
+      const startX = this.bounds.left + (row % 2) * (columnSpacing / 2);
+      const firstColumn = Math.max(0, Math.ceil((area.left - maxJitter - startX) / columnSpacing));
+      for (let x = startX + firstColumn * columnSpacing; x < Math.min(this.bounds.right, area.right + maxJitter); x += columnSpacing) {
+        const jitter = Math.sin(x * 13.4 + y * 9.7) * maxJitter;
         if (!accept(x + jitter, y - jitter)) continue;
         const distance = Math.min(...bodies.map(c => cardDistance(x, y, c).distance));
         if (distance < 3) continue;
@@ -83,9 +85,9 @@ export class Liquid {
         for (const [a, b] of necks) {
           if (x < a.centreX || x > b.centreX) continue;
           const t = (x - a.centreX) / (b.centreX - a.centreX);
-          if (Math.abs(y - (a.centreY + (b.centreY - a.centreY) * t)) < 14) puddle = true;
+          if (Math.abs(y - (a.centreY + (b.centreY - a.centreY) * t)) < bridgeHalfWidth) puddle = true;
         }
-        if (distance > 28 && !puddle) continue;
+        if (distance > coating && !puddle) continue;
         if (this.obstacles.some(c => cardDistance(x, y, c).distance < 3)) continue;
         this.particles.push({ x: x + jitter, y: y - jitter, vx: 0, vy: 0 });
       }

@@ -18,6 +18,20 @@ function scroll(liquid: Liquid, dy: number) {
 }
 
 describe('viewport liquid residency', () => {
+  it.each([0, 149.99, 150, 150.01, -150])('matches initial seeding after leaving and returning with a %spx bridge offset', offset => {
+    const cards = [card(1, 250), card(2, 250 + offset, 1), card(3, 358)];
+    const bounds = { left: 0, right: 640, top: 0, bottom: 640 };
+    const initial = new Liquid(cards, cards, bounds);
+    const returning = new Liquid(cards, cards, bounds, false);
+    const residency = new LiquidResidency();
+    residency.update(returning, bounds);
+    expect(returning.particles).toEqual(initial.particles);
+    residency.update(returning, { ...bounds, top: 2000, bottom: 2640 });
+    expect(returning.particles).toEqual([]);
+    residency.update(returning, bounds);
+    expect(returning.particles).toEqual(initial.particles);
+  });
+
   it('seeds only the nearby portion of a long board and restores defaults after returning', () => {
     const { liquid, residency } = setup(Array.from({ length: 80 }, (_, i) => card(i, 100 + i * 140)));
     const initial = liquid.particles.length;

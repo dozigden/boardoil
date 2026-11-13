@@ -1,7 +1,8 @@
 import { cardDistance, type Liquid } from './physics';
-import type { Bounds, GooCard, Particle } from './types';
+import { seedReach, seedSpacing } from './liquidSeeding';
+import type { Bounds, GooCard } from './types';
 
-const retentionMargin = 40, seedSeparation = 6;
+const retentionMargin = 40;
 const contains = (b: Bounds, x: number, y: number) => x >= b.left && x < b.right && y >= b.top && y < b.bottom;
 function intersect(a: Bounds, b: Bounds): Bounds | null {
   const result = { left: Math.max(a.left, b.left), right: Math.min(a.right, b.right),
@@ -32,36 +33,6 @@ function merge(areas: Bounds[]): Bounds[] {
     return merge(areas);
   }
   return areas;
-}
-
-function seedReach(card: GooCard, cards: GooCard[]): Bounds {
-  const reach = { left: card.centreX - card.width / 2 - 29, right: card.centreX + card.width / 2 + 29,
-    top: card.centreY - card.height / 2 - 29, bottom: card.centreY + card.height / 2 + 29 };
-  for (const other of cards) {
-    if (Math.abs(other.column - card.column) !== 1 || Math.abs(other.centreY - card.centreY) > 150) continue;
-    reach.left = Math.min(reach.left, other.centreX - 15); reach.right = Math.max(reach.right, other.centreX + 15);
-    reach.top = Math.min(reach.top, other.centreY - 15); reach.bottom = Math.max(reach.bottom, other.centreY + 15);
-  }
-  return reach;
-}
-
-function seedSpacing(particles: Particle[]) {
-  const buckets = new Map<string, Particle[]>();
-  function add(p: Particle) {
-    const key = `${Math.floor(p.x / seedSeparation)},${Math.floor(p.y / seedSeparation)}`;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key)!.push(p);
-  }
-  particles.forEach(add);
-  return (x: number, y: number) => {
-    const gx = Math.floor(x / seedSeparation), gy = Math.floor(y / seedSeparation);
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      for (const p of buckets.get(`${gx + dx},${gy + dy}`) ?? []) {
-        if ((p.x - x) ** 2 + (p.y - y) ** 2 < seedSeparation ** 2) return false;
-      }
-    }
-    return true;
-  };
 }
 
 export class LiquidResidency {
