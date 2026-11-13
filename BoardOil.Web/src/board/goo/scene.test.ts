@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GooScene } from './scene';
-import { Liquid, SUPPORT } from './physics';
+import { Liquid, liquidSettings, SUPPORT } from './physics';
 import { blendedOutline } from './surface';
 import type { GooCard, Viewport } from './types';
 
@@ -42,12 +42,12 @@ describe('experimental board goo', () => {
     const liquid = new Liquid(cards, cards, { left: 0, right: 1000, top: 0, bottom: 1000 });
     const particles = [{ x: 1900, y: 200, vx: 0, vy: 0 }, { x: 1910, y: 200, vx: 0, vy: 0 },
       { x: 1900 - 1536, y: 224, vx: 0, vy: 0 }];
-    expect(liquid.pairs(particles)).toEqual([[1, 0]]);
+    expect(liquid.pairs(particles)).toEqual([1, 0]);
   });
   it('preserves neighbour traversal across negative coordinates and changing pool widths', () => {
     const cards = [card(1)];
     const liquid = new Liquid(cards, cards, { left: -1000, right: 20000, top: -500, bottom: 500 });
-    for (const width of [48, 1600, 20000]) {
+    for (const width of [48, 1600, 20000, 48]) {
       const particles = Array.from({ length: 180 }, (_, i) => ({
         x: (i % 6) * width / 6 + Math.sin(i * 3) * 18 - 100,
         y: Math.cos(i * 5) * 60 - 20, vx: 0, vy: 0
@@ -60,12 +60,33 @@ describe('experimental board goo', () => {
             Math.floor(a.q.x / SUPPORT) - Math.floor(b.q.x / SUPPORT) || a.j - b.j);
         for (const { j } of neighbours) expected.push([i, j]);
       });
-      expect(liquid.pairs(particles)).toEqual(expected);
+      expect(liquid.pairs(particles)).toEqual(expected.flat());
     }
     expect(liquid.pairs([])).toEqual([]);
   });
   it('handles a slick entirely outside the drawing grid', () => {
     const loops = blendedOutline([{ x: -160, y: 200, width: 50, height: 80, column: 0 }], [], viewport);
     expect(loops).toEqual([]);
+  });
+  it('does not retain neighbour or density state as particles leave and re-enter view', () => {
+    const cards = [card(1)];
+    const bounds = { left: -100, right: 600, top: -100, bottom: 600 };
+    const liquid = new Liquid(cards, cards, bounds);
+    for (const count of [80, 12, 0, 160, 20]) {
+      liquid.particles = Array.from({ length: count }, (_, i) => ({
+        x: 320 + (i % 8) * 8, y: 100 + Math.floor(i / 8) * 8,
+        vx: Math.sin(i) * 15, vy: Math.cos(i) * 15
+      }));
+      const fresh = new Liquid(cards, cards, bounds);
+      fresh.particles = structuredClone(liquid.particles);
+      fresh.steps = liquid.steps;
+      for (const right of [350, 300, 600]) {
+        liquid.activeBand = { ...bounds, right };
+        fresh.activeBand = { ...bounds, right };
+        liquid.step(liquidSettings);
+        fresh.step(liquidSettings);
+        expect(liquid.particles).toEqual(fresh.particles);
+      }
+    }
   });
 });

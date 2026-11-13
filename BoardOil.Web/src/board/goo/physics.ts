@@ -43,6 +43,13 @@ function wettedBodies(cards: GooCard[]) {
 export class Liquid {
   particles: Particle[] = [];
   steps = 0;
+  private pairIndices: number[] = [];
+  private bucketIndices = new Map<number, number>();
+  private buckets: number[][] = [];
+  private columns: number[] = [];
+  private neighbours: number[][] = [];
+  private density = new Float64Array(0);
+  private nearDensity = new Float64Array(0);
   otherObstacles: GooCard[];
   activeBand: Bounds;
   constructor(public cards: GooCard[], public obstacles: GooCard[], public bounds: Bounds) {
@@ -84,9 +91,17 @@ export class Liquid {
     return this.particles.filter(p => p.y >= this.activeBand.top && p.y <= this.activeBand.bottom && p.x >= this.activeBand.left && p.x <= this.activeBand.right);
   }
   pairs(p: Particle[]) {
-    const buckets = new Map<number, number[]>(), pairs: [number, number][] = [];
-    const columns = p.map(particle => Math.floor(particle.x / SUPPORT));
-    const minColumn = Math.min(...columns), maxColumn = Math.max(...columns);
+    // Scratch storage belongs to the pool and is reused by each neighbour pass.
+    const { bucketIndices, buckets, pairIndices: pairs, columns } = this;
+    bucketIndices.clear();
+    pairs.length = 0;
+    let minColumn = Infinity, maxColumn = -Infinity, bucketCount = 0;
+    for (let i = 0; i < p.length; i++) {
+      const column = Math.floor(p[i].x / SUPPORT);
+      columns[i] = column;
+      minColumn = Math.min(minColumn, column);
+      maxColumn = Math.max(maxColumn, column);
+    }
     // Leave a cell on either side for neighbour queries. A fixed stride aliases
     // distant cells on wide boards; a per-pool stride keeps numeric keys unique.
     const stride = maxColumn - minColumn + 3;
@@ -94,14 +109,21 @@ export class Liquid {
       const gy = Math.floor(p[i].y / SUPPORT);
       const key = gy * stride + columns[i] - minColumn + 1;
       for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) {
-        const bucket = buckets.get(key + y * stride + x);
-        if (!bucket) continue;
+        const bucketIndex = bucketIndices.get(key + y * stride + x);
+        if (bucketIndex === undefined) continue;
+        const bucket = buckets[bucketIndex];
         for (const j of bucket) {
-          if ((p[i].x - p[j].x) ** 2 + (p[i].y - p[j].y) ** 2 < SUPPORT ** 2) pairs.push([i, j]);
+          if ((p[i].x - p[j].x) ** 2 + (p[i].y - p[j].y) ** 2 < SUPPORT ** 2) pairs.push(i, j);
         }
       }
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key)!.push(i);
+      let bucketIndex = bucketIndices.get(key);
+      if (bucketIndex === undefined) {
+        bucketIndex = bucketCount++;
+        bucketIndices.set(key, bucketIndex);
+        if (!buckets[bucketIndex]) buckets[bucketIndex] = [];
+        buckets[bucketIndex].length = 0;
+      }
+      buckets[bucketIndex].push(i);
     }
     return pairs;
   }
@@ -114,7 +136,8 @@ export class Liquid {
     let pairs = this.pairs(particles);
     // Symmetric velocity smoothing dissipates relative motion without pulling
     // a stationary outline into a different shape (viscosity != surface tension).
-    for (const [i, j] of pairs) {
+    for (let pair = 0; pair < pairs.length; pair += 2) {
+      const i = pairs[pair], j = pairs[pair + 1];
       const a = particles[i], b = particles[j];
       const q = 1 - length2d(a.x - b.x, a.y - b.y) / SUPPORT;
       const amount = Math.min(.12, viscosity * q * .035);
@@ -134,9 +157,19 @@ export class Liquid {
       p.x += p.vx / limit * DT; p.y += p.vy / limit * DT;
     }
     pairs = this.pairs(particles);
-    const density = new Float64Array(particles.length), near = new Float64Array(particles.length);
-    const neighbours: number[][] = particles.map(() => []);
-    for (const [i, j] of pairs) {
+    if (this.density.length < particles.length) {
+      this.density = new Float64Array(particles.length);
+      this.nearDensity = new Float64Array(particles.length);
+    }
+    const { density, nearDensity: near, neighbours } = this;
+    density.fill(0, 0, particles.length);
+    near.fill(0, 0, particles.length);
+    for (let i = 0; i < particles.length; i++) {
+      if (!neighbours[i]) neighbours[i] = [];
+      neighbours[i].length = 0;
+    }
+    for (let pair = 0; pair < pairs.length; pair += 2) {
+      const i = pairs[pair], j = pairs[pair + 1];
       const a = particles[i], b = particles[j];
       const q = 1 - length2d(a.x - b.x, a.y - b.y) / SUPPORT;
       density[i] += q * q; density[j] += q * q;
