@@ -180,3 +180,25 @@ Prefer config tuning over ad-hoc component CSS for goo behavior changes.
 ## Known Constraints
 
 - Goo is frontend-only visual behavior.
+
+## Numerical Review Harness
+
+`BoardOil.Web/scripts/goo-review` preserves the anonymous geometry comparisons and CPU benchmarks. It uses the current experimental renderer modules; no API, account, board export or running site is required. It compiles a disposable copy with the existing TypeScript dependency and removes it afterwards. Production source and build output are untouched.
+
+Run from `BoardOil.Web`, after restoring the normal dependencies:
+
+```sh
+node scripts/goo-review/run.mjs capture /tmp/goo-before.json
+# Apply the change being reviewed, then capture again.
+node scripts/goo-review/run.mjs capture /tmp/goo-after.json
+node scripts/goo-review/run.mjs compare /tmp/goo-before.json /tmp/goo-after.json
+node scripts/goo-review/run.mjs benchmark > /tmp/goo-benchmark.json
+```
+
+`capture <output.json> [source-directory]` and `benchmark [source-directory]` also accept an alternate `src/board/goo` directory, so one harness can compare two compatible checkouts. Use the same harness and dependency versions on both sides. The source must expose the current numerical module API; older coordinate contracts need an explicit adapter. A capture stores named SHA-256 fingerprints, not large arrays or screenshots. Comparison exits nonzero for changed/missing samples or incompatible workloads. It identifies the scene, stage and output that differed. Capture both sides again if the harness scenes or workload change.
+
+The scenes cover isolated cards, stacks, diagonal bridges, junctions, competing slicks, unassigned cards, clipping and a long board. They exercise initial seeding, simulation, viewport pans, small reversals, distant culling/return and fractional clipping. Samples include particles, raw fields and ownership strength, resolved Liquid outlines, Smooth bridges/outlines and column SVGs. The field builder is exposed only in the temporary compiled copy. Non-finite geometry fails capture. Hashing preserves sample order and does not round coordinates.
+
+The benchmark performs two warmups and seven measured runs, reporting median, minimum, maximum and all samples per phase, plus Node/CPU/source metadata. Timings are totals for the complete workload, excluding compilation and hashing. It uses no-op canvas/Path2D shims: these are **Node CPU measurements, not browser frame times or FPS**. Raw-field timing uses fresh sample caches; Liquid outline timing exercises the renderer's persistent caches, with a separate unchanged redraw phase. Compare repeated before/after runs on the same idle machine; there is no timing pass/fail threshold.
+
+This harness does not exercise DOM layout, native scrolling, worker messages, browser rasterisation, Safari/WebKit or GPU performance. Keep the `experimental-goo` browser regression and real-browser visual review for those boundaries. Intentional visual changes require reviewing differences rather than automatically accepting a new capture. The harness is opt-in; its small report-comparison tests run with the usual web suite.
