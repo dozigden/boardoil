@@ -73,4 +73,56 @@ describe('bounded Liquid surface', () => {
     expect(alone).not.toEqual(outlines.get(a));
     expect(drawLiquid(context, a, viewport, entries[0].colour, false)).toEqual(alone);
   });
+
+  it('reuses awake outlines until simulation or geometry changes, including colour-only redraws', () => {
+    const liquid = pool();
+    const entry = { id: 1, liquid, colour: '#95d4aa', sleeping: false, revision: 0 };
+    const original = drawLiquids(context, [entry], viewport).get(liquid);
+    expect(drawLiquids(context, [{ ...entry, colour: '#ddbc83' }], viewport).get(liquid)).toBe(original);
+    liquid.steps++;
+    const simulated = drawLiquids(context, [entry], viewport).get(liquid);
+    expect(simulated).not.toBe(original);
+    expect(simulated).toEqual(original);
+    liquid.cards[0].x += 50;
+    entry.revision++;
+    const moved = drawLiquids(context, [entry], viewport).get(liquid);
+    expect(moved).not.toEqual(original);
+    expect(moved).toEqual(drawLiquid(context, liquid, viewport, entry.colour, false));
+  });
+
+  it('refreshes an unchanged awake outline when a rival receives a simulation result', () => {
+    const a = pool(), b = pool();
+    b.cards[0] = { ...b.cards[0], id: 2, group: 2, y: 324 };
+    a.particles = [-4, 0, 4].map(dx => ({ x: 200 + dx, y: 262, vx: 0, vy: 0 }));
+    b.particles = structuredClone(a.particles);
+    const entries = [{ id: 1, liquid: a, colour: '#95d4aa', sleeping: false, revision: 0 },
+      { id: 2, liquid: b, colour: '#ddbc83', sleeping: false, revision: 0 }];
+    const original = drawLiquids(context, entries, viewport);
+    expect(drawLiquids(context, entries, viewport).get(b)).toBe(original.get(b));
+    a.particles.forEach(p => { p.x += 15; });
+    a.steps++;
+    const moved = drawLiquids(context, entries, viewport);
+    expect(moved.get(b)).not.toEqual(original.get(b));
+    const rebuilt = drawLiquids(context, entries.map(entry => ({ ...entry, revision: undefined })), viewport);
+    expect(moved.get(a)).toEqual(rebuilt.get(a));
+    expect(moved.get(b)).toEqual(rebuilt.get(b));
+  });
+
+  it('invalidates card samples after geometry, clearance and clipping changes', () => {
+    const liquid = pool();
+    const obstacle = { ...liquid.cards[0], id: 2, group: null, y: 290, height: 60 };
+    liquid.otherObstacles = [obstacle];
+    liquid.particles = Array.from({ length: 12 }, (_, i) => ({ x: 175 + i * 5, y: 258, vx: 0, vy: 0 }));
+    for (const [dx, top, width] of [[0, 0, 1440], [0, 0, 1440], [.25, 130, 350], [20, 0, 1440]]) {
+      liquid.cards[0].x += dx; liquid.cards[0].width += dx;
+      obstacle.y += dx; obstacle.radius += dx;
+      const view = { ...viewport, top, width };
+      const cached = drawLiquid(context, liquid, view, '#95d4aa', false);
+      const fresh = pool();
+      fresh.cards = structuredClone(liquid.cards);
+      fresh.otherObstacles = structuredClone(liquid.otherObstacles);
+      fresh.particles = structuredClone(liquid.particles);
+      expect(cached).toEqual(drawLiquid(context, fresh, view, '#95d4aa', false));
+    }
+  });
 });

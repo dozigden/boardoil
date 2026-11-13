@@ -18,7 +18,8 @@ export class GooScene {
   private appearances: SlickAppearance[] = [];
   private accumulator = 0;
   private worker: LiquidWorker | null = null;
-  private revision = 0;
+  private layoutRevision = 0;
+  private surfaceRevision = 0;
   private simulationRunning = false;
   private viewport: Viewport = { left: 0, top: 0, width: 0, height: 0, clipTop: 0, clipBottom: 0 };
 
@@ -32,7 +33,8 @@ export class GooScene {
       return !old || Object.keys(card).some(key => card[key as keyof GooCard] !== old[key as keyof GooCard]);
     });
     const viewportChanged = Object.keys(viewport).some(key => viewport[key as keyof Viewport] !== this.viewport[key as keyof Viewport]);
-    if (reason !== 'scroll' && (geometryChanged || viewportChanged)) this.revision++;
+    if (geometryChanged || viewportChanged) this.surfaceRevision++;
+    if (reason !== 'scroll' && (geometryChanged || viewportChanged)) this.layoutRevision++;
     for (const card of nextCards) {
       const existing = this.cards.get(card.id);
       if (existing) { Object.assign(existing, card); next.set(card.id, existing); }
@@ -106,9 +108,9 @@ export class GooScene {
       const pools = new Map([...this.pools].filter(([, pool]) => !this.settling.sleeping(pool.liquid))
         .map(([id, pool]) => [id, pool.liquid]));
       if (!pools.size) return;
-      const revision = this.revision;
+      const layoutRevision = this.layoutRevision;
       const submitted = this.worker.submit(pools, [...this.cards.values()], steps, (id, liquid) =>
-        this.revision === revision && this.pools.get(id)?.liquid === liquid && !this.settling.sleeping(liquid));
+        this.layoutRevision === layoutRevision && this.pools.get(id)?.liquid === liquid && !this.settling.sleeping(liquid));
       if (submitted) {
         this.accumulator -= steps * DT;
         return;
@@ -128,7 +130,8 @@ export class GooScene {
       const entries = this.appearances.flatMap(appearance => {
         const pool = this.pools.get(appearance.id);
         if (!pool) return [];
-        return [{ id: appearance.id, liquid: pool.liquid, colour: appearance.colour, sleeping: this.settling.sleeping(pool.liquid) }];
+        return [{ id: appearance.id, liquid: pool.liquid, colour: appearance.colour,
+          sleeping: this.settling.sleeping(pool.liquid), revision: this.surfaceRevision }];
       });
       const outlines = drawLiquids(ctx, entries, viewport);
       for (const [liquid, outline] of outlines) this.settling.observe(liquid, outline, liquid.steps * DT);
