@@ -1,13 +1,13 @@
 import { cardDistance, type Liquid } from './physics';
 import { fieldsOverlap, liquidGridStep, resolveLiquidContacts, type LiquidField } from './liquidContacts';
-import { smoothParticleDensity } from './liquidDensity';
+import { DensitySmoother } from './liquidDensity';
 import { traceContours } from './contours';
 import type { Outline, Viewport } from './types';
 
 const gridStep = liquidGridStep, renderRadius = 17, unassignedClearance = 6;
 const densityPadding = renderRadius + 3 * gridStep;
 type Surface = { loops: Outline; path: Path2D; field: LiquidField; rivals: LiquidField[] };
-type CachedLiquid = { field: LiquidField; surface?: Surface };
+type CachedLiquid = { field: LiquidField; density: DensitySmoother; surface?: Surface };
 export type LiquidPaint = { id: number; liquid: Liquid; colour: string; sleeping: boolean };
 const surfaces = new WeakMap<Liquid, CachedLiquid>();
 function emptyField(): LiquidField {
@@ -15,7 +15,7 @@ function emptyField(): LiquidField {
 }
 const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
 
-function buildField(liquid: Liquid, viewport: Viewport): LiquidField {
+function buildField(liquid: Liquid, viewport: Viewport, density: DensitySmoother): LiquidField {
   const viewLeft = Math.floor((viewport.left - 36) / gridStep) * gridStep;
   const viewTop = Math.floor((viewport.top - 36) / gridStep) * gridStep;
   const viewRight = viewLeft + (Math.ceil((viewport.width + 72) / gridStep)) * gridStep;
@@ -39,6 +39,7 @@ function buildField(liquid: Liquid, viewport: Viewport): LiquidField {
   if (nx < 3 || ny < 3) return emptyField();
   const field = new Float32Array(nx * ny);
   const strength = new Float32Array(nx * ny);
+  density.prepare(nx, ny);
   for (const p of particles) {
     if (p.y < originY - renderRadius || p.y > originY + ny * gridStep + renderRadius ||
         p.x < originX - renderRadius || p.x > originX + nx * gridStep + renderRadius) continue;
@@ -46,25 +47,40 @@ function buildField(liquid: Liquid, viewport: Viewport): LiquidField {
     const x1 = Math.min(nx - 2, Math.ceil((p.x + renderRadius - originX) / gridStep));
     const y0 = Math.max(1, Math.floor((p.y - renderRadius - originY) / gridStep));
     const y1 = Math.min(ny - 2, Math.ceil((p.y + renderRadius - originY) / gridStep));
+    density.include(x0, y0, x1, y1);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const q = 1 - ((x * gridStep + originX - p.x) ** 2 + (y * gridStep + originY - p.y) ** 2) / renderRadius ** 2;
       if (q > 0) field[y * nx + x] += q * q * q * .7;
     }
   }
-  smoothParticleDensity(field, nx, ny);
+  density.smooth(field);
   // Keep individual card indents in the outline; only physics merges stacks.
   for (const card of cards) {
     const x0 = Math.max(1, Math.floor((card.x - card.width / 2 - 20 - originX) / gridStep));
     const x1 = Math.min(nx - 2, Math.ceil((card.x + card.width / 2 + 20 - originX) / gridStep));
     const y0 = Math.max(1, Math.floor((card.y - card.height / 2 - 20 - originY) / gridStep));
     const y1 = Math.min(ny - 2, Math.ceil((card.y + card.height / 2 + 20 - originY) / gridStep));
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const distance = cardDistance(x * gridStep + originX, y * gridStep + originY, card).distance;
-      const coating = clamp(.5 + (8 - distance) / 12, 0, 1);
-      if (!coating) continue;
-      const i = y * nx + x, blend = Math.max(0, 1 - Math.abs(field[i] - coating) / .25);
-      field[i] = Math.max(field[i], coating) + .25 * blend * blend / 4;
-      strength[i] = Math.max(strength[i], coating);
+    const radius = Math.min(card.radius, card.width / 2, card.height / 2);
+    const innerLeft = Math.ceil((card.x - card.width / 2 + radius - originX) / gridStep);
+    const innerRight = Math.floor((card.x + card.width / 2 - radius - originX) / gridStep);
+    const innerTop = Math.ceil((card.y - card.height / 2 + radius - originY) / gridStep);
+    const innerBottom = Math.floor((card.y + card.height / 2 - radius - originY) / gridStep);
+    for (let y = y0; y <= y1; y++) {
+      const interiorRow = y >= innerTop && y <= innerBottom;
+      for (let x = x0; x <= x1; x++) {
+        const i = y * nx + x;
+        // Empty cells inside the rounded rectangle have a solid coating and no blend.
+        if (interiorRow && x >= innerLeft && x <= innerRight && field[i] === 0) {
+          field[i] = 1; strength[i] = 1;
+          continue;
+        }
+        const distance = cardDistance(x * gridStep + originX, y * gridStep + originY, card).distance;
+        const coating = clamp(.5 + (8 - distance) / 12, 0, 1);
+        if (!coating) continue;
+        const blend = Math.max(0, 1 - Math.abs(field[i] - coating) / .25);
+        field[i] = Math.max(field[i], coating) + .25 * blend * blend / 4;
+        strength[i] = Math.max(strength[i], coating);
+      }
     }
   }
   // A card without a slick needs visible background around its edge; particle
@@ -95,9 +111,10 @@ export function drawLiquids(ctx: CanvasRenderingContext2D, entries: LiquidPaint[
   const fields = entries.map(entry => {
     let cached = surfaces.get(entry.liquid);
     if (!cached) {
-      cached = { field: buildField(entry.liquid, viewport) };
+      const density = new DensitySmoother();
+      cached = { field: buildField(entry.liquid, viewport, density), density };
       surfaces.set(entry.liquid, cached);
-    } else if (!entry.sleeping) cached.field = buildField(entry.liquid, viewport);
+    } else if (!entry.sleeping) cached.field = buildField(entry.liquid, viewport, cached.density);
     return { ...entry, cached, field: cached.field };
   });
   const rendered = fields.map(own => {
