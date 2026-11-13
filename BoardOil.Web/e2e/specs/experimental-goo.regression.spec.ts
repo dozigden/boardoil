@@ -78,15 +78,22 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL())).toBe(image);
     await page.screenshot({ path: test.info().outputPath('board-liquid.png') });
   });
-  await test.step('scroll, move and filter cards without reseeding on movement', async () => {
+  await test.step('scroll, move and filter cards while retaining the running solver', async () => {
     const before = JSON.parse((await canvas.getAttribute('data-slicks'))!) as { particles: number; steps: number }[];
     await boardPage.column('Todo').locator('.column-content').evaluate(el => { el.scrollTop = 120; });
     await expect.poll(async () => JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].steps).toBeGreaterThan(before[0].steps);
-    expect(JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].particles).toBe(before[0].particles);
+    expect(JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].particles).toBeGreaterThan(0);
     const target = board.columns.find(c => c.title === 'In Progress')!;
     await api.moveCard(board.id, travelling.id, target.id);
     await expect(boardPage.card('In Progress', 'Travelling card')).toBeVisible();
-    await expect.poll(async () => JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].particles).toBe(before[0].particles);
+    await expect.poll(async () => JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].steps).toBeGreaterThan(before[0].steps);
+    const scroller = boardPage.column('Todo').locator('.column-content');
+    for (const position of [10000, 0]) {
+      const renders = await canvas.getAttribute('data-render-count');
+      await scroller.evaluate((el, top) => { el.scrollTop = top; }, position);
+      await expect.poll(() => canvas.getAttribute('data-render-count')).not.toBe(renders);
+      expect(JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].particles).toBeGreaterThan(0);
+    }
     await page.getByPlaceholder('Search', { exact: true }).fill('No matching goo cards');
     await expect.poll(async () => JSON.parse((await canvas.getAttribute('data-slicks'))!).length).toBe(0);
     await page.getByPlaceholder('Search', { exact: true }).fill('');

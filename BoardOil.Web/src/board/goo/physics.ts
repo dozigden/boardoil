@@ -1,6 +1,6 @@
 import type { GooCard, Particle, Bounds } from './types';
 // A small 2D experiment derived from Clavet et al.'s double-density relaxation.
-// No springs, prescribed bridges, particle respawning, or magnetic spike model.
+// No springs or magnetic spike model.
 // Lengths are screen pixels; coefficients are artistic, not material measurements.
 export const SUPPORT = 24, DT = 1 / 120;
 export const liquidSettings = { attraction: .3, viscosity: .4, cohesion: .5 };
@@ -52,15 +52,16 @@ export class Liquid {
   private nearDensity = new Float64Array(0);
   otherObstacles: GooCard[];
   activeBand: Bounds;
-  constructor(public cards: GooCard[], public obstacles: GooCard[], public bounds: Bounds) {
+  retentionBand?: Bounds;
+  constructor(public cards: GooCard[], public obstacles: GooCard[], public bounds: Bounds, seed = true) {
     this.otherObstacles = obstacles.filter(card => !cards.includes(card));
     this.activeBand = { ...bounds };
-    this.seedBoard();
+    if (seed) this.seedBoard();
   }
   surfaceBodies() { return wettedBodies(this.cards); }
-  seedBoard() {
+  seedBoard(area: Bounds = this.bounds, accept: (x: number, y: number) => boolean = () => true) {
     // One initial coating per wetted surface, with finite puddles between peers.
-    // After this, scrolling transports the existing particles; it never reseeds.
+    // Restrict later seeding to newly revealed portions of the viewport.
     const bodies = this.surfaceBodies();
     const necks = [];
     for (const a of this.cards) for (const b of this.cards) {
@@ -69,8 +70,13 @@ export class Liquid {
     }
     const top = Math.min(...this.cards.map(c => c.y - c.height / 2)) - 28;
     const bottom = Math.max(...this.cards.map(c => c.y + c.height / 2)) + 28;
-    for (let y = top, row = 0; y < bottom; y += 8.5, row++) {
-      for (let x = this.bounds.left + (row % 2) * 5; x < this.bounds.right; x += 10) {
+    const firstRow = Math.max(0, Math.ceil((area.top - .35 - top) / 8.5));
+    for (let row = firstRow, y = top + firstRow * 8.5; y < Math.min(bottom, area.bottom + .35); y += 8.5, row++) {
+      const startX = this.bounds.left + (row % 2) * 5;
+      const firstColumn = Math.max(0, Math.ceil((area.left - .35 - startX) / 10));
+      for (let x = startX + firstColumn * 10; x < Math.min(this.bounds.right, area.right + .35); x += 10) {
+        const jitter = Math.sin(x * 13.4 + y * 9.7) * .35;
+        if (!accept(x + jitter, y - jitter)) continue;
         const distance = Math.min(...bodies.map(c => cardDistance(x, y, c).distance));
         if (distance < 3) continue;
         let puddle = false;
@@ -81,10 +87,18 @@ export class Liquid {
         }
         if (distance > 28 && !puddle) continue;
         if (this.obstacles.some(c => cardDistance(x, y, c).distance < 3)) continue;
-        const jitter = Math.sin(x * 13.4 + y * 9.7) * .35;
         this.particles.push({ x: x + jitter, y: y - jitter, vx: 0, vy: 0 });
       }
     }
+  }
+  cullParticles() {
+    const band = this.retentionBand;
+    if (!band) return;
+    let retained = 0;
+    for (const p of this.particles) {
+      if (p.x >= band.left && p.x < band.right && p.y >= band.top && p.y < band.bottom) this.particles[retained++] = p;
+    }
+    this.particles.length = retained;
   }
   activeParticles() {
     if (!this.activeBand) return this.particles;
@@ -128,8 +142,7 @@ export class Liquid {
     return pairs;
   }
   step({ attraction, viscosity, cohesion }: typeof liquidSettings) {
-    // Offscreen particles keep their state, but do not spend time in the solver.
-    // The board's scroll transport moves them back into this padded active band.
+    // The outer retention margin is frozen; only the padded active band simulates.
     const particles = this.activeParticles();
     const bodies = this.surfaceBodies();
     const obstacles = [...bodies, ...this.otherObstacles];
@@ -211,5 +224,6 @@ export class Liquid {
       p.vx = clamp((p.x - p.px!) / DT, -650, 650); p.vy = clamp((p.y - p.py!) / DT, -650, 650);
     }
     this.steps++;
+    this.cullParticles();
   }
 }

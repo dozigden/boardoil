@@ -1,12 +1,13 @@
 import { cardDistance, DT, Liquid, liquidSettings } from './physics';
 import { Settling } from './settling';
+import { LiquidResidency } from './liquidResidency';
 import { drawLiquids } from './liquidSurface';
 import { buildOrganicPath } from './smooth';
 import type { ExperimentalGooMode, GooCard, Viewport } from './types';
 
 export type SlickAppearance = { id: number; name: string; colour: string };
 export type SlickActivity = SlickAppearance & { sleeping: boolean; limited: boolean };
-type Pool = { liquid: Liquid; membership: string };
+type Pool = { liquid: Liquid; membership: string; residency: LiquidResidency };
 
 export class GooScene {
   private smoothPaths = new Map<number, { signature: string; path: Path2D }>();
@@ -47,7 +48,7 @@ export class GooScene {
       };
       let pool = this.pools.get(id);
       if (!pool || pool.membership !== membership) {
-        pool = { liquid: new Liquid(members, obstacles, bounds), membership };
+        pool = { liquid: new Liquid(members, obstacles, bounds, false), membership, residency: new LiquidResidency() };
         this.pools.set(id, pool);
       } else if (geometryChanged) {
         transportParticles(pool.liquid, previous);
@@ -56,8 +57,8 @@ export class GooScene {
       pool.liquid.obstacles = obstacles;
       pool.liquid.otherObstacles = obstacles.filter(c => c.group !== id);
       pool.liquid.bounds = bounds;
-      pool.liquid.activeBand = { left: viewport.left - 120, right: viewport.left + viewport.width + 120,
-        top: viewport.clipTop - 120, bottom: viewport.clipBottom + 120 };
+      pool.residency.update(pool.liquid, { left: viewport.left - 120, right: viewport.left + viewport.width + 120,
+        top: viewport.clipTop - 120, bottom: viewport.clipBottom + 120 });
       if (geometryChanged || viewportChanged) this.settling.wake(pool.liquid);
     }
   }
