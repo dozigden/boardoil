@@ -48,10 +48,10 @@ export class GooScene {
       const members = obstacles.filter(c => c.group === id);
       const membership = members.map(c => c.id).sort((a, b) => a - b).join(',');
       const bounds = {
-        left: Math.min(...members.map(c => c.x - c.width / 2)) - 40,
-        right: Math.max(...members.map(c => c.x + c.width / 2)) + 40,
-        top: Math.min(...members.map(c => c.y - c.height / 2)) - 120,
-        bottom: Math.max(...members.map(c => c.y + c.height / 2)) + 120
+        left: Math.min(...members.map(c => c.centreX - c.width / 2)) - 40,
+        right: Math.max(...members.map(c => c.centreX + c.width / 2)) + 40,
+        top: Math.min(...members.map(c => c.centreY - c.height / 2)) - 120,
+        bottom: Math.max(...members.map(c => c.centreY + c.height / 2)) + 120
       };
       let pool = this.pools.get(id);
       if (!pool || pool.membership !== membership) {
@@ -139,7 +139,7 @@ export class GooScene {
 function transportParticles(liquid: Liquid, previous: Map<number, GooCard>) {
   const movements = liquid.cards.map(card => {
     const old = previous.get(card.id)!;
-    return { old, dx: card.x - old.x, dy: card.y - old.y };
+    return { old, dx: card.centreX - old.centreX, dy: card.centreY - old.centreY };
   });
   if (movements.every(m => m.dx === 0 && m.dy === 0)) return;
   // Move the existing liquid with its nearby cards, blending across bridges.

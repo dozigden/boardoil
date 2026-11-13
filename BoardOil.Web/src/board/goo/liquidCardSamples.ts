@@ -10,7 +10,7 @@ export class LiquidCardSamples {
     this.used.add(card.id);
     // World grid coordinates keep samples reusable when the particle field's
     // extent changes without moving this card or its clipped sampling region.
-    const signature = [card.x, card.y, card.width, card.height, card.radius,
+    const signature = [card.centreX, card.centreY, card.width, card.height, card.radius,
       originX, originY, width, height, coating].join(',');
     let cached = this.cards.get(card.id);
     if (cached?.signature !== signature) {

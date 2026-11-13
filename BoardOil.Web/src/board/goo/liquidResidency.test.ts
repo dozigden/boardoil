@@ -4,8 +4,8 @@ import { LiquidResidency } from './liquidResidency';
 import type { Bounds, GooCard } from './types';
 
 const active: Bounds = { left: 0, right: 640, top: 0, bottom: 400 };
-const card = (id: number, y: number, column = 0): GooCard => ({ id, group: 1, column,
-  x: 170 + column * 300, y, width: 240, height: 100, radius: 12 });
+const card = (id: number, centreY: number, column = 0): GooCard => ({ id, group: 1, column,
+  centreX: 170 + column * 300, centreY, width: 240, height: 100, radius: 12 });
 function setup(cards: GooCard[]) {
   const liquid = new Liquid(cards, cards, { left: 0, right: 640, top: -10000, bottom: 10000 }, false);
   const residency = new LiquidResidency();
@@ -13,7 +13,7 @@ function setup(cards: GooCard[]) {
   return { liquid, residency };
 }
 function scroll(liquid: Liquid, dy: number) {
-  liquid.cards.forEach(c => { c.y += dy; });
+  liquid.cards.forEach(c => { c.centreY += dy; });
   liquid.particles.forEach(p => { p.y += dy; });
 }
 
@@ -77,7 +77,7 @@ describe('viewport liquid residency', () => {
   it('does not reseed a stationary column when its neighbour scrolls', () => {
     const { liquid, residency } = setup([card(1, 150), card(2, 150, 1), card(3, 900, 1)]);
     const stationary = liquid.particles.filter(p => p.x < 270);
-    liquid.cards.filter(c => c.column === 1).forEach(c => { c.y -= 500; });
+    liquid.cards.filter(c => c.column === 1).forEach(c => { c.centreY -= 500; });
     liquid.particles.filter(p => p.x >= 320).forEach(p => { p.y -= 500; });
     residency.update(liquid, active);
     expect(liquid.particles.filter(p => p.x < 270)).toEqual(stationary);

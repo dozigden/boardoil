@@ -6,7 +6,7 @@ import type { GooCard, Viewport } from './types';
 
 const viewport: Viewport = { left: 0, top: 0, width: 960, height: 600, clipTop: 60, clipBottom: 600 };
 const appearance = { id: 1, name: 'One slick', colour: '#95d4aa' };
-const card = (id: number, x = 200, y = 200): GooCard => ({ id, x, y, width: 244, height: 100, radius: 12, column: 0, group: 1 });
+const card = (id: number, centreX = 200, centreY = 200): GooCard => ({ id, centreX, centreY, width: 244, height: 100, radius: 12, column: 0, group: 1 });
 
 describe('experimental board goo', () => {
   it('keeps the existing pool through scrolling, resizing and cross-column movement', () => {
@@ -65,7 +65,7 @@ describe('experimental board goo', () => {
     expect(liquid.pairs([])).toEqual([]);
   });
   it('handles a slick entirely outside the drawing grid', () => {
-    const loops = blendedOutline([{ x: -160, y: 200, width: 50, height: 80, column: 0 }], [], viewport);
+    const loops = blendedOutline([{ left: -160, top: 200, width: 50, height: 80, column: 0 }], [], viewport);
     expect(loops).toEqual([]);
   });
   it('does not retain neighbour or density state as particles leave and re-enter view', () => {

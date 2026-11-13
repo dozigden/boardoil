@@ -35,12 +35,12 @@ function merge(areas: Bounds[]): Bounds[] {
 }
 
 function seedReach(card: GooCard, cards: GooCard[]): Bounds {
-  const reach = { left: card.x - card.width / 2 - 29, right: card.x + card.width / 2 + 29,
-    top: card.y - card.height / 2 - 29, bottom: card.y + card.height / 2 + 29 };
+  const reach = { left: card.centreX - card.width / 2 - 29, right: card.centreX + card.width / 2 + 29,
+    top: card.centreY - card.height / 2 - 29, bottom: card.centreY + card.height / 2 + 29 };
   for (const other of cards) {
-    if (Math.abs(other.column - card.column) !== 1 || Math.abs(other.y - card.y) > 150) continue;
-    reach.left = Math.min(reach.left, other.x - 15); reach.right = Math.max(reach.right, other.x + 15);
-    reach.top = Math.min(reach.top, other.y - 15); reach.bottom = Math.max(reach.bottom, other.y + 15);
+    if (Math.abs(other.column - card.column) !== 1 || Math.abs(other.centreY - card.centreY) > 150) continue;
+    reach.left = Math.min(reach.left, other.centreX - 15); reach.right = Math.max(reach.right, other.centreX + 15);
+    reach.top = Math.min(reach.top, other.centreY - 15); reach.bottom = Math.max(reach.bottom, other.centreY + 15);
   }
   return reach;
 }
@@ -80,15 +80,15 @@ export class LiquidResidency {
     const nextCoverage = new Map<number, Bounds[]>();
     for (const { card, reach } of owners) {
       if (!intersect(retained, reach)) continue;
-      const localKeep = translate(retained, -card.x, -card.y);
+      const localKeep = translate(retained, -card.centreX, -card.centreY);
       const covered = (this.coverage.get(card.id) ?? []).flatMap(b => {
         const clipped = intersect(b, localKeep);
         return clipped ? [clipped] : [];
       });
-      let uncovered = [translate(active, -card.x, -card.y)];
+      let uncovered = [translate(active, -card.centreX, -card.centreY)];
       for (const area of covered) uncovered = uncovered.flatMap(b => subtract(b, area));
       const entering = uncovered.flatMap(b => {
-        const clipped = intersect(translate(b, card.x, card.y), reach);
+        const clipped = intersect(translate(b, card.centreX, card.centreY), reach);
         return clipped ? [clipped] : [];
       });
       if (entering.length) requests.set(card.id, entering);

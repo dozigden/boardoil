@@ -8,7 +8,7 @@ const length2d = (x: number, y: number) => Math.sqrt(x * x + y * y);
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function cardDistance(x: number, y: number, card: GooCard) {
-  const dx = x - card.x, dy = y - card.y;
+  const dx = x - card.centreX, dy = y - card.centreY;
   const radius = Math.min(card.radius, card.width / 2, card.height / 2);
   const qx = Math.abs(dx) - card.width / 2 + radius;
   const qy = Math.abs(dy) - card.height / 2 + radius;
@@ -21,19 +21,19 @@ export function cardDistance(x: number, y: number, card: GooCard) {
 
 function wettedBodies(cards: GooCard[]) {
   const bodies: GooCard[] = [];
-  const ordered = [...cards].sort((a, b) => (a.column ?? 0) - (b.column ?? 0) || a.y - b.y);
+  const ordered = [...cards].sort((a, b) => (a.column ?? 0) - (b.column ?? 0) || a.centreY - b.centreY);
   for (const card of ordered) {
     const previous = bodies[bodies.length - 1];
-    const top = card.y - card.height / 2;
-    const gap = previous ? top - previous.y - previous.height / 2 : Infinity;
+    const top = card.centreY - card.height / 2;
+    const gap = previous ? top - previous.centreY - previous.height / 2 : Infinity;
     // A narrow slot between aligned cards cannot hold a useful liquid layer.
     // Wet the outside of that stack as one surface, rather than attracting and
     // squeezing particles between every pair of rounded card corners.
     if (previous && card.column !== undefined && previous.column === card.column &&
-        previous.x === card.x && previous.width === card.width && gap >= 0 && gap <= 16) {
-      const stackTop = previous.y - previous.height / 2;
-      const bottom = card.y + card.height / 2;
-      previous.y = (stackTop + bottom) / 2;
+        previous.centreX === card.centreX && previous.width === card.width && gap >= 0 && gap <= 16) {
+      const stackTop = previous.centreY - previous.height / 2;
+      const bottom = card.centreY + card.height / 2;
+      previous.centreY = (stackTop + bottom) / 2;
       previous.height = bottom - stackTop;
     } else bodies.push({ ...card });
   }
@@ -65,11 +65,11 @@ export class Liquid {
     const bodies = this.surfaceBodies();
     const necks = [];
     for (const a of this.cards) for (const b of this.cards) {
-      if (b.column !== a.column + 1 || Math.abs(a.y - b.y) > 150) continue;
+      if (b.column !== a.column + 1 || Math.abs(a.centreY - b.centreY) > 150) continue;
       necks.push([a, b]);
     }
-    const top = Math.min(...this.cards.map(c => c.y - c.height / 2)) - 28;
-    const bottom = Math.max(...this.cards.map(c => c.y + c.height / 2)) + 28;
+    const top = Math.min(...this.cards.map(c => c.centreY - c.height / 2)) - 28;
+    const bottom = Math.max(...this.cards.map(c => c.centreY + c.height / 2)) + 28;
     const firstRow = Math.max(0, Math.ceil((area.top - .35 - top) / 8.5));
     for (let row = firstRow, y = top + firstRow * 8.5; y < Math.min(bottom, area.bottom + .35); y += 8.5, row++) {
       const startX = this.bounds.left + (row % 2) * 5;
@@ -81,9 +81,9 @@ export class Liquid {
         if (distance < 3) continue;
         let puddle = false;
         for (const [a, b] of necks) {
-          if (x < a.x || x > b.x) continue;
-          const t = (x - a.x) / (b.x - a.x);
-          if (Math.abs(y - (a.y + (b.y - a.y) * t)) < 14) puddle = true;
+          if (x < a.centreX || x > b.centreX) continue;
+          const t = (x - a.centreX) / (b.centreX - a.centreX);
+          if (Math.abs(y - (a.centreY + (b.centreY - a.centreY) * t)) < 14) puddle = true;
         }
         if (distance > 28 && !puddle) continue;
         if (this.obstacles.some(c => cardDistance(x, y, c).distance < 3)) continue;
@@ -214,8 +214,8 @@ export class Liquid {
     for (const p of particles) {
       // Cards are solid obstacles as well as attractive bodies.
       for (const card of obstacles) {
-        if (Math.abs(p.x - card.x) >= card.width / 2 + 3 ||
-            Math.abs(p.y - card.y) >= card.height / 2 + 3) continue;
+        if (Math.abs(p.x - card.centreX) >= card.width / 2 + 3 ||
+            Math.abs(p.y - card.centreY) >= card.height / 2 + 3) continue;
         const { distance, nx, ny } = cardDistance(p.x, p.y, card);
         if (distance < 3) { p.x += nx * (3 - distance); p.y += ny * (3 - distance); }
       }

@@ -30,15 +30,15 @@ function buildField(liquid: Liquid, viewport: Viewport, density: DensitySmoother
   const visible = (x: number, y: number, width: number, height: number) =>
     x + width / 2 >= viewLeft - renderRadius && x - width / 2 <= viewRight + renderRadius &&
     y + height / 2 >= viewTop - renderRadius && y - height / 2 <= viewBottom + renderRadius;
-  const cards = liquid.cards.filter(c => visible(c.x, c.y, c.width, c.height));
+  const cards = liquid.cards.filter(c => visible(c.centreX, c.centreY, c.width, c.height));
   const particles = liquid.particles.filter(p => visible(p.x, p.y, 0, 0));
   if (!cards.length && !particles.length) { samples.end(); return emptyField(); }
   // Keep the same global grid phase and viewport boundary, but omit empty
   // space outside this slick. Padding includes every kernel and coating tail.
-  const left = Math.min(...cards.map(c => c.x - c.width / 2 - 20), ...particles.map(p => p.x - densityPadding));
-  const right = Math.max(...cards.map(c => c.x + c.width / 2 + 20), ...particles.map(p => p.x + densityPadding));
-  const top = Math.min(...cards.map(c => c.y - c.height / 2 - 20), ...particles.map(p => p.y - densityPadding));
-  const bottom = Math.max(...cards.map(c => c.y + c.height / 2 + 20), ...particles.map(p => p.y + densityPadding));
+  const left = Math.min(...cards.map(c => c.centreX - c.width / 2 - 20), ...particles.map(p => p.x - densityPadding));
+  const right = Math.max(...cards.map(c => c.centreX + c.width / 2 + 20), ...particles.map(p => p.x + densityPadding));
+  const top = Math.min(...cards.map(c => c.centreY - c.height / 2 - 20), ...particles.map(p => p.y - densityPadding));
+  const bottom = Math.max(...cards.map(c => c.centreY + c.height / 2 + 20), ...particles.map(p => p.y + densityPadding));
   const originX = Math.max(viewLeft, Math.floor(left / gridStep) * gridStep - gridStep);
   const originY = Math.max(viewTop, Math.floor(top / gridStep) * gridStep - gridStep);
   const nx = Math.round((Math.min(viewRight, Math.ceil(right / gridStep) * gridStep + gridStep) - originX) / gridStep) + 1;
@@ -63,18 +63,18 @@ function buildField(liquid: Liquid, viewport: Viewport, density: DensitySmoother
   density.smooth(field);
   // Keep individual card indents in the outline; only physics merges stacks.
   for (const card of cards) {
-    const x0 = Math.max(1, Math.floor((card.x - card.width / 2 - 20 - originX) / gridStep));
-    const x1 = Math.min(nx - 2, Math.ceil((card.x + card.width / 2 + 20 - originX) / gridStep));
-    const y0 = Math.max(1, Math.floor((card.y - card.height / 2 - 20 - originY) / gridStep));
-    const y1 = Math.min(ny - 2, Math.ceil((card.y + card.height / 2 + 20 - originY) / gridStep));
+    const x0 = Math.max(1, Math.floor((card.centreX - card.width / 2 - 20 - originX) / gridStep));
+    const x1 = Math.min(nx - 2, Math.ceil((card.centreX + card.width / 2 + 20 - originX) / gridStep));
+    const y0 = Math.max(1, Math.floor((card.centreY - card.height / 2 - 20 - originY) / gridStep));
+    const y1 = Math.min(ny - 2, Math.ceil((card.centreY + card.height / 2 + 20 - originY) / gridStep));
     if (x0 > x1 || y0 > y1) continue;
     const width = x1 - x0 + 1;
     const coatings = samples.get(card, x0 * gridStep + originX, y0 * gridStep + originY, width, y1 - y0 + 1, true);
     const radius = Math.min(card.radius, card.width / 2, card.height / 2);
-    const innerLeft = Math.ceil((card.x - card.width / 2 + radius - originX) / gridStep);
-    const innerRight = Math.floor((card.x + card.width / 2 - radius - originX) / gridStep);
-    const innerTop = Math.ceil((card.y - card.height / 2 + radius - originY) / gridStep);
-    const innerBottom = Math.floor((card.y + card.height / 2 - radius - originY) / gridStep);
+    const innerLeft = Math.ceil((card.centreX - card.width / 2 + radius - originX) / gridStep);
+    const innerRight = Math.floor((card.centreX + card.width / 2 - radius - originX) / gridStep);
+    const innerTop = Math.ceil((card.centreY - card.height / 2 + radius - originY) / gridStep);
+    const innerBottom = Math.floor((card.centreY + card.height / 2 - radius - originY) / gridStep);
     for (let y = y0; y <= y1; y++) {
       const interiorRow = y >= innerTop && y <= innerBottom;
       for (let x = x0; x <= x1; x++) {
@@ -105,10 +105,10 @@ function buildField(liquid: Liquid, viewport: Viewport, density: DensitySmoother
   const clearancePad = unassignedClearance + gridStep * 2;
   for (const card of liquid.otherObstacles) {
     if (card.group !== null) continue;
-    const x0 = Math.max(1, Math.floor((card.x - card.width / 2 - clearancePad - originX) / gridStep));
-    const x1 = Math.min(nx - 2, Math.ceil((card.x + card.width / 2 + clearancePad - originX) / gridStep));
-    const y0 = Math.max(1, Math.floor((card.y - card.height / 2 - clearancePad - originY) / gridStep));
-    const y1 = Math.min(ny - 2, Math.ceil((card.y + card.height / 2 + clearancePad - originY) / gridStep));
+    const x0 = Math.max(1, Math.floor((card.centreX - card.width / 2 - clearancePad - originX) / gridStep));
+    const x1 = Math.min(nx - 2, Math.ceil((card.centreX + card.width / 2 + clearancePad - originX) / gridStep));
+    const y0 = Math.max(1, Math.floor((card.centreY - card.height / 2 - clearancePad - originY) / gridStep));
+    const y1 = Math.min(ny - 2, Math.ceil((card.centreY + card.height / 2 + clearancePad - originY) / gridStep));
     if (x0 > x1 || y0 > y1) continue;
     const width = x1 - x0 + 1;
     const limits = samples.get(card, x0 * gridStep + originX, y0 * gridStep + originY, width, y1 - y0 + 1, false);

@@ -5,7 +5,7 @@ import { LiquidWorker, type SimulationWorker } from './liquidWorker';
 import { GooScene } from './scene';
 import type { GooCard } from './types';
 
-const cards: GooCard[] = [{ id: 1, group: 1, column: 0, x: 150, y: 150, width: 160, height: 70, radius: 12 }];
+const cards: GooCard[] = [{ id: 1, group: 1, column: 0, centreX: 150, centreY: 150, width: 160, height: 70, radius: 12 }];
 const bounds = { left: 20, right: 300, top: 20, bottom: 300 };
 const viewport = { left: 0, top: 0, width: 600, height: 400, clipTop: 0, clipBottom: 400 };
 const appearances = [{ id: 1, name: 'One', colour: '#95d4aa' }];
@@ -95,7 +95,7 @@ describe('Liquid worker simulation', () => {
     for (let i = 0; i < 6; i++) {
       scene.step(.02);
       const before = scene.diagnostics[0].steps;
-      current = current.map(c => ({ ...c, y: c.y - 8 }));
+      current = current.map(c => ({ ...c, centreY: c.centreY - 8 }));
       scene.update(current, appearances, viewport, 'scroll');
       fake.reply();
       expect(scene.diagnostics[0].steps).toBeGreaterThan(before);

@@ -13,7 +13,7 @@ afterAll(() => vi.unstubAllGlobals());
 const viewport: Viewport = { left: 0, top: 0, width: 1440, height: 840, clipTop: 56, clipBottom: 840 };
 const context = { fill() {}, stroke() {} } as unknown as CanvasRenderingContext2D;
 function pool() {
-  const card: GooCard = { id: 1, group: 1, column: 0, x: 200, y: 200, width: 180, height: 100, radius: 12 };
+  const card: GooCard = { id: 1, group: 1, column: 0, centreX: 200, centreY: 200, width: 180, height: 100, radius: 12 };
   return new Liquid([card], [card], { left: 60, right: 340, top: 100, bottom: 300 });
 }
 
@@ -36,7 +36,7 @@ describe('bounded Liquid surface', () => {
 
   it('keeps a visible detached droplet when its cards are offscreen', () => {
     const liquid = pool();
-    liquid.cards[0].x = 3000;
+    liquid.cards[0].centreX = 3000;
     liquid.particles = [{ x: 100, y: 100, vx: 0, vy: 0 }];
     const outline = drawLiquid(context, liquid, viewport, '#95d4aa', false);
     expect(outline).toHaveLength(1);
@@ -48,7 +48,7 @@ describe('bounded Liquid surface', () => {
 
   it('keeps the unassigned-card clearance after smoothing particle density', () => {
     const liquid = pool();
-    const neighbour: GooCard = { ...liquid.cards[0], id: 2, group: null, y: 290, height: 60 };
+    const neighbour: GooCard = { ...liquid.cards[0], id: 2, group: null, centreY: 290, height: 60 };
     liquid.otherObstacles = [neighbour];
     liquid.particles = Array.from({ length: 12 }, (_, i) => ({ x: 175 + i * 5, y: 258, vx: 0, vy: 0 }));
     const outline = drawLiquid(context, liquid, viewport, '#95d4aa', false);
@@ -60,7 +60,7 @@ describe('bounded Liquid surface', () => {
 
   it('resolves touching outlines independently of paint order and restores them when a rival leaves', () => {
     const a = pool(), b = pool();
-    b.cards[0] = { ...b.cards[0], id: 2, group: 2, y: 324 };
+    b.cards[0] = { ...b.cards[0], id: 2, group: 2, centreY: 324 };
     a.particles = [-4, 0, 4].map(dx => ({ x: 200 + dx, y: 262, vx: 0, vy: 0 }));
     b.particles = structuredClone(a.particles);
     const entries = [{ id: 1, liquid: a, colour: '#95d4aa', sleeping: false },
@@ -83,7 +83,7 @@ describe('bounded Liquid surface', () => {
     const simulated = drawLiquids(context, [entry], viewport).get(liquid);
     expect(simulated).not.toBe(original);
     expect(simulated).toEqual(original);
-    liquid.cards[0].x += 50;
+    liquid.cards[0].centreX += 50;
     entry.revision++;
     const moved = drawLiquids(context, [entry], viewport).get(liquid);
     expect(moved).not.toEqual(original);
@@ -92,7 +92,7 @@ describe('bounded Liquid surface', () => {
 
   it('refreshes an unchanged awake outline when a rival receives a simulation result', () => {
     const a = pool(), b = pool();
-    b.cards[0] = { ...b.cards[0], id: 2, group: 2, y: 324 };
+    b.cards[0] = { ...b.cards[0], id: 2, group: 2, centreY: 324 };
     a.particles = [-4, 0, 4].map(dx => ({ x: 200 + dx, y: 262, vx: 0, vy: 0 }));
     b.particles = structuredClone(a.particles);
     const entries = [{ id: 1, liquid: a, colour: '#95d4aa', sleeping: false, revision: 0 },
@@ -110,12 +110,12 @@ describe('bounded Liquid surface', () => {
 
   it('invalidates card samples after geometry, clearance and clipping changes', () => {
     const liquid = pool();
-    const obstacle = { ...liquid.cards[0], id: 2, group: null, y: 290, height: 60 };
+    const obstacle = { ...liquid.cards[0], id: 2, group: null, centreY: 290, height: 60 };
     liquid.otherObstacles = [obstacle];
     liquid.particles = Array.from({ length: 12 }, (_, i) => ({ x: 175 + i * 5, y: 258, vx: 0, vy: 0 }));
     for (const [dx, top, width] of [[0, 0, 1440], [0, 0, 1440], [.25, 130, 350], [20, 0, 1440]]) {
-      liquid.cards[0].x += dx; liquid.cards[0].width += dx;
-      obstacle.y += dx; obstacle.radius += dx;
+      liquid.cards[0].centreX += dx; liquid.cards[0].width += dx;
+      obstacle.centreY += dx; obstacle.radius += dx;
       const view = { ...viewport, top, width };
       const cached = drawLiquid(context, liquid, view, '#95d4aa', false);
       const fresh = pool();

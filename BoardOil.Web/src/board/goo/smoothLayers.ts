@@ -31,9 +31,9 @@ export function bridgePatches(necks: Neck[]): Patch[] {
 }
 
 function bounds(cards: SurfaceRect[]): Viewport {
-  const left = Math.min(...cards.map(c => c.x)) - 30, top = Math.min(...cards.map(c => c.y)) - 30;
-  const right = Math.max(...cards.map(c => c.x + c.width)) + 30;
-  const bottom = Math.max(...cards.map(c => c.y + c.height)) + 30;
+  const left = Math.min(...cards.map(c => c.left)) - 30, top = Math.min(...cards.map(c => c.top)) - 30;
+  const right = Math.max(...cards.map(c => c.left + c.width)) + 30;
+  const bottom = Math.max(...cards.map(c => c.top + c.height)) + 30;
   return { left, top, width: right - left, height: bottom - top, clipTop: top, clipBottom: bottom };
 }
 
@@ -47,15 +47,15 @@ export class SmoothLayers {
     const cached = this.columns.get(column);
     if (cached?.signature === signature) return cached.outlines;
     const outlines = appearances.flatMap(appearance => {
-      const members = cards.filter(c => c.group === appearance.id).map(cardSurface).sort((a, b) => a.y - b.y);
+      const members = cards.filter(c => c.group === appearance.id).map(cardSurface).sort((a, b) => a.top - b.top);
       if (!members.length) return [];
       // Keep disconnected parts separate so long columns don't allocate empty grids.
       const segments: SurfaceRect[][] = [];
       let bottom = -Infinity;
       for (const member of members) {
-        if (member.y > bottom + 27) segments.push([]);
+        if (member.top > bottom + 27) segments.push([]);
         segments[segments.length - 1].push(member);
-        bottom = Math.max(bottom, member.y + member.height);
+        bottom = Math.max(bottom, member.top + member.height);
       }
       const d = segments.map(segment => outlineSvg(blendedOutline(segment, [], bounds(segment)))).join('');
       return [{ id: appearance.id, colour: appearance.colour, d }];
@@ -75,8 +75,8 @@ export class SmoothLayers {
     ctx.save();
     ctx.translate(-viewport.left, -viewport.top);
     ctx.beginPath(); ctx.rect(viewport.left, viewport.clipTop, viewport.width, Math.max(0, viewport.clipBottom - viewport.clipTop)); ctx.clip();
-    const visible = cards.filter(c => c.x + c.width / 2 >= viewport.left - 168 && c.x - c.width / 2 <= viewport.left + viewport.width + 168 &&
-      c.y + c.height / 2 >= viewport.clipTop - 168 && c.y - c.height / 2 <= viewport.clipBottom + 168);
+    const visible = cards.filter(c => c.centreX + c.width / 2 >= viewport.left - 168 && c.centreX - c.width / 2 <= viewport.left + viewport.width + 168 &&
+      c.centreY + c.height / 2 >= viewport.clipTop - 168 && c.centreY - c.height / 2 <= viewport.clipBottom + 168);
     const groups = new Set(appearances.map(a => a.id));
     for (const id of this.bridges.keys()) if (!groups.has(id)) this.bridges.delete(id);
     for (const appearance of appearances) {
@@ -94,8 +94,8 @@ export class SmoothLayers {
         }
         const paths = patches.map(patch => {
           const region = { ...viewport, left: patch.left, top: patch.top, width: patch.right - patch.left, height: patch.bottom - patch.top };
-          const nearby = surfaces.filter(c => c.x <= patch.right + 27 && c.x + c.width >= patch.left - 27 &&
-            c.y <= patch.bottom + 27 && c.y + c.height >= patch.top - 27);
+          const nearby = surfaces.filter(c => c.left <= patch.right + 27 && c.left + c.width >= patch.left - 27 &&
+            c.top <= patch.bottom + 27 && c.top + c.height >= patch.top - 27);
           return { patch, path: outlinePath(blendedOutline(nearby, necks, region)) };
         });
         cached = { signature, paths };

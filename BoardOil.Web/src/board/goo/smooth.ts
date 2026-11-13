@@ -5,11 +5,11 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
 function connect(left: SurfaceRect, right: SurfaceRect, reach: number, thickness: number, vertical = false): Neck | false {
-  const gap = right.x - left.x - left.width;
+  const gap = right.left - left.left - left.width;
   if (gap <= 0) return false;
   const maxDistance = reach * 4;
-  const overlapTop = Math.max(left.y, right.y);
-  const overlapBottom = Math.min(left.y + left.height, right.y + right.height);
+  const overlapTop = Math.max(left.top, right.top);
+  const overlapBottom = Math.min(left.top + left.height, right.top + right.height);
   const preferred = (overlapTop + overlapBottom) / 2;
   const normalShoulder = Math.min(thickness / 2 + 18, left.height / 2 - 6, right.height / 2 - 6);
   const overlap = overlapBottom - overlapTop;
@@ -18,25 +18,25 @@ function connect(left: SurfaceRect, right: SurfaceRect, reach: number, thickness
   // Put the throat in the overlap, including near card corners. Surface
   // blending forms the shoulders; reserving rectangular shoulder margins
   // forced premature diagonals and cut the reference's long pockets in two.
-  const ly = clamp(preferred, left.y + 4, left.y + left.height - 4);
-  const ry = clamp(preferred, right.y + 4, right.y + right.height - 4);
+  const ly = clamp(preferred, left.top + 4, left.top + left.height - 4);
+  const ry = clamp(preferred, right.top + 4, right.top + right.height - 4);
   const distance = Math.hypot(gap, ry - ly);
   if (distance >= maxDistance) return false;
   let strength = 1 - smooth(clamp((distance - maxDistance * .55) / (maxDistance * .45), 0, 1));
   if (!vertical) {
-    const centerDelta = Math.abs((left.y + left.height / 2) - (right.y + right.height / 2));
+    const centerDelta = Math.abs((left.top + left.height / 2) - (right.top + right.height / 2));
     const verticalLimit = Math.min(left.height, right.height) + reach * .4;
     strength *= 1 - smooth(clamp((centerDelta - verticalLimit * .7) / (verticalLimit * .3), 0, 1));
   }
   const neckHalf = Math.min(thickness / 2, attachmentHalf * .8) * strength * strength;
   if (neckHalf < .6) return false;
-  const lx = left.x + left.width - 6, rx = right.x + 6;
+  const lx = left.left + left.width - 6, rx = right.left + 6;
   if (vertical) return { x0:ly, y0:lx, x1:ry, y1:rx, radius:neckHalf };
   return { x0:lx, y0:ly, x1:rx, y1:ry, radius:neckHalf };
 }
 
 export function cardSurface(card: GooCard): SurfaceRect {
-  return { x: card.x - card.width / 2 - 8, y: card.y - card.height / 2 - 8,
+  return { left: card.centreX - card.width / 2 - 8, top: card.centreY - card.height / 2 - 8,
     width: card.width + 16, height: card.height + 16, column: card.column };
 }
 

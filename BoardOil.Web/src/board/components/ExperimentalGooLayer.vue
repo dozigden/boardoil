@@ -62,7 +62,7 @@ function onBoardScroll(event: Event) {
     const dx = previous.left - scroller.scrollLeft, dy = previous.top - scroller.scrollTop;
     if (!dx && !dy) return;
     measuredCards = measuredCards.map(card => card.column === previous.column && !props.floatingCards.has(card.id)
-      ? { ...card, x: card.x + dx, y: card.y + dy } : card);
+      ? { ...card, centreX: card.centreX + dx, centreY: card.centreY + dy } : card);
     previous.left = scroller.scrollLeft; previous.top = scroller.scrollTop;
     if (props.mode === 'liquid') scene.update(measuredCards, appearances, viewport, 'scroll');
   }
@@ -104,7 +104,7 @@ function measure() {
       if (rect.width <= 0 || rect.height <= 0) continue;
       const radius = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
       cards.push({ id: card.id, group: card.slickId ?? null, column: index,
-        x: rect.left - originX + rect.width / 2, y: rect.top - originY + rect.height / 2,
+        centreX: rect.left - originX + rect.width / 2, centreY: rect.top - originY + rect.height / 2,
         width: rect.width, height: rect.height, radius });
     }
   });
@@ -148,7 +148,7 @@ function measure() {
       const x = rect.left + element.clientLeft - originX - element.scrollLeft;
       const y = rect.top + element.clientTop - originY - element.scrollTop;
       const local = cards.filter(card => card.column === scroll.column && !props.floatingCards.has(card.id))
-        .map(card => ({ ...card, x: card.x - x, y: card.y - y }));
+        .map(card => ({ ...card, centreX: card.centreX - x, centreY: card.centreY - y }));
       return { index: scroll.column, element, outlines: smooth.columnOutlines(scroll.column, local, appearances) };
     });
     smooth.retainColumns(new Set(nativeColumns.value.map(c => c.index)));
