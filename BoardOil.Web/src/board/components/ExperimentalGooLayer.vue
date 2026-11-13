@@ -11,12 +11,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
-import { boardGooClips } from '../utils/gooViewport';
+import { BoardGooGeometry } from '../goo/boardGeometry';
 import { buildSlickGooDescriptors } from '../utils/slickGooAdapter';
 import { GooScene, type SlickActivity, type SlickAppearance } from '../goo/scene';
 import { SmoothLayers, type ColumnOutline } from '../goo/smoothLayers';
 import { createLiquidWorker } from '../goo/liquidWorker';
-import type { ExperimentalGooMode, GooCard, Viewport } from '../goo/types';
+import type { ExperimentalGooMode } from '../goo/types';
 
 const props = defineProps<{
   mode: ExperimentalGooMode;
@@ -34,37 +34,23 @@ const nativeColumns = shallowRef<{ index: number; element: HTMLElement; outlines
 const showNativeOutlines = ref(true);
 let board: HTMLElement | null = null;
 let context: CanvasRenderingContext2D | null = null;
-let resizeObserver: ResizeObserver | null = null;
+let geometry: BoardGooGeometry | null = null;
 let themeObserver: MutationObserver | null = null;
-const observed = new Set<Element>();
 let reducedMotion: MediaQueryList | null = null;
 let frameId: number | null = null, last = 0, needsMeasurement = true, renders = 0;
 let activitySignature = '';
 let disposed = false;
-let measuredCards: GooCard[] = [];
 let appearances: SlickAppearance[] = [];
-let viewport: Viewport | null = null;
-const columnScrolls = new Map<HTMLElement, { column: number; left: number; top: number }>();
 
 function onBoardScroll(event: Event) {
-  if (!board || !canvas.value || document.hidden) return;
-  if (needsMeasurement || !viewport) {
+  if (!geometry || !canvas.value || document.hidden) return;
+  if (needsMeasurement || !geometry.viewport) {
     measure();
-  } else if (event.target === board) {
-    if (viewport.left === board.scrollLeft && viewport.top === board.scrollTop) return;
-    viewport = { ...viewport, left: board.scrollLeft, top: board.scrollTop };
-    canvas.value.style.transform = `translate(${viewport.left}px, ${viewport.top}px)`;
-    if (props.mode === 'liquid') scene.update(measuredCards, appearances, viewport, 'scroll');
   } else {
-    const scroller = event.target as HTMLElement;
-    const previous = columnScrolls.get(scroller);
-    if (!previous) return;
-    const dx = previous.left - scroller.scrollLeft, dy = previous.top - scroller.scrollTop;
-    if (!dx && !dy) return;
-    measuredCards = measuredCards.map(card => card.column === previous.column && !props.floatingCards.has(card.id)
-      ? { ...card, centreX: card.centreX + dx, centreY: card.centreY + dy } : card);
-    previous.left = scroller.scrollLeft; previous.top = scroller.scrollTop;
-    if (props.mode === 'liquid') scene.update(measuredCards, appearances, viewport, 'scroll');
+    if (!geometry.projectScroll(event.target, props.floatingCards)) return;
+    const viewport = geometry.viewport;
+    if (event.target === board) canvas.value.style.transform = `translate(${viewport.left}px, ${viewport.top}px)`;
+    if (props.mode === 'liquid') scene.update(geometry.cards, appearances, viewport, 'scroll');
   }
   if (props.mode === 'liquid' && !reducedMotion?.matches) {
     scheduleFrame();
@@ -84,46 +70,9 @@ function scheduleFrame() {
   frameId = requestAnimationFrame(frame);
 }
 function measure() {
-  if (!board || !canvas.value || !context || !colourProbe.value) return;
-  const boardRect = board.getBoundingClientRect();
-  const left = board.scrollLeft, top = board.scrollTop;
-  const originX = boardRect.left + board.clientLeft - left;
-  const originY = boardRect.top + board.clientTop - top;
-  const width = board.clientWidth, height = board.clientHeight;
-  const elements = new Map<number, HTMLElement>();
-  board.querySelectorAll<HTMLElement>('.column-content > .card[data-card-id]').forEach(el => elements.set(Number(el.dataset.cardId), el));
-  props.floatingCards.forEach((el, id) => elements.set(id, el));
-  const cards: GooCard[] = [];
-  const nextObserved = new Set<Element>([board]);
-  props.columns.forEach((column, index) => {
-    for (const card of column.cards) {
-      const element = elements.get(card.id);
-      if (!element?.isConnected) continue;
-      nextObserved.add(element);
-      const rect = element.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) continue;
-      const radius = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
-      cards.push({ id: card.id, group: card.slickId ?? null, column: index,
-        centreX: rect.left - originX + rect.width / 2, centreY: rect.top - originY + rect.height / 2,
-        width: rect.width, height: rect.height, radius });
-    }
-  });
-  let clipTop = top, clipBottom = top + height;
-  const clips = [...board.querySelectorAll<HTMLElement>('.column-content')];
-  columnScrolls.clear();
-  for (const clip of clips) {
-    const column = props.columns.findIndex(c => c.id === Number(clip.dataset.columnId));
-    if (column >= 0) columnScrolls.set(clip, { column, left: clip.scrollLeft, top: clip.scrollTop });
-  }
-  if (clips.length) {
-    const rects = clips.map(el => { nextObserved.add(el); return el.getBoundingClientRect(); });
-    clipTop = Math.max(top, Math.min(...rects.map(r => r.top - originY)));
-    clipBottom = Math.min(top + height, Math.max(...rects.map(r => r.bottom - originY)));
-  }
-  const sharedClip = boardGooClips.get(board);
-  if (sharedClip) { clipTop = top + sharedClip.top; clipBottom = top + sharedClip.bottom; }
-  for (const element of observed) if (!nextObserved.has(element)) { resizeObserver?.unobserve(element); observed.delete(element); }
-  for (const element of nextObserved) if (!observed.has(element)) { resizeObserver?.observe(element); observed.add(element); }
+  if (!geometry || !canvas.value || !context || !colourProbe.value) return;
+  const { cards, viewport } = geometry.measure(props.columns, props.floatingCards);
+  const { left, top, width, height } = viewport;
   const slicks = new Map(props.slicks.map(slick => [slick.id, slick]));
   const descriptors = buildSlickGooDescriptors(props.columns, slicks);
   appearances = [...new Map(descriptors.map(d => [d.groupKey, d])).values()].map(descriptor => {
@@ -138,19 +87,13 @@ function measure() {
   canvas.value.style.width = `${width}px`; canvas.value.style.height = `${height}px`;
   canvas.value.style.transform = `translate(${left}px, ${top}px)`;
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  measuredCards = cards;
-  viewport = { left, top, width, height, clipTop, clipBottom };
-  scene.update(measuredCards, appearances, viewport);
+  scene.update(cards, appearances, viewport);
   showNativeOutlines.value = props.mode === 'smooth' || (reducedMotion?.matches ?? false);
   if (showNativeOutlines.value) {
-    nativeColumns.value = [...columnScrolls].map(([element, scroll]) => {
-      const rect = element.getBoundingClientRect();
-      const x = rect.left + element.clientLeft - originX - element.scrollLeft;
-      const y = rect.top + element.clientTop - originY - element.scrollTop;
-      const local = cards.filter(card => card.column === scroll.column && !props.floatingCards.has(card.id))
-        .map(card => ({ ...card, centreX: card.centreX - x, centreY: card.centreY - y }));
-      return { index: scroll.column, element, outlines: smooth.columnOutlines(scroll.column, local, appearances) };
-    });
+    nativeColumns.value = geometry.localColumns(props.floatingCards).map(column => ({
+      index: column.index, element: column.element,
+      outlines: smooth.columnOutlines(column.index, column.cards, appearances)
+    }));
     smooth.retainColumns(new Set(nativeColumns.value.map(c => c.index)));
   }
   needsMeasurement = false;
@@ -165,7 +108,7 @@ function frame(_timestamp: number) {
   const simulate = props.mode === 'liquid' && !reducedMotion?.matches;
   if (simulate) scene.step(elapsed);
   if (simulate) scene.draw(context);
-  else if (viewport) smooth.draw(context, measuredCards, appearances, viewport, props.floatingCards);
+  else if (geometry?.viewport) smooth.draw(context, geometry.cards, appearances, geometry.viewport, props.floatingCards);
   canvas.value.dataset.outlineBuilds = String(smooth.outlineBuilds);
   const activity = scene.activity;
   const signature = JSON.stringify(activity);
@@ -191,7 +134,7 @@ watch(() => props.mode, () => { scene.pause(); last = 0; scheduleMeasurement(); 
 onMounted(() => {
   board = canvas.value!.parentElement;
   context = canvas.value!.getContext('2d');
-  resizeObserver = new ResizeObserver(scheduleMeasurement);
+  if (board) geometry = new BoardGooGeometry(board, scheduleMeasurement);
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   reducedMotion.addEventListener('change', motionPreferenceChanged);
   themeObserver = new MutationObserver(scheduleMeasurement);
@@ -205,7 +148,7 @@ onBeforeUnmount(() => {
   disposed = true;
   scene.dispose();
   if (frameId !== null) cancelAnimationFrame(frameId);
-  resizeObserver?.disconnect(); themeObserver?.disconnect();
+  geometry?.dispose(); themeObserver?.disconnect();
   board?.removeEventListener('scroll', onBoardScroll, true);
   window.removeEventListener('resize', scheduleMeasurement);
   document.removeEventListener('visibilitychange', visibilityChanged);
