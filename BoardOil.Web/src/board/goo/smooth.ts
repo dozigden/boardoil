@@ -1,5 +1,4 @@
-import { blendedOutline } from './surface';
-import type { SurfaceRect, Neck, Viewport, Outline, GooCard } from './types';
+import type { SurfaceRect, Neck, Outline, GooCard } from './types';
 // Placement and thickness stay explicit. Surface blending controls the organic
 // shoulders and multi-way intersections, without browser blur filters.
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -63,9 +62,4 @@ export function outlinePath(loops: Outline): Path2D {
 
 export function outlineSvg(loops: Outline): string {
   return loops.map(loop => `M${loop.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join('L')}Z`).join('');
-}
-
-export function buildOrganicPath(rects: SurfaceRect[], viewport: Viewport) {
-  const cards = rects.map(r => ({ x: r.x + 6, y: r.y + 6, width: r.width - 12, height: r.height - 12, column: r.column }));
-  return outlinePath(blendedOutline(cards, buildNecks(cards), viewport));
 }

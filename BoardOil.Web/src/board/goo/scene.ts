@@ -3,15 +3,13 @@ import { Settling } from './settling';
 import { LiquidResidency } from './liquidResidency';
 import { LiquidWorker, type SimulationWorker } from './liquidWorker';
 import { drawLiquids } from './liquidSurface';
-import { buildOrganicPath } from './smooth';
-import type { ExperimentalGooMode, GooCard, Viewport } from './types';
+import type { GooCard, Viewport } from './types';
 
 export type SlickAppearance = { id: number; name: string; colour: string };
 export type SlickActivity = SlickAppearance & { sleeping: boolean; limited: boolean };
 type Pool = { liquid: Liquid; membership: string; residency: LiquidResidency };
 
 export class GooScene {
-  private smoothPaths = new Map<number, { signature: string; path: Path2D }>();
   private cards = new Map<number, GooCard>();
   private pools = new Map<number, Pool>();
   private settling = new Settling(0, 0);
@@ -45,7 +43,7 @@ export class GooScene {
     this.settling.top = viewport.clipTop; this.settling.bottom = viewport.clipBottom;
     const obstacles = [...next.values()];
     const groups = new Set(obstacles.map(c => c.group).filter((id): id is number => id !== null));
-    for (const id of this.pools.keys()) if (!groups.has(id)) { this.pools.delete(id); this.smoothPaths.delete(id); }
+    for (const id of this.pools.keys()) if (!groups.has(id)) this.pools.delete(id);
     for (const id of groups) {
       const members = obstacles.filter(c => c.group === id);
       const membership = members.map(c => c.id).sort((a, b) => a - b).join(',');
@@ -121,45 +119,19 @@ export class GooScene {
       this.accumulator -= DT;
     }
   }
-  draw(ctx: CanvasRenderingContext2D, mode: ExperimentalGooMode, reducedMotion: boolean) {
+  draw(ctx: CanvasRenderingContext2D) {
     const viewport = this.viewport;
     ctx.clearRect(0, 0, viewport.width, viewport.height);
     ctx.save(); ctx.translate(-viewport.left, -viewport.top);
     ctx.beginPath(); ctx.rect(viewport.left, viewport.clipTop, viewport.width, Math.max(0, viewport.clipBottom - viewport.clipTop)); ctx.clip();
-    if (mode === 'liquid' && !reducedMotion) {
-      const entries = this.appearances.flatMap(appearance => {
-        const pool = this.pools.get(appearance.id);
-        if (!pool) return [];
-        return [{ id: appearance.id, liquid: pool.liquid, colour: appearance.colour,
-          sleeping: this.settling.sleeping(pool.liquid), revision: this.surfaceRevision }];
-      });
-      const outlines = drawLiquids(ctx, entries, viewport);
-      for (const [liquid, outline] of outlines) this.settling.observe(liquid, outline, liquid.steps * DT);
-      ctx.restore();
-      return;
-    }
-    for (const appearance of this.appearances) {
+    const entries = this.appearances.flatMap(appearance => {
       const pool = this.pools.get(appearance.id);
-      if (!pool) continue;
-      const liquid = pool.liquid;
-      if (mode === 'smooth' || reducedMotion) {
-        const rects = liquid.cards.filter(card => card.x + card.width / 2 >= viewport.left - 168 &&
-          card.x - card.width / 2 <= viewport.left + viewport.width + 168 &&
-          card.y + card.height / 2 >= viewport.clipTop - 168 && card.y - card.height / 2 <= viewport.clipBottom + 168)
-          .map(card => ({ x: card.x - card.width / 2 - 14, y: card.y - card.height / 2 - 14,
-            width: card.width + 28, height: card.height + 28, column: card.column }));
-        if (rects.length) {
-          const signature = JSON.stringify([rects, viewport]);
-          let cached = this.smoothPaths.get(appearance.id);
-          if (cached?.signature !== signature) {
-            cached = { signature, path: buildOrganicPath(rects, viewport) };
-            this.smoothPaths.set(appearance.id, cached);
-          }
-          ctx.fillStyle = appearance.colour;
-          ctx.fill(cached.path, 'evenodd');
-        }
-      }
-    }
+      if (!pool) return [];
+      return [{ id: appearance.id, liquid: pool.liquid, colour: appearance.colour,
+        sleeping: this.settling.sleeping(pool.liquid), revision: this.surfaceRevision }];
+    });
+    const outlines = drawLiquids(ctx, entries, viewport);
+    for (const [liquid, outline] of outlines) this.settling.observe(liquid, outline, liquid.steps * DT);
     ctx.restore();
   }
 }

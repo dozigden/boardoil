@@ -164,7 +164,7 @@ function frame(_timestamp: number) {
   if (needsMeasurement) measure();
   const simulate = props.mode === 'liquid' && !reducedMotion?.matches;
   if (simulate) scene.step(elapsed);
-  if (simulate) scene.draw(context, props.mode, false);
+  if (simulate) scene.draw(context);
   else if (viewport) smooth.draw(context, measuredCards, appearances, viewport, props.floatingCards);
   canvas.value.dataset.outlineBuilds = String(smooth.outlineBuilds);
   const activity = scene.activity;
