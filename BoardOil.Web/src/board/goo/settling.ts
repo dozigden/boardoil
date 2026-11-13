@@ -1,7 +1,10 @@
 import type { Outline } from './types';
 type Segment = [number, number, number, number];
 type Surface = { cells: Map<string, Segment[]>; points: [number, number, number][] };
-type SleepState = { sleeping: boolean; limited: boolean; awakeFor: number; anchor: Surface | null; since: number; checked: number };
+type SleepState = {
+  sleeping: boolean; limited: boolean; awakeFor: number; deferObservation: boolean;
+  anchor: Surface | null; since: number; checked: number;
+};
 // Compare the actual visible contour over a time window, not particle speeds.
 // An anchor prevents slow accumulated drift from looking like rest frame by frame.
 const CELL = 8, RMS_TOLERANCE = .3, PEAK_TOLERANCE = 1.25, WINDOW = .5, SAMPLE_INTERVAL = .1;
@@ -67,8 +70,9 @@ export class Settling {
     if (!this.states.has(liquid)) this.wake(liquid);
     return this.states.get(liquid)!;
   }
-  wake(liquid: object) {
-    this.states.set(liquid, { sleeping: false, limited: false, awakeFor: 0, anchor: null, since: 0, checked: -Infinity });
+  wake(liquid: object, deferObservation = false) {
+    this.states.set(liquid, { sleeping: false, limited: false, awakeFor: 0, deferObservation,
+      anchor: null, since: 0, checked: -Infinity });
   }
   sleeping(liquid: object) { return this.state(liquid).sleeping; }
   limited(liquid: object) { return this.state(liquid).limited; }
@@ -85,6 +89,9 @@ export class Settling {
     if (state.awakeFor >= MAX_AWAKE_SECONDS) {
       state.sleeping = true; state.limited = true; return;
     }
+    // Scrolling discards the anchor each frame, so wait for a quiet interval
+    // before constructing a comparison that can survive until the next sample.
+    if (state.deferObservation && state.awakeFor < SAMPLE_INTERVAL) return;
     if (time - state.checked < SAMPLE_INTERVAL) return;
     state.checked = time;
     const surface = visibleSurface(loops, this.top, this.bottom);

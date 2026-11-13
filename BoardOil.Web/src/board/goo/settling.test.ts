@@ -1,4 +1,4 @@
-import { test, expect } from 'vitest';
+import { test, expect, vi } from 'vitest';
 import type { Point } from './types';
 import { Settling } from './settling';
 
@@ -102,4 +102,39 @@ test('redrawing while paused does not spend the hard limit', () => {
   for (let i = 0; i < 100; i++) settling.observe(liquid, [rectangle()], 1);
   expect(settling.sleeping(liquid)).toBe(false);
   expect(settling.limited(liquid)).toBe(false);
+});
+
+test('continuous scrolling skips contour comparisons then starts a fresh settling window', () => {
+  const settling = new Settling(56, 520), liquid = {}, loops = [rectangle()];
+  const iterate = vi.spyOn(loops, Symbol.iterator);
+  for (let i = 0; i < 120; i++) {
+    settling.wake(liquid, true);
+    settling.advance(liquid, .016);
+    settling.observe(liquid, loops, i * .016);
+  }
+  expect(iterate).not.toHaveBeenCalled();
+  expect(settling.sleeping(liquid)).toBe(false);
+  settling.advance(liquid, .085);
+  settling.observe(liquid, loops, 2);
+  expect(iterate).toHaveBeenCalledOnce();
+  expect(settling.sleeping(liquid)).toBe(false);
+  settling.advance(liquid, .4);
+  settling.observe(liquid, loops, 2.4);
+  expect(settling.sleeping(liquid)).toBe(false);
+  settling.advance(liquid, .11);
+  settling.observe(liquid, loops, 2.51);
+  expect(settling.sleeping(liquid)).toBe(true);
+  expect(settling.limited(liquid)).toBe(false);
+});
+
+test('deferred observation does not spend its quiet interval while paused or bypass the hard limit', () => {
+  const settling = new Settling(56, 520), liquid = {}, loops = [rectangle()];
+  const iterate = vi.spyOn(loops, Symbol.iterator);
+  settling.wake(liquid, true);
+  for (let i = 0; i < 20; i++) settling.observe(liquid, loops, i);
+  expect(iterate).not.toHaveBeenCalled();
+  settling.advance(liquid, 10);
+  settling.observe(liquid, loops, 20);
+  expect(settling.sleeping(liquid)).toBe(true);
+  expect(settling.limited(liquid)).toBe(true);
 });

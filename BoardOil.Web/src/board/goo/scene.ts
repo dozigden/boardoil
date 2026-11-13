@@ -68,7 +68,7 @@ export class GooScene {
       pool.liquid.bounds = bounds;
       pool.residency.update(pool.liquid, { left: viewport.left - 120, right: viewport.left + viewport.width + 120,
         top: viewport.clipTop - 120, bottom: viewport.clipBottom + 120 });
-      if (geometryChanged || viewportChanged) this.settling.wake(pool.liquid);
+      if (geometryChanged || viewportChanged) this.settling.wake(pool.liquid, reason === 'scroll');
     }
   }
 
