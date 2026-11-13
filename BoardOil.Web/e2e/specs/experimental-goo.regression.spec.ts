@@ -61,8 +61,10 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
   });
   await test.step('sleep Liquid and preserve its frozen image through renderer changes', async () => {
     await picker.selectOption('liquid');
+    await expect(canvas).toHaveAttribute('data-simulation', 'worker');
     await expect(page.locator('.smooth-column-outline')).toHaveCount(0);
     await expect(canvas).toHaveAttribute('data-awake', '0', { timeout: 15_000 });
+    await expect(canvas).toHaveAttribute('data-simulation', 'worker');
     const image = await canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL());
     const renders = await canvas.getAttribute('data-render-count');
     await page.evaluate(() => new Promise<void>(resolve => {
@@ -119,6 +121,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
     await boardPage.open(board.id);
     await expect(picker).toHaveCount(0);
     await expect(canvas).toHaveCount(0);
+    await expect.poll(() => page.workers().filter(worker => worker.url().includes('liquid.worker')).length).toBe(0);
   });
   expect(errors).toEqual([]);
 });

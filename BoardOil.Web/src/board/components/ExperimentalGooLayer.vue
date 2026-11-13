@@ -15,6 +15,7 @@ import { boardGooClips } from '../utils/gooViewport';
 import { buildSlickGooDescriptors } from '../utils/slickGooAdapter';
 import { GooScene, type SlickActivity, type SlickAppearance } from '../goo/scene';
 import { SmoothLayers, type ColumnOutline } from '../goo/smoothLayers';
+import { createLiquidWorker } from '../goo/liquidWorker';
 import type { ExperimentalGooMode, GooCard, Viewport } from '../goo/types';
 
 const props = defineProps<{
@@ -27,7 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{ activity: [value: SlickActivity[]] }>();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const colourProbe = ref<HTMLElement | null>(null);
-const scene = new GooScene();
+const scene = new GooScene(createLiquidWorker, scheduleFrame);
 const smooth = new SmoothLayers();
 const nativeColumns = shallowRef<{ index: number; element: HTMLElement; outlines: ColumnOutline[] }[]>([]);
 const showNativeOutlines = ref(true);
@@ -53,7 +54,7 @@ function onBoardScroll(event: Event) {
     if (viewport.left === board.scrollLeft && viewport.top === board.scrollTop) return;
     viewport = { ...viewport, left: board.scrollLeft, top: board.scrollTop };
     canvas.value.style.transform = `translate(${viewport.left}px, ${viewport.top}px)`;
-    if (props.mode === 'liquid') scene.update(measuredCards, appearances, viewport);
+    if (props.mode === 'liquid') scene.update(measuredCards, appearances, viewport, 'scroll');
   } else {
     const scroller = event.target as HTMLElement;
     const previous = columnScrolls.get(scroller);
@@ -63,7 +64,7 @@ function onBoardScroll(event: Event) {
     measuredCards = measuredCards.map(card => card.column === previous.column && !props.floatingCards.has(card.id)
       ? { ...card, x: card.x + dx, y: card.y + dy } : card);
     previous.left = scroller.scrollLeft; previous.top = scroller.scrollTop;
-    if (props.mode === 'liquid') scene.update(measuredCards, appearances, viewport);
+    if (props.mode === 'liquid') scene.update(measuredCards, appearances, viewport, 'scroll');
   }
   if (props.mode === 'liquid' && !reducedMotion?.matches) {
     scheduleFrame();
@@ -172,19 +173,21 @@ function frame(_timestamp: number) {
   canvas.value.dataset.renderCount = String(++renders);
   canvas.value.dataset.awake = String(activity.filter(slick => !slick.sleeping).length);
   canvas.value.dataset.slicks = JSON.stringify(scene.diagnostics);
+  canvas.value.dataset.simulation = scene.simulationBackend;
   if (simulate && scene.awake) scheduleFrame();
   else last = 0;
 }
 function visibilityChanged() {
   last = 0;
   if (document.hidden) {
+    scene.pause();
     if (frameId !== null) cancelAnimationFrame(frameId);
     frameId = null;
   } else scheduleMeasurement();
 }
-function motionPreferenceChanged() { scene.wake(); last = 0; scheduleMeasurement(); }
+function motionPreferenceChanged() { scene.pause(); scene.wake(); last = 0; scheduleMeasurement(); }
 watch(() => [props.columns, props.slicks, props.layoutVersion, [...props.floatingCards]], scheduleMeasurement, { deep: true, flush: 'post' });
-watch(() => props.mode, () => { last = 0; scheduleMeasurement(); }, { flush: 'post' });
+watch(() => props.mode, () => { scene.pause(); last = 0; scheduleMeasurement(); }, { flush: 'post' });
 onMounted(() => {
   board = canvas.value!.parentElement;
   context = canvas.value!.getContext('2d');
@@ -200,6 +203,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   disposed = true;
+  scene.dispose();
   if (frameId !== null) cancelAnimationFrame(frameId);
   resizeObserver?.disconnect(); themeObserver?.disconnect();
   board?.removeEventListener('scroll', onBoardScroll, true);

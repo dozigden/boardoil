@@ -1,6 +1,7 @@
 import { cardDistance, DT, Liquid, liquidSettings } from './physics';
 import { Settling } from './settling';
 import { LiquidResidency } from './liquidResidency';
+import { LiquidWorker, type SimulationWorker } from './liquidWorker';
 import { drawLiquids } from './liquidSurface';
 import { buildOrganicPath } from './smooth';
 import type { ExperimentalGooMode, GooCard, Viewport } from './types';
@@ -16,9 +17,14 @@ export class GooScene {
   private settling = new Settling(0, 0);
   private appearances: SlickAppearance[] = [];
   private accumulator = 0;
+  private worker: LiquidWorker | null = null;
+  private revision = 0;
+  private simulationRunning = false;
   private viewport: Viewport = { left: 0, top: 0, width: 0, height: 0, clipTop: 0, clipBottom: 0 };
 
-  update(nextCards: GooCard[], appearances: SlickAppearance[], viewport: Viewport) {
+  constructor(private workerFactory?: () => SimulationWorker | null, private ready: () => void = () => {}) {}
+
+  update(nextCards: GooCard[], appearances: SlickAppearance[], viewport: Viewport, reason: 'layout' | 'scroll' = 'layout') {
     const previous = new Map([...this.cards].map(([id, card]) => [id, { ...card }]));
     const next = new Map(nextCards.map(card => [card.id, card]));
     const geometryChanged = next.size !== previous.size || nextCards.some(card => {
@@ -26,6 +32,7 @@ export class GooScene {
       return !old || Object.keys(card).some(key => card[key as keyof GooCard] !== old[key as keyof GooCard]);
     });
     const viewportChanged = Object.keys(viewport).some(key => viewport[key as keyof Viewport] !== this.viewport[key as keyof Viewport]);
+    if (reason !== 'scroll' && (geometryChanged || viewportChanged)) this.revision++;
     for (const card of nextCards) {
       const existing = this.cards.get(card.id);
       if (existing) { Object.assign(existing, card); next.set(card.id, existing); }
@@ -78,9 +85,35 @@ export class GooScene {
     for (const { liquid } of this.pools.values()) this.settling.wake(liquid);
     this.accumulator = 0;
   }
+  get simulationBackend() { return this.worker?.available ? 'worker' : 'main'; }
+  pause() {
+    this.simulationRunning = false;
+    this.worker?.cancel();
+    this.accumulator = 0;
+  }
+  dispose() { this.worker?.dispose(); }
   step(elapsed: number) {
+    this.simulationRunning = true;
     for (const { liquid } of this.pools.values()) this.settling.advance(liquid, elapsed);
     this.accumulator = Math.min(this.accumulator + elapsed, 4 * DT);
+    if (!this.worker && this.workerFactory) this.worker = new LiquidWorker(this.workerFactory, () => {
+      if (this.simulationRunning && this.awake) this.ready();
+    });
+    if (this.worker?.available) {
+      if (this.worker.busy) return;
+      const steps = Math.floor(this.accumulator / DT);
+      if (!steps) return;
+      const pools = new Map([...this.pools].filter(([, pool]) => !this.settling.sleeping(pool.liquid))
+        .map(([id, pool]) => [id, pool.liquid]));
+      if (!pools.size) return;
+      const revision = this.revision;
+      const submitted = this.worker.submit(pools, [...this.cards.values()], steps, (id, liquid) =>
+        this.revision === revision && this.pools.get(id)?.liquid === liquid && !this.settling.sleeping(liquid));
+      if (submitted) {
+        this.accumulator -= steps * DT;
+        return;
+      }
+    }
     while (this.accumulator >= DT) {
       for (const { liquid } of this.pools.values()) if (!this.settling.sleeping(liquid)) liquid.step(liquidSettings);
       this.accumulator -= DT;
