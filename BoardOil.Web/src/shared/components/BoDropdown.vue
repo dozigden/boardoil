@@ -35,6 +35,7 @@
         :role="panelRole"
         :aria-label="label"
         :style="panelStyle"
+        @keydown.escape.prevent.stop="close"
       >
         <div class="bo-dropdown-content">
           <slot :close="close" :open="isOpen" />

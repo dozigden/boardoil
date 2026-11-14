@@ -53,6 +53,7 @@ const {
   reassess,
   dirty,
   reset,
+  updateSavedValues,
   canSubmit,
   setValue,
   submit: submitForm
@@ -60,6 +61,7 @@ const {
   ...definition,
   isCurrent: () => active && (definition.isCurrent?.() ?? true)
 });
+defineExpose({ updateSavedValues });
 const submitLabel = computed(() => typeof definition.submitLabel === 'function'
   ? definition.submitLabel(draft.value) : definition.submitLabel);
 const feedback = ref<InstanceType<typeof FormFeedback> | null>(null);

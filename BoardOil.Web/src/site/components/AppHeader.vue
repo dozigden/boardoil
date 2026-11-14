@@ -39,6 +39,8 @@
           align="right"
           icon-only
           label="User menu"
+          panel-role="dialog"
+          popup="dialog"
           :icon="CircleUserRound"
         >
           <template #icon>
@@ -50,6 +52,24 @@
           </template>
           <template #default="{ close }">
             <RouterLink :to="{ name: 'user-admin-profile' }" class="bo-dropdown-item" @click="close">User settings</RouterLink>
+            <span class="bo-dropdown-divider" aria-hidden="true"></span>
+            <section class="user-menu-theme" aria-label="Theme">
+              <span class="user-menu-theme-label">Theme</span>
+              <div class="btn-tab-list" role="group" aria-label="Theme mode">
+                <button
+                  v-for="option in themeOptions"
+                  :key="option.value"
+                  type="button"
+                  class="btn btn--tab user-menu-theme-option"
+                  :class="{ 'is-active': themeStore.mode === option.value }"
+                  :aria-pressed="themeStore.mode === option.value"
+                  @click="themeStore.setMode(option.value)"
+                >
+                  <component :is="option.icon" :size="14" aria-hidden="true" />
+                  <span>{{ option.label }}</span>
+                </button>
+              </div>
+            </section>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" @click="handleLogout(close)">Logout</button>
           </template>
@@ -113,9 +133,9 @@
 </template>
 
 <script setup lang="ts">
-import { CircleUserRound, Settings } from '@lucide/vue';
+import { CircleUserRound, Monitor, Moon, Settings, Sun } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch, type Component } from 'vue';
 import { useRouter } from 'vue-router';
 import AboutDialog from './AboutDialog.vue';
 import AppUpdateBanner from './AppUpdateBanner.vue';
@@ -133,6 +153,7 @@ import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore'
 import { useBoardStore } from '../../board/stores/boardStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import { useAppUpdateStore } from '../../shared/stores/appUpdateStore';
+import { useThemeStore, type ThemeMode } from '../../shared/stores/themeStore';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
 
@@ -146,6 +167,12 @@ const aboutDialogOpen = ref(false);
 const systemInfoDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
+const themeStore = useThemeStore();
+const themeOptions: { value: ThemeMode; label: string; icon: Component }[] = [
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon }
+];
 const userProfileImageStore = useUserProfileImageStore();
 const boardCatalogueStore = useBoardCatalogueStore();
 const boardStore = useBoardStore();
@@ -242,6 +269,10 @@ watch(isAuthenticated, async authenticated => {
 </script>
 
 <style scoped>
+.user-menu-theme { display: grid; gap: 0.5rem; padding: 0.45rem 0.55rem; }
+.user-menu-theme-label { color: var(--bo-ink-muted); font-size: 0.85rem; }
+.user-menu-theme-option { gap: 0.3rem; }
+
 .app-header {
   margin: 0;
   padding: 1rem 1.5rem;

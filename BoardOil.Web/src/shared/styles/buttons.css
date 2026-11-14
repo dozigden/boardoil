@@ -100,6 +100,11 @@ button:disabled {
   --bo-btn-ink-hover: var(--bo-ink-on-brand);
 }
 
+:root[data-theme='dark'] .btn--tab.is-active {
+  --bo-btn-ink: var(--bo-mix-dark);
+  --bo-btn-ink-hover: var(--bo-mix-dark);
+}
+
 .btn-tab-list {
   display: inline-flex;
   align-items: center;

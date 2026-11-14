@@ -75,6 +75,32 @@ describe('form submission lifecycle', () => {
     expect(useValidationStore().validation).toBeNull();
   });
 
+  it('follows externally saved values while clean without sharing mutable drafts', () => {
+    const form = useForm(definition());
+    const values = { name: 'Saved elsewhere' };
+    form.updateSavedValues(values);
+    values.name = 'Changed outside the form';
+    expect(form.draft.value).toEqual({ name: 'Saved elsewhere' });
+    expect(form.dirty.value).toBe(false);
+    form.setValue('name', 'Local edit');
+    form.reset();
+    expect(form.draft.value).toEqual({ name: 'Saved elsewhere' });
+  });
+
+  it('preserves unsaved edits when external values change and resets to the latest saved baseline', () => {
+    const form = useForm(definition());
+    form.setValue('name', 'Unsaved edit');
+    form.updateSavedValues({ name: 'Saved elsewhere' });
+    expect(form.draft.value).toEqual({ name: 'Unsaved edit' });
+    expect(form.dirty.value).toBe(true);
+    form.setValue('name', 'Saved elsewhere');
+    expect(form.dirty.value).toBe(false);
+    form.setValue('name', 'Another edit');
+    form.reset();
+    expect(form.draft.value).toEqual({ name: 'Saved elsewhere' });
+    expect(form.dirty.value).toBe(false);
+  });
+
   it('adopts the saved response as the draft and reset baseline, retaining it after rejected edits', async () => {
     const config = definition();
     config.savedValues = value => ({ name: `Saved ${value}` });

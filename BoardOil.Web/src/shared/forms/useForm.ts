@@ -52,6 +52,13 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
     void runReassessment(true);
   }
 
+  function updateSavedValues(values: T) {
+    if (disposed || !isCurrent()) return;
+    const preserveDraft = dirty.value;
+    initial.value = clone(values);
+    if (!preserveDraft) draft.value = clone(values);
+  }
+
   async function runReassessment(updateBaseline = false) {
     if (!definition.reassess || locked.value || disposed || !isCurrent()) return;
     reassessing.value = true;
@@ -129,6 +136,7 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
     canSubmit,
     setValue,
     reset,
+    updateSavedValues,
     reassess,
     submit,
     runAction

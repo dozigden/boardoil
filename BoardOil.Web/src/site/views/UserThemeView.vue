@@ -1,5 +1,5 @@
 <template>
-  <FormPage :definition="form" class="user-theme-view"
+  <FormPage ref="formPage" :definition="form" class="user-theme-view"
     discard-message="You have unsaved theme changes. Discard them and leave?" @saved="themeSaved">
     <template #before-fields>
       <p class="user-theme-description">Choose how BoardOil should look for your account on this browser.</p>
@@ -13,15 +13,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, useTemplateRef, watch } from 'vue';
 import FormPage from '../../shared/forms/FormPage.vue';
-import { useThemeStore } from '../../shared/stores/themeStore';
+import { useThemeStore, type ThemeMode } from '../../shared/stores/themeStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { ok } from '../../shared/types/result';
 import { createUserThemeForm } from '../forms/userThemeForm';
 
 const themeStore = useThemeStore();
 const feedback = useUiFeedbackStore();
+const formPage = useTemplateRef<{ updateSavedValues: (values: { mode: ThemeMode }) => void }>('formPage');
 const activeThemeLabel = computed(() => themeStore.activeTheme === 'dark' ? 'Dark' : 'Light');
 const form = createUserThemeForm(themeStore.mode, async ({ mode }) => {
   themeStore.setMode(mode);
@@ -31,6 +32,8 @@ const form = createUserThemeForm(themeStore.mode, async ({ mode }) => {
 function themeSaved() {
   feedback.showToast('Saved successfully.');
 }
+
+watch(() => themeStore.mode, mode => formPage.value?.updateSavedValues({ mode }));
 </script>
 
 <style scoped>
