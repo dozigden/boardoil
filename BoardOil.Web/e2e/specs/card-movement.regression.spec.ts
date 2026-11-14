@@ -4,6 +4,7 @@ import { controlLayoutAnimations, seekLayoutAnimations } from '../support/layout
 import { holdCardMoveResponse } from '../support/cardMovementResponse';
 import { interceptBoardConnection } from '../support/boardRealtimeConnection';
 import { BoardPage } from '../ui/BoardPage';
+import { SelectionBridges } from '../ui/SelectionBridges';
 
 for (const renderer of ['full', 'lite']) {
   test(`realtime movement reorders cards and ${renderer} goo together`, async ({ api, authenticatedPage: page }) => {
@@ -179,7 +180,7 @@ for (const renderer of ['full', 'lite']) {
     });
   }
 
-  test(`selection goo restores on landing with ${renderer} rendering`, async ({ api, authenticatedPage: page }) => {
+  test(`selection Bridges follow travelling cards with ${renderer} slick rendering`, async ({ api, authenticatedPage: page }) => {
     const board = await api.createBoard(`Selected movement ${renderer}`);
     const moving = await api.createCard(board, 'Todo', 'Selected traveller');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -192,17 +193,14 @@ for (const renderer of ['full', 'lite']) {
     const floating = page.locator(`[data-moving-card-id="${moving.id}"]`);
     await expect(floating).toHaveCount(1);
     await seekLayoutAnimations(page, 0.5);
-    const selectionBlob = page.locator(`[data-goo-blob-id="selection-card-${moving.id}"]`);
-    if (renderer === 'full') {
-      await aligned(floating, selectionBlob);
-    } else {
-      await expect(selectionBlob).toHaveCount(0);
-    }
+    const selection = new SelectionBridges(page);
+    await expect.poll(() => selection.paintsAround(floating)).toBe(true);
     expect(await floating.evaluate(element => element.closest('.column-content') === null)).toBe(true);
     await seekLayoutAnimations(page, 1);
     await expect(floating).toHaveCount(0);
     await expect(bp.selectionModeCard('In Progress', 'Selected traveller')).toHaveAttribute('aria-checked', 'true');
-    await aligned(bp.selectionModeCard('In Progress', 'Selected traveller'), selectionBlob);
+    const selected = bp.selectionModeCard('In Progress', 'Selected traveller');
+    await expect.poll(() => selection.paintsAround(selected)).toBe(true);
   });
 }
 

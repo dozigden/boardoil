@@ -114,6 +114,10 @@ export class BoardOilApi {
     if (!response.ok() || !result.success) throw new Error('Column deletion failed.');
   }
 
+  public async renameColumn(boardId: number, columnId: number, title: string) {
+    return await this.put(`/api/boards/${boardId}/columns/${columnId}`, { title });
+  }
+
   public async deleteCards(boardId: number, cardIds: number[]) {
     return await this.post<{ deletedCount: number }>(`/api/boards/${boardId}/cards/delete`, { cardIds });
   }

@@ -21,14 +21,6 @@
         :groups="gooGroups"
         :blob-border-radius-px="gooBlobBorderRadiusPx"
       />
-      <GooLayer
-        v-if="gooRendererMode === 'full' && selectionGooGroup"
-        :goo-renderer-mode="gooRendererMode"
-        :groups="[selectionGooGroup]"
-        :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
-        layer-class="goo-layer--selection"
-        blob-class="goo-blob--selection"
-      />
       <div v-for="column in renderedColumns" :key="column.id" class="column-stack">
         <article
           class="column"
@@ -64,13 +56,6 @@
               :groups="gooGroupsByColumnId.get(column.id) ?? []"
               :blob-border-radius-px="gooBlobBorderRadiusPx"
               layer-class="goo-layer--column"
-            />
-            <LiteGooLayer
-              v-if="gooRendererMode === 'lite'"
-              :groups="selectionGooGroupsByColumnId.get(column.id) ?? []"
-              :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
-              layer-class="goo-layer--column goo-layer--selection"
-              blob-class="goo-blob--selection"
             />
             <Transition
               :css="false"
@@ -145,6 +130,14 @@
       :floating-cards="motion.floatingCards"
       :layout-version="motion.gooLayoutVersion.value"
     />
+    <SelectionBridgeLayer
+      v-if="isCardSelectionMode && selectedCardCount > 0 && boardElement"
+      :board="boardElement"
+      :columns="renderedColumns"
+      :selected-card-ids="selectedCardIds"
+      :floating-cards="motion.floatingCards"
+      :layout-version="motion.gooLayoutVersion.value"
+    />
   </div>
   <Teleport v-if="experimentalFeaturesEnabled" defer :to="`#${boardLayoutRegistry.headerContentTargetId}`">
     <div class="experimental-goo-picker">
@@ -173,6 +166,7 @@ import CreateCardInline from './CreateCardInline.vue';
 import CardEditorDialog from './CardEditorDialog.vue';
 import GooLayer from './GooLayer.vue';
 import ExperimentalGooLayer from './ExperimentalGooLayer.vue';
+import SelectionBridgeLayer from './SelectionBridgeLayer.vue';
 import ExperimentalFeatureIcon from '../../shared/components/ExperimentalFeatureIcon.vue';
 import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 import { useAuthStore } from '../../shared/stores/authStore';
@@ -226,7 +220,7 @@ const selectedCardCount = computed(() => selectedCardIds.value.length);
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 const gooRendererMode = resolveGooRendererMode();
 const boardElement = shallowRef<HTMLElement | null>(null);
-const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode, gooRendererMode,
+const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, gooRendererMode,
   computed(() => props.cardFilters), experimentalFeaturesEnabled);
 const {
   renderedColumns,
@@ -234,10 +228,7 @@ const {
   gooGroupsByColumnId,
   gooBlurStdDeviation,
   gooBlobBorderRadiusPx,
-  gooColorMatrixValues,
-  selectionGooGroup,
-  selectionGooGroupsByColumnId,
-  selectionGooBlobBorderRadiusPx
+  gooColorMatrixValues
 } = motion;
 const clipping = useBoardColumnClipping(renderedColumns, motion.gooLayoutVersion, motion.refreshGooLayout);
 watch(experimentalGooMode, motion.refreshGooLayout, { flush: 'post' });

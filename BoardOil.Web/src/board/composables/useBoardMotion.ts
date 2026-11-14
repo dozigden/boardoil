@@ -9,7 +9,6 @@ import { createBoardAnimationRunner } from '../utils/boardAnimationRunner';
 import type { GooRendererMode } from '../utils/gooRendererMode';
 import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
-import { buildSelectionGooDescriptors, buildSelectionGooMembershipSignature, createSelectionGooStyle } from '../utils/selectionGooAdapter';
 
 type LayoutChange = {
   columnIds: Set<number>;
@@ -26,8 +25,6 @@ export function useBoardMotion(
   columns: ComputedRef<BoardColumn[]>,
   cardIdsByColumnId: ComputedRef<CardIdsByColumn>,
   slicks: Ref<Slick[]>,
-  selectedCardIds: Ref<number[]>,
-  selectionMode: Ref<boolean>,
   gooRendererMode: GooRendererMode,
   filters: ComputedRef<CardSearchAndTagFilter>,
   experimentalGooEnabled: Ref<boolean> = computed(() => false)
@@ -55,8 +52,6 @@ export function useBoardMotion(
     }));
   });
   const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
-  const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
-  const selectionStyle = createSelectionGooStyle();
   const gooLayoutVersion = ref(0);
   const animationRunner = createBoardAnimationRunner(refreshGooLayout);
   onBeforeUnmount(animationRunner.dispose);
@@ -75,20 +70,8 @@ export function useBoardMotion(
     computed(() => buildSlickGooStyleSignature(slicks.value)),
     movement.floatingCards
   );
-  const selectionGoo = useGooLayer(
-    computed(() => {
-      if (!selectionMode.value) {
-        return [];
-      }
-      return buildSelectionGooDescriptors(gooColumns.value, selectedCardIdSet.value, selectionStyle.colour);
-    }),
-    computed(() => buildSelectionGooMembershipSignature(gooColumns.value, selectedCardIdSet.value, selectionMode.value)),
-    computed(() => selectionStyle.styleSignature),
-    movement.floatingCards
-  );
   function refreshGooLayout() {
     goo.refreshGooLayout();
-    selectionGoo.refreshGooLayout();
     gooLayoutVersion.value++;
   }
   const layoutAnimation = useCardLayoutAnimation(animationRunner);
@@ -293,7 +276,6 @@ export function useBoardMotion(
   function setBoardRef(element: unknown) {
     boardElement = element instanceof HTMLElement ? element : null;
     goo.setBoardRef(element);
-    selectionGoo.setBoardRef(element);
     movement.setBoardRef(element);
   }
 
@@ -311,7 +293,7 @@ export function useBoardMotion(
       return;
     }
     goo.scheduleGooStructureRefresh();
-    selectionGoo.scheduleGooStructureRefresh();
+    refreshGooLayout();
   }
 
   function draftEdited(columnId: number) {
@@ -394,10 +376,7 @@ export function useBoardMotion(
     gooGroupsByColumnId: goo.gooGroupsByColumnId,
     gooBlurStdDeviation: goo.gooBlurStdDeviation,
     gooBlobBorderRadiusPx: goo.gooBlobBorderRadiusPx,
-    gooColorMatrixValues: goo.gooColorMatrixValues,
-    selectionGooGroup: computed(() => selectionGoo.gooGroups.value[0] ?? null),
-    selectionGooGroupsByColumnId: selectionGoo.gooGroupsByColumnId,
-    selectionGooBlobBorderRadiusPx: selectionGoo.gooBlobBorderRadiusPx
+    gooColorMatrixValues: goo.gooColorMatrixValues
   };
 }
 

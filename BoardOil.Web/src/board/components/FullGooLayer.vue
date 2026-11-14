@@ -67,29 +67,4 @@ withDefaults(defineProps<{
   transform: translateY(-50%);
 }
 
-.goo-layer--selection {
-  z-index: 4;
-  animation: goo-selection-pulse 1.5s ease-in-out infinite alternate;
-}
-
-.goo-blob--selection {
-  background: var(--goo-colour);
-}
-
-@keyframes goo-selection-pulse {
-  from {
-    opacity: 0.34;
-  }
-
-  to {
-    opacity: 0.56;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .goo-layer--selection {
-    animation: none;
-    opacity: 0.7;
-  }
-}
 </style>
