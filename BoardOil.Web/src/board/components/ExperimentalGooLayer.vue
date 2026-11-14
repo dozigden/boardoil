@@ -19,6 +19,7 @@ import { createLiquidWorker } from '../goo/liquidWorker';
 import type { ExperimentalGooMode } from '../goo/types';
 
 const props = defineProps<{
+  board: HTMLElement;
   mode: ExperimentalGooMode;
   columns: BoardColumn[];
   slicks: Slick[];
@@ -47,7 +48,6 @@ function onBoardScroll(event: Event) {
   } else {
     if (!geometry.projectScroll(event.target, props.floatingCards)) return;
     const viewport = geometry.viewport;
-    if (event.target === board) canvas.value.style.transform = `translate(${viewport.left}px, ${viewport.top}px)`;
     if (props.mode === 'liquid') scene.update(geometry.cards, appearances, viewport, 'scroll');
   }
   if (props.mode === 'liquid' && !reducedMotion?.matches) {
@@ -70,7 +70,7 @@ function scheduleFrame() {
 function measure() {
   if (!geometry || !canvas.value || !context || !colourProbe.value) return;
   const { cards, viewport } = geometry.measure(props.columns, props.floatingCards);
-  const { left, top, width, height } = viewport;
+  const { width, height } = viewport;
   const slicks = new Map(props.slicks.map(slick => [slick.id, slick]));
   const descriptors = buildSlickGooDescriptors(props.columns, slicks);
   appearances = [...new Map(descriptors.map(d => [d.groupKey, d])).values()].map(descriptor => {
@@ -83,7 +83,6 @@ function measure() {
   if (canvas.value.width !== pixelWidth) canvas.value.width = pixelWidth;
   if (canvas.value.height !== pixelHeight) canvas.value.height = pixelHeight;
   canvas.value.style.width = `${width}px`; canvas.value.style.height = `${height}px`;
-  canvas.value.style.transform = `translate(${left}px, ${top}px)`;
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   scene.update(cards, appearances, viewport);
   showNativeOutlines.value = props.mode === 'smooth' || (reducedMotion?.matches ?? false);
@@ -128,7 +127,7 @@ function motionPreferenceChanged() { scene.pause(); scene.wake(); last = 0; sche
 watch(() => [props.columns, props.slicks, props.layoutVersion, [...props.floatingCards]], scheduleMeasurement, { deep: true, flush: 'post' });
 watch(() => props.mode, () => { scene.pause(); last = 0; scheduleMeasurement(); }, { flush: 'post' });
 onMounted(() => {
-  board = canvas.value!.parentElement;
+  board = props.board;
   context = canvas.value!.getContext('2d');
   if (board) geometry = new BoardGooGeometry(board, scheduleMeasurement);
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');

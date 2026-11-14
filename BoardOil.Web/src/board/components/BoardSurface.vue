@@ -13,136 +13,139 @@
     </defs>
   </svg>
 
-  <section class="board" :class="{ 'board--liquid': experimentalFeaturesEnabled && experimentalGooMode === 'liquid' }" :ref="setBoardRef">
+  <div class="board-viewport">
+    <section class="board" :class="{ 'board--liquid': experimentalFeaturesEnabled && experimentalGooMode === 'liquid' }" :ref="setBoardRef">
+      <GooLayer
+        v-if="!experimentalFeaturesEnabled && gooRendererMode === 'full'"
+        :goo-renderer-mode="gooRendererMode"
+        :groups="gooGroups"
+        :blob-border-radius-px="gooBlobBorderRadiusPx"
+      />
+      <GooLayer
+        v-if="gooRendererMode === 'full' && selectionGooGroup"
+        :goo-renderer-mode="gooRendererMode"
+        :groups="[selectionGooGroup]"
+        :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
+        layer-class="goo-layer--selection"
+        blob-class="goo-blob--selection"
+      />
+      <div v-for="column in renderedColumns" :key="column.id" class="column-stack">
+        <article
+          class="column"
+          :aria-label="`${column.title} column`"
+          @dragover.prevent="event => handleColumnDragOver(column.id, event)"
+          @drop.prevent="handleColumnDrop(column.id)"
+        >
+          <BoardColumnHeader
+            :column-id="column.id"
+            :title="column.title"
+            :count-label="formatColumnCardCount(getVisibleCardIds(column.id).length)"
+            :card-types="cardTypes"
+            :selection-mode="isCardSelectionMode"
+            :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
+            :disable-clear-visible="!canClearVisibleInColumn(column.id)"
+            @open-default-card-draft="openDefaultCardDraft"
+            @open-card-draft-for-type="openNewCardDraft"
+            @open-card-details="openCardDetails"
+            @select-all-visible="selectAllVisibleInColumn"
+            @clear-visible="clearVisibleInColumn"
+          />
+
+          <div
+            class="column-content"
+            :data-column-id="column.id"
+            :class="{
+              'column-content--drop-tail': isDropPoint(column.id, null),
+              'column-content--drop-head': isDropAtColumnStart(column.id)
+            }"
+          >
+            <LiteGooLayer
+              v-if="!experimentalFeaturesEnabled && gooRendererMode === 'lite'"
+              :groups="gooGroupsByColumnId.get(column.id) ?? []"
+              :blob-border-radius-px="gooBlobBorderRadiusPx"
+              layer-class="goo-layer--column"
+            />
+            <LiteGooLayer
+              v-if="gooRendererMode === 'lite'"
+              :groups="selectionGooGroupsByColumnId.get(column.id) ?? []"
+              :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
+              layer-class="goo-layer--column goo-layer--selection"
+              blob-class="goo-blob--selection"
+            />
+            <Transition
+              :css="false"
+              @enter="motion.creationTransition.enter"
+              @leave="motion.creationTransition.leave"
+              @enter-cancelled="motion.creationTransition.cancel"
+              @leave-cancelled="motion.creationTransition.cancel"
+            >
+              <div
+                v-if="newCardDrafts[column.id] !== undefined"
+                class="inline-card-slot"
+                :data-inline-column-id="column.id"
+              >
+                <CreateCardInline
+                  :title="newCardDrafts[column.id]?.title ?? ''"
+                  :card-type-id="newCardDrafts[column.id]?.cardTypeId ?? defaultCreateCardTypeId"
+                  :error-message="newCardDraftErrors[column.id] ?? ''"
+                  :input-ref="element => setNewCardDraftInput(column.id, element)"
+                  @update:title="title => updateNewCardDraftTitle(column.id, title)"
+                  @layout-change="motion.draftLayoutChanged"
+                  @save="saveNewCardDraft(column.id)"
+                  @cancel="closeNewCardDraft(column.id)"
+                />
+              </div>
+            </Transition>
+
+            <Card
+              v-for="(card, cardIndex) in column.cards"
+              :key="card.id"
+              :class="motion.resolveCardBoundaryClass(column.cards, cardIndex)"
+              :removing="motion.isRemovingCard(card.id)"
+              :board-id="boardId"
+              :card="card"
+              :thumbnail-attachment="cardAttachmentThumbnailStore.getForCard(card.id)"
+              :column-id="column.id"
+              :data-card-id="card.id"
+              :data-card-sort-key="card.sortKey"
+              :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
+              :selection-mode="isCardSelectionMode"
+              :selected="isCardSelected(card.id)"
+              :selected-count="selectedCardCount"
+              @start-drag="onCardDragStart"
+              @end-drag="onCardDragEnd"
+              @dragover.prevent.stop="(event: DragEvent) => onCardDragOver(column.id, card.id, event)"
+              @drop.prevent.stop="(event: DragEvent) => onCardDrop(column.id, card.id, event)"
+              @edit-card="editCard"
+              @toggle-select="toggleCardSelection"
+            />
+
+            <p v-if="hasActiveCardFilters && getVisibleCardIds(column.id).length === 0 && newCardDrafts[column.id] === undefined" class="column-filter-empty">
+              No matching cards.
+            </p>
+          </div>
+        </article>
+
+        <div
+          class="column-tail-drop-zone"
+          :class="{ 'column-tail-drop-zone--active': isDropPoint(column.id, null) }"
+          aria-hidden="true"
+          @dragover.prevent.stop="onColumnTailDragOver(column.id)"
+          @drop.prevent.stop="onColumnTailDrop(column.id)"
+        />
+      </div>
+      <div :ref="motion.setMovementLayerRef" class="card-motion-layer" aria-hidden="true" inert />
+    </section>
     <ExperimentalGooLayer
-      v-if="experimentalFeaturesEnabled"
+      v-if="experimentalFeaturesEnabled && boardElement"
+      :board="boardElement"
       :mode="experimentalGooMode"
       :columns="renderedColumns"
       :slicks="slicks"
       :floating-cards="motion.floatingCards"
       :layout-version="motion.gooLayoutVersion.value"
     />
-    <GooLayer
-      v-if="!experimentalFeaturesEnabled && gooRendererMode === 'full'"
-      :goo-renderer-mode="gooRendererMode"
-      :groups="gooGroups"
-      :blob-border-radius-px="gooBlobBorderRadiusPx"
-    />
-    <GooLayer
-      v-if="gooRendererMode === 'full' && selectionGooGroup"
-      :goo-renderer-mode="gooRendererMode"
-      :groups="[selectionGooGroup]"
-      :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
-      layer-class="goo-layer--selection"
-      blob-class="goo-blob--selection"
-    />
-    <div v-for="column in renderedColumns" :key="column.id" class="column-stack">
-      <article
-        class="column"
-        :aria-label="`${column.title} column`"
-        @dragover.prevent="event => handleColumnDragOver(column.id, event)"
-        @drop.prevent="handleColumnDrop(column.id)"
-      >
-        <BoardColumnHeader
-          :column-id="column.id"
-          :title="column.title"
-          :count-label="formatColumnCardCount(getVisibleCardIds(column.id).length)"
-          :card-types="cardTypes"
-          :selection-mode="isCardSelectionMode"
-          :disable-select-all="!canSelectAllVisibleInColumn(column.id)"
-          :disable-clear-visible="!canClearVisibleInColumn(column.id)"
-          @open-default-card-draft="openDefaultCardDraft"
-          @open-card-draft-for-type="openNewCardDraft"
-          @open-card-details="openCardDetails"
-          @select-all-visible="selectAllVisibleInColumn"
-          @clear-visible="clearVisibleInColumn"
-        />
-
-        <div
-          class="column-content"
-          :data-column-id="column.id"
-          :class="{
-            'column-content--drop-tail': isDropPoint(column.id, null),
-            'column-content--drop-head': isDropAtColumnStart(column.id)
-          }"
-        >
-          <LiteGooLayer
-            v-if="!experimentalFeaturesEnabled && gooRendererMode === 'lite'"
-            :groups="gooGroupsByColumnId.get(column.id) ?? []"
-            :blob-border-radius-px="gooBlobBorderRadiusPx"
-            layer-class="goo-layer--column"
-          />
-          <LiteGooLayer
-            v-if="gooRendererMode === 'lite'"
-            :groups="selectionGooGroupsByColumnId.get(column.id) ?? []"
-            :blob-border-radius-px="selectionGooBlobBorderRadiusPx"
-            layer-class="goo-layer--column goo-layer--selection"
-            blob-class="goo-blob--selection"
-          />
-          <Transition
-            :css="false"
-            @enter="motion.creationTransition.enter"
-            @leave="motion.creationTransition.leave"
-            @enter-cancelled="motion.creationTransition.cancel"
-            @leave-cancelled="motion.creationTransition.cancel"
-          >
-            <div
-              v-if="newCardDrafts[column.id] !== undefined"
-              class="inline-card-slot"
-              :data-inline-column-id="column.id"
-            >
-              <CreateCardInline
-                :title="newCardDrafts[column.id]?.title ?? ''"
-                :card-type-id="newCardDrafts[column.id]?.cardTypeId ?? defaultCreateCardTypeId"
-                :error-message="newCardDraftErrors[column.id] ?? ''"
-                :input-ref="element => setNewCardDraftInput(column.id, element)"
-                @update:title="title => updateNewCardDraftTitle(column.id, title)"
-                @layout-change="motion.draftLayoutChanged"
-                @save="saveNewCardDraft(column.id)"
-                @cancel="closeNewCardDraft(column.id)"
-              />
-            </div>
-          </Transition>
-
-          <Card
-            v-for="(card, cardIndex) in column.cards"
-            :key="card.id"
-            :class="motion.resolveCardBoundaryClass(column.cards, cardIndex)"
-            :removing="motion.isRemovingCard(card.id)"
-            :board-id="boardId"
-            :card="card"
-            :thumbnail-attachment="cardAttachmentThumbnailStore.getForCard(card.id)"
-            :column-id="column.id"
-            :data-card-id="card.id"
-            :data-card-sort-key="card.sortKey"
-            :drop-indicator="resolveCardDropIndicator(column.id, card.id)"
-            :selection-mode="isCardSelectionMode"
-            :selected="isCardSelected(card.id)"
-            :selected-count="selectedCardCount"
-            @start-drag="onCardDragStart"
-            @end-drag="onCardDragEnd"
-            @dragover.prevent.stop="(event: DragEvent) => onCardDragOver(column.id, card.id, event)"
-            @drop.prevent.stop="(event: DragEvent) => onCardDrop(column.id, card.id, event)"
-            @edit-card="editCard"
-            @toggle-select="toggleCardSelection"
-          />
-
-          <p v-if="hasActiveCardFilters && getVisibleCardIds(column.id).length === 0 && newCardDrafts[column.id] === undefined" class="column-filter-empty">
-            No matching cards.
-          </p>
-        </div>
-      </article>
-
-      <div
-        class="column-tail-drop-zone"
-        :class="{ 'column-tail-drop-zone--active': isDropPoint(column.id, null) }"
-        aria-hidden="true"
-        @dragover.prevent.stop="onColumnTailDragOver(column.id)"
-        @drop.prevent.stop="onColumnTailDrop(column.id)"
-      />
-    </div>
-    <div :ref="motion.setMovementLayerRef" class="card-motion-layer" aria-hidden="true" inert />
-  </section>
+  </div>
   <Teleport v-if="experimentalFeaturesEnabled" defer :to="`#${boardLayoutRegistry.headerContentTargetId}`">
     <div class="experimental-goo-picker">
       <ExperimentalFeatureIcon :size="20" />
@@ -162,7 +165,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, shallowRef, watch } from 'vue';
 import BoardColumnHeader from './BoardColumnHeader.vue';
 import Card from './Card.vue';
 import CreateCardInline from './CreateCardInline.vue';
@@ -221,7 +224,7 @@ const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 const selectedCardCount = computed(() => selectedCardIds.value.length);
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
 const gooRendererMode = resolveGooRendererMode();
-let boardElement: HTMLElement | null = null;
+const boardElement = shallowRef<HTMLElement | null>(null);
 const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, selectedCardIds, isCardSelectionMode, gooRendererMode,
   computed(() => props.cardFilters), experimentalFeaturesEnabled);
 const {
@@ -304,13 +307,13 @@ const {
 );
 
 function setBoardRef(element: unknown) {
-  boardElement = element instanceof HTMLElement ? element : null;
+  boardElement.value = element instanceof HTMLElement ? element : null;
   motion.setBoardRef(element);
   clipping.setBoardRef(element);
 }
 
 function focusCreatedCard(cardId: number) {
-  boardElement?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)?.focus({ preventScroll: true });
+  boardElement.value?.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)?.focus({ preventScroll: true });
 }
 
 function handleCrossColumnDrop(cardId: number) {
@@ -375,6 +378,15 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
   width: auto; height: 100%; margin: 0; font: inherit; color: inherit;
   background: var(--bo-surface-brand); border: 0;
   border-radius: 0 7px 7px 0; padding: .2rem .3rem;
+}
+
+.board-viewport {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .board {

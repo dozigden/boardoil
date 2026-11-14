@@ -1,5 +1,6 @@
 import { expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
+import { reportHorizontalOverscroll } from '../support/experimentalGooScrolling';
 
 test('experimental Smooth and Liquid follow the live board and stop when idle', async ({ api, authenticatedPage: page }) => {
   test.setTimeout(60_000);
@@ -112,7 +113,19 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
     await page.setViewportSize({ width: 700, height: 900 });
     const scrollLeft = await page.locator('section.board').evaluate(el => { el.scrollLeft = 180; return el.scrollLeft; });
     expect(scrollLeft).toBeGreaterThan(0);
-    await expect.poll(() => canvas.evaluate(el => el.style.transform)).toContain(`${scrollLeft}px`);
+    await expect.poll(async () => {
+      const canvasBounds = (await canvas.boundingBox())!;
+      const boardBounds = (await page.locator('section.board').boundingBox())!;
+      return { x: canvasBounds.x - boardBounds.x, y: canvasBounds.y - boardBounds.y };
+    }).toEqual({ x: 0, y: 0 });
+    for (const mode of ['smooth', 'liquid']) {
+      await picker.selectOption(mode);
+      await expect(canvas).toHaveAttribute('data-renderer', mode);
+      for (const direction of ['left', 'right'] as const) {
+        const range = await reportHorizontalOverscroll(page.locator('section.board'), direction);
+        expect(range.after, `${mode} ${direction} overscroll must not extend the board`).toBe(range.before);
+      }
+    }
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await picker.selectOption('smooth');
     await picker.selectOption('liquid');
