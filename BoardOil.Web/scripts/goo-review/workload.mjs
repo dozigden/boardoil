@@ -13,7 +13,7 @@ export function runWorkload(api, record = () => {}, measure = (_name, work) => w
     const cards = structuredClone(scene.cards);
     const groups = [...new Set(cards.map(card => card.group).filter(group => group !== null))];
     const appearances = groups.map(id => ({ id, name: `Pool ${id}`, colour: '#95d4aa' }));
-    const smooth = new api.SmoothLayers();
+    const bridges = new api.BridgeLayers();
     const pools = groups.map(id => {
       const members = cards.filter(card => card.group === id);
       const bounds = {
@@ -50,12 +50,12 @@ export function runWorkload(api, record = () => {}, measure = (_name, work) => w
         const surfaces = cards.filter(card => card.group === id).map(api.cardSurface);
         const necks = api.buildNecks(surfaces);
         record(`${key}/bridges/${id}`, necks);
-        const outline = measure('smooth outlines', () => api.blendedOutline(surfaces, necks, viewport));
-        record(`${key}/smooth/${id}`, outline);
+        const outline = measure('bridge outlines', () => api.blendedOutline(surfaces, necks, viewport));
+        record(`${key}/bridge-outlines/${id}`, outline);
       }
       for (const column of new Set(cards.map(card => card.column))) {
         const local = cards.filter(card => card.column === column);
-        const outlines = measure('column SVG', () => smooth.columnOutlines(column, local, appearances));
+        const outlines = measure('column SVG', () => bridges.columnOutlines(column, local, appearances));
         record(`${key}/column/${column}`, outlines);
       }
     }

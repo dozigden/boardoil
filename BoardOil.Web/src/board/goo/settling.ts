@@ -84,7 +84,7 @@ export class Settling {
     const state = this.state(liquid);
     if (state.sleeping) return;
     // Wall time spent running, independent of solver speed. Wake resets this;
-    // pausing, hiding the page and using Smooth do not spend the allowance.
+    // pausing, hiding the page and using Bridges do not spend the allowance.
     // Apply it after building the outline so the latest shape freezes in place.
     if (state.awakeFor >= MAX_AWAKE_SECONDS) {
       state.sleeping = true; state.limited = true; return;

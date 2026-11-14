@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { bridgePatches, SmoothLayers } from './smoothLayers';
-import { buildNecks } from './smooth';
+import { bridgePatches, BridgeLayers } from './bridgeLayers';
+import { buildNecks } from './bridges';
 import { blendedOutline } from './surface';
 import type { GooCard } from './types';
 
-describe('Smooth column outlines', () => {
+describe('Bridges column outlines', () => {
   it('retains inward side indents between vertically joined cards', () => {
     const cards = [100, 208].map(top => ({ left: 100, top, width: 300, height: 116, column: 0 }));
     const loops = blendedOutline(cards, [], { left: 0, top: 0, width: 500, height: 400, clipTop: 0, clipBottom: 400 });
@@ -17,7 +17,7 @@ describe('Smooth column outlines', () => {
   });
 
   it('reuses column-local shapes and invalidates them when card geometry changes', () => {
-    const renderer = new SmoothLayers();
+    const renderer = new BridgeLayers();
     const appearance = [{ id: 1, name: 'Slick', colour: '#95d4aa' }];
     const cards: GooCard[] = [{ id: 1, group: 1, centreX: 160, centreY: 100, width: 280, height: 100, radius: 12, column: 0 }];
     const first = renderer.columnOutlines(0, cards, appearance);

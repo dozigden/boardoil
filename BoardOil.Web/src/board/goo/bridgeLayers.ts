@@ -1,4 +1,4 @@
-import { buildNecks, cardSurface, outlinePath, outlineSvg } from './smooth';
+import { buildNecks, cardSurface, outlinePath, outlineSvg } from './bridges';
 import { blendedOutline } from './surface';
 import type { SlickAppearance } from './scene';
 import type { GooCard, Neck, SurfaceRect, Viewport } from './types';
@@ -37,7 +37,7 @@ function bounds(cards: SurfaceRect[]): Viewport {
   return { left, top, width: right - left, height: bottom - top, clipTop: top, clipBottom: bottom };
 }
 
-export class SmoothLayers {
+export class BridgeLayers {
   private columns = new Map<number, { signature: string; outlines: ColumnOutline[] }>();
   private bridges = new Map<number, { signature: string; paths: { path: Path2D; patch: Patch }[] }>();
   outlineBuilds = 0;

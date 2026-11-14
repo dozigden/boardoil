@@ -48,7 +48,7 @@ function loadGeometry(source) {
       const output = ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
       writeFileSync(join(temporary, name.replace(/\.ts$/, '.js')), output.outputText);
     }
-    const api = Object.assign({}, ...['physics', 'smooth', 'surface', 'smoothLayers', 'liquidSurface',
+    const api = Object.assign({}, ...['physics', 'bridges', 'surface', 'bridgeLayers', 'liquidSurface',
       'liquidResidency', 'liquidDensity', 'liquidCardSamples'].map(name => require(join(temporary, `${name}.js`))));
     return { api, cleanup, sourceHash: hash(JSON.stringify(sources)) };
   } catch (error) {

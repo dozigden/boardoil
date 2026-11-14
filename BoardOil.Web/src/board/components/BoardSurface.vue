@@ -150,7 +150,7 @@
     <div class="experimental-goo-picker">
       <ExperimentalFeatureIcon :size="20" />
       <select id="experimental-goo-mode" v-model="experimentalGooMode" aria-label="Goo renderer">
-        <option value="smooth">Smooth</option>
+        <option value="bridges">Bridges</option>
         <option value="liquid">Liquid</option>
       </select>
     </div>
@@ -209,8 +209,8 @@ const emit = defineEmits<{
 
 const boardLayoutRegistry = useBoardLayoutRegistry();
 const { experimentalFeaturesEnabled } = storeToRefs(useAuthStore());
-const experimentalGooMode = ref<ExperimentalGooMode>('smooth');
-watch(experimentalFeaturesEnabled, () => { experimentalGooMode.value = 'smooth'; });
+const experimentalGooMode = ref<ExperimentalGooMode>('bridges');
+watch(experimentalFeaturesEnabled, () => { experimentalGooMode.value = 'bridges'; });
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();

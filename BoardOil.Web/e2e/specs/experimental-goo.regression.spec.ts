@@ -2,7 +2,7 @@ import { expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
 import { reportHorizontalOverscroll } from '../support/experimentalGooScrolling';
 
-test('experimental Smooth and Liquid follow the live board and stop when idle', async ({ api, authenticatedPage: page }) => {
+test('experimental Bridges and Liquid follow the live board and stop when idle', async ({ api, authenticatedPage: page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -16,7 +16,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
   const canvas = page.locator('canvas.experimental-goo-layer');
   const header = page.locator('header').filter({ has: page.getByRole('button', { name: 'User menu', exact: true }) });
 
-  await test.step('opt in through the profile and get Smooth by default', async () => {
+  await test.step('opt in through the profile and get Bridges by default', async () => {
     await page.goto('/user-admin/profile');
     const optIn = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
     await expect(optIn).toBeVisible();
@@ -32,29 +32,30 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
     await page.getByRole('button', { name: 'Save profile', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
     await boardPage.open(board.id);
-    await expect(picker).toHaveValue('smooth');
+    await expect(picker).toHaveValue('bridges');
+    await expect(picker.getByRole('option', { name: 'Bridges', exact: true })).toHaveAttribute('value', 'bridges');
     await expect(header.getByRole('combobox', { name: 'Goo renderer', exact: true })).toBeVisible();
     await expect(header.getByRole('img', { name: 'Experimental feature', exact: true })).toBeVisible();
     const pickerBox = (await picker.boundingBox())!;
     const menuBox = (await header.getByRole('button', { name: 'User menu', exact: true }).boundingBox())!;
     expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(menuBox.x);
     await header.screenshot({ path: test.info().outputPath('renderer-header.png') });
-    await expect(canvas).toHaveAttribute('data-renderer', 'smooth');
+    await expect(canvas).toHaveAttribute('data-renderer', 'bridges');
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => {
       const pixels = el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data;
       return pixels.some((value, index) => index % 4 === 3 && value > 0);
     })).toBe(true);
-    await page.screenshot({ path: test.info().outputPath('board-smooth.png') });
+    await page.screenshot({ path: test.info().outputPath('board-bridges.png') });
   });
-  await test.step('scroll Smooth outlines with their cards without rebuilding them', async () => {
+  await test.step('scroll Bridges outlines with their cards without rebuilding them', async () => {
     const scroller = boardPage.column('Todo').locator('.column-content');
-    const outline = scroller.locator('.smooth-column-outline path').first();
+    const outline = scroller.locator('.bridge-column-outline path').first();
     await expect(outline).toHaveAttribute('d', /^M/);
     const d = await outline.getAttribute('d');
     const builds = await canvas.getAttribute('data-outline-builds');
     const renders = await canvas.getAttribute('data-render-count');
     const movement = await scroller.evaluate(el => {
-      const path = el.querySelector('.smooth-column-outline path')!;
+      const path = el.querySelector('.bridge-column-outline path')!;
       const card = el.querySelector('.card[data-card-id]')!;
       const pathTop = path.getBoundingClientRect().top, cardTop = card.getBoundingClientRect().top;
       el.scrollTop = 120;
@@ -70,7 +71,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
   await test.step('sleep Liquid and preserve its frozen image through renderer changes', async () => {
     await picker.selectOption('liquid');
     await expect(canvas).toHaveAttribute('data-simulation', 'worker');
-    await expect(page.locator('.smooth-column-outline')).toHaveCount(0);
+    await expect(page.locator('.bridge-column-outline')).toHaveCount(0);
     await expect(canvas).toHaveAttribute('data-awake', '0', { timeout: 15_000 });
     await expect(canvas).toHaveAttribute('data-simulation', 'worker');
     const image = await canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL());
@@ -81,8 +82,8 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
       requestAnimationFrame(frame);
     }));
     await expect(canvas).toHaveAttribute('data-render-count', renders!);
-    await picker.selectOption('smooth');
-    await expect(canvas).toHaveAttribute('data-renderer', 'smooth');
+    await picker.selectOption('bridges');
+    await expect(canvas).toHaveAttribute('data-renderer', 'bridges');
     await picker.selectOption('liquid');
     await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL())).toBe(image);
@@ -118,7 +119,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
       const boardBounds = (await page.locator('section.board').boundingBox())!;
       return { x: canvasBounds.x - boardBounds.x, y: canvasBounds.y - boardBounds.y };
     }).toEqual({ x: 0, y: 0 });
-    for (const mode of ['smooth', 'liquid']) {
+    for (const mode of ['bridges', 'liquid']) {
       await picker.selectOption(mode);
       await expect(canvas).toHaveAttribute('data-renderer', mode);
       for (const direction of ['left', 'right'] as const) {
@@ -127,10 +128,10 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
       }
     }
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await picker.selectOption('smooth');
+    await picker.selectOption('bridges');
     await picker.selectOption('liquid');
     await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
-    await expect(page.locator('.smooth-column-outline').first()).toBeAttached();
+    await expect(page.locator('.bridge-column-outline').first()).toBeAttached();
     await page.screenshot({ path: test.info().outputPath('board-reduced-motion.png') });
     await page.setViewportSize({ width: 375, height: 800 });
     await expect(picker).toBeVisible();

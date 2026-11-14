@@ -23,7 +23,7 @@ test('short columns open below the cards and regain scrolling at full height in 
   try {
     for (const experimental of [false, true]) {
       await setExperimental(experimental);
-      const modes = experimental ? ['smooth', 'liquid'] : ['full', 'lite'];
+      const modes = experimental ? ['bridges', 'liquid'] : ['full', 'lite'];
       for (const mode of modes) await test.step(mode, async () => {
         await page.setViewportSize({ width: 1440, height: 1000 });
         await page.goto(`/boards/${board.id}?gooRenderer=${mode === 'lite' ? 'lite' : 'full'}`);
