@@ -76,7 +76,7 @@
             />
             <section class="account-profile-experiments" aria-labelledby="current-experiments-heading">
               <h4 id="current-experiments-heading">Current experiments</h4>
-              <p>No experiments are currently running.</p>
+              <p>New slick rendering engine.</p>
             </section>
           </section>
         </div>

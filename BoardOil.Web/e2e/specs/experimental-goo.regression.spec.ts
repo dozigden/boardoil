@@ -16,7 +16,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
 
   await test.step('opt in through the profile and get Smooth by default', async () => {
     await page.goto('/user-admin/profile');
-    const optIn = page.getByRole('checkbox', { name: 'Experimental features', exact: true });
+    const optIn = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
     await expect(optIn).toBeVisible();
     if (await optIn.isChecked()) {
       await optIn.uncheck();
@@ -26,7 +26,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
     await boardPage.open(board.id);
     await expect(picker).toHaveCount(0);
     await page.goto('/user-admin/profile');
-    await page.getByRole('checkbox', { name: 'Experimental features', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Enable experimental features', exact: true }).check();
     await page.getByRole('button', { name: 'Save profile', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
     await boardPage.open(board.id);
@@ -115,7 +115,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
   });
   await test.step('opt out and restore the existing renderer', async () => {
     await page.goto('/user-admin/profile');
-    await page.getByRole('checkbox', { name: 'Experimental features', exact: true }).uncheck();
+    await page.getByRole('checkbox', { name: 'Enable experimental features', exact: true }).uncheck();
     await page.getByRole('button', { name: 'Save profile', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
     await boardPage.open(board.id);

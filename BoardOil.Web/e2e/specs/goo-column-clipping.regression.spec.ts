@@ -11,7 +11,7 @@ test('short columns open below the cards and regain scrolling at full height in 
   for (let i = 0; i < 4; i++) await api.createCard(board, 'In Progress', `Short column ${i}`, '', [], 'One slick');
   const boardPage = new BoardPage(page);
   await page.goto('/user-admin/profile');
-  const optIn = page.getByRole('checkbox', { name: 'Experimental features', exact: true });
+  const optIn = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
   const originallyEnabled = await optIn.isChecked();
   async function setExperimental(enabled: boolean) {
     await page.goto('/user-admin/profile');
