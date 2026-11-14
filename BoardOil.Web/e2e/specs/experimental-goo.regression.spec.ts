@@ -2,14 +2,14 @@ import { expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
 import { reportHorizontalOverscroll } from '../support/experimentalGooScrolling';
 
-test('experimental Bridges and Liquid follow the live board and stop when idle', async ({ api, authenticatedPage: page }) => {
+test('experimental None, Bridges and Liquid follow the live board and stop when idle', async ({ api, authenticatedPage: page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   const board = await api.createBoard('Experimental goo');
   await api.createSlick(board, 'Green pool');
-  const travelling = await api.createCard(board, 'Todo', 'Travelling card', '', [], 'Green pool');
   for (let i = 0; i < 12; i++) await api.createCard(board, 'Todo', `Stack card ${i}`, '', [], 'Green pool');
+  const travelling = await api.createCard(board, 'Todo', 'Travelling card', '', [], 'Green pool');
   await api.createCard(board, 'In Progress', 'Across the gap', '', [], 'Green pool');
   const boardPage = new BoardPage(page);
   const picker = page.getByRole('combobox', { name: 'Goo renderer', exact: true });
@@ -68,6 +68,45 @@ test('experimental Bridges and Liquid follow the live board and stop when idle',
     await expect(canvas).toHaveAttribute('data-outline-builds', builds!);
     await scroller.evaluate(el => { el.scrollTop = 0; });
   });
+  await test.step('keep merged outlines without cross-column bridges or Liquid work in None', async () => {
+    const outlines = page.locator('.bridge-column-outline path');
+    const shapes = await outlines.evaluateAll(paths => paths.map(path => path.getAttribute('d')));
+    await picker.selectOption('none');
+    await expect(canvas).toHaveAttribute('data-renderer', 'none');
+    await expect.poll(() => outlines.evaluateAll(paths => paths.map(path => path.getAttribute('d')))).toEqual(shapes);
+    await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => {
+      return el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data.some((value, index) => index % 4 === 3 && value > 0);
+    })).toBe(false);
+    expect(page.workers()).toHaveLength(0);
+    const diagnostics = JSON.parse((await canvas.getAttribute('data-slicks'))!) as { steps: number }[];
+    expect(diagnostics.every(slick => slick.steps === 0)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath('board-none.png') });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.screenshot({ path: test.info().outputPath('board-none-dark.png') });
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+    const target = board.columns.find(column => column.title === 'In Progress')!;
+    await Promise.all([
+      page.waitForFunction(() => {
+        if (!document.querySelector('[data-moving-card-id]')) return false;
+        const layer = document.querySelector<HTMLCanvasElement>('canvas.experimental-goo-layer')!;
+        return layer.getContext('2d')!.getImageData(0, 0, layer.width, layer.height).data
+          .some((value, index) => index % 4 === 3 && value > 0);
+      }),
+      api.moveCard(board.id, travelling.id, target.id)
+    ]);
+    await expect(boardPage.card('In Progress', 'Travelling card')).toBeVisible();
+    await expect(page.locator('[data-moving-card-id]')).toHaveCount(0);
+    await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => {
+      return el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data.some((value, index) => index % 4 === 3 && value > 0);
+    })).toBe(false);
+    await api.moveCard(board.id, travelling.id, board.columns.find(column => column.title === 'Todo')!.id);
+    await expect(boardPage.card('Todo', 'Travelling card')).toBeVisible();
+    await expect(page.locator('[data-moving-card-id]')).toHaveCount(0);
+    expect(page.workers()).toHaveLength(0);
+  });
   await test.step('sleep Liquid and preserve its frozen image through renderer changes', async () => {
     await picker.selectOption('liquid');
     await expect(canvas).toHaveAttribute('data-simulation', 'worker');
@@ -88,6 +127,19 @@ test('experimental Bridges and Liquid follow the live board and stop when idle',
     await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL())).toBe(image);
     await page.screenshot({ path: test.info().outputPath('board-liquid.png') });
+    const steps = JSON.parse((await canvas.getAttribute('data-slicks'))!) as { steps: number }[];
+    await picker.selectOption('none');
+    await expect(canvas).toHaveAttribute('data-renderer', 'none');
+    await expect(page.locator('.bridge-column-outline').first()).toBeAttached();
+    await page.evaluate(() => new Promise<void>(resolve => {
+      let remaining = 12;
+      function frame() { if (--remaining) requestAnimationFrame(frame); else resolve(); }
+      requestAnimationFrame(frame);
+    }));
+    expect((JSON.parse((await canvas.getAttribute('data-slicks'))!) as { steps: number }[]).map(slick => slick.steps))
+      .toEqual(steps.map(slick => slick.steps));
+    await picker.selectOption('liquid');
+    await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL())).toBe(image);
   });
   await test.step('scroll, move and filter cards while retaining the running solver', async () => {
     const before = JSON.parse((await canvas.getAttribute('data-slicks'))!) as { particles: number; steps: number }[];
@@ -119,7 +171,7 @@ test('experimental Bridges and Liquid follow the live board and stop when idle',
       const boardBounds = (await page.locator('section.board').boundingBox())!;
       return { x: canvasBounds.x - boardBounds.x, y: canvasBounds.y - boardBounds.y };
     }).toEqual({ x: 0, y: 0 });
-    for (const mode of ['bridges', 'liquid']) {
+    for (const mode of ['none', 'bridges', 'liquid']) {
       await picker.selectOption(mode);
       await expect(canvas).toHaveAttribute('data-renderer', mode);
       for (const direction of ['left', 'right'] as const) {

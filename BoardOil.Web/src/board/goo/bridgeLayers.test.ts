@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { bridgePatches, BridgeLayers } from './bridgeLayers';
 import { buildNecks } from './bridges';
 import { blendedOutline } from './surface';
@@ -40,5 +40,50 @@ describe('Bridges column outlines', () => {
     expect(patches[0].right).toBeLessThan(450);
     expect(bridgePatches([...necks, ...necks])).toEqual(patches);
     expect(buildNecks(cards.map(c => ({ ...c, column: 0 })))).toEqual([]);
+  });
+
+  it('removes cross-column patches in None while retaining coloured travelling-card outlines', () => {
+    class TestPath {
+      points: number[][] = [];
+      moveTo(x: number, y: number) { this.points.push([x, y]); }
+      lineTo(x: number, y: number) { this.points.push([x, y]); }
+      closePath() {}
+    }
+    vi.stubGlobal('Path2D', TestPath);
+    try {
+      const fill = vi.fn();
+      const rect = vi.fn();
+      const clearRect = vi.fn();
+      const context = { clearRect, save() {}, restore() {}, translate() {}, beginPath() {}, rect, clip() {}, fill,
+        fillStyle: '' } as unknown as CanvasRenderingContext2D;
+      const cards: GooCard[] = [0, 1].map(column => ({ id: column + 1, group: 1, centreX: 170 + column * 360,
+        centreY: 200, width: 280, height: 100, radius: 12, column }));
+      const appearances = [{ id: 1, name: 'Slick', colour: '#95d4aa' }];
+      const viewport = { left: 0, top: 0, width: 800, height: 600, clipTop: 60, clipBottom: 600 };
+      const renderer = new BridgeLayers();
+      renderer.draw(context, cards, appearances, viewport, new Map());
+      expect(fill).toHaveBeenCalled();
+
+      fill.mockClear();
+      renderer.draw(context, cards, appearances, viewport, new Map(), false);
+      expect(clearRect).toHaveBeenLastCalledWith(0, 0, 800, 600);
+      expect(fill).not.toHaveBeenCalled();
+
+      renderer.draw(context, cards, appearances, viewport, new Map([[1, {} as HTMLElement]]), false);
+      expect(fill).toHaveBeenCalledTimes(1);
+      expect(context.fillStyle).toBe(appearances[0].colour);
+      expect(rect).toHaveBeenCalledWith(0, 60, 800, 540);
+      const path = fill.mock.calls[0][0] as TestPath;
+      const xs = path.points.map(([x]) => x);
+      expect(Math.min(...xs)).toBeLessThan(30);
+      expect(Math.max(...xs)).toBeGreaterThan(310);
+      expect(Math.max(...xs)).toBeLessThan(390);
+
+      fill.mockClear();
+      renderer.draw(context, cards, appearances, viewport, new Map());
+      expect(fill).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

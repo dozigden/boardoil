@@ -84,8 +84,8 @@ function measure() {
   if (canvas.value.height !== pixelHeight) canvas.value.height = pixelHeight;
   canvas.value.style.width = `${width}px`; canvas.value.style.height = `${height}px`;
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  scene.update(cards, appearances, viewport);
-  showNativeOutlines.value = props.mode === 'bridges' || (reducedMotion?.matches ?? false);
+  if (props.mode !== 'none') scene.update(cards, appearances, viewport);
+  showNativeOutlines.value = props.mode !== 'liquid' || (reducedMotion?.matches ?? false);
   if (showNativeOutlines.value) {
     nativeColumns.value = geometry.localColumns(props.floatingCards).map(column => ({
       index: column.index, element: column.element,
@@ -105,7 +105,7 @@ function frame(_timestamp: number) {
   const simulate = props.mode === 'liquid' && !reducedMotion?.matches;
   if (simulate) scene.step(elapsed);
   if (simulate) scene.draw(context);
-  else if (geometry?.viewport) bridges.draw(context, geometry.cards, appearances, geometry.viewport, props.floatingCards);
+  else if (geometry?.viewport) bridges.draw(context, geometry.cards, appearances, geometry.viewport, props.floatingCards, props.mode !== 'none');
   canvas.value.dataset.outlineBuilds = String(bridges.outlineBuilds);
   const diagnostics = scene.diagnostics;
   canvas.value.dataset.renderCount = String(++renders);

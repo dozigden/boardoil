@@ -150,6 +150,7 @@
     <div class="experimental-goo-picker">
       <ExperimentalFeatureIcon :size="20" />
       <select id="experimental-goo-mode" v-model="experimentalGooMode" aria-label="Goo renderer">
+        <option value="none">None</option>
         <option value="bridges">Bridges</option>
         <option value="liquid">Liquid</option>
       </select>

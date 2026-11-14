@@ -70,7 +70,7 @@ export class BridgeLayers {
   }
 
   draw(ctx: CanvasRenderingContext2D, cards: GooCard[], appearances: SlickAppearance[], viewport: Viewport,
-    floating: ReadonlyMap<number, HTMLElement>) {
+    floating: ReadonlyMap<number, HTMLElement>, connectColumns = true) {
     ctx.clearRect(0, 0, viewport.width, viewport.height);
     ctx.save();
     ctx.translate(-viewport.left, -viewport.top);
@@ -82,7 +82,7 @@ export class BridgeLayers {
     for (const appearance of appearances) {
       const members = visible.filter(c => c.group === appearance.id);
       const surfaces = members.map(cardSurface);
-      const necks = buildNecks(surfaces);
+      const necks = connectColumns ? buildNecks(surfaces) : [];
       const signature = JSON.stringify([surfaces, necks, viewport, [...floating.keys()]]);
       let cached = this.bridges.get(appearance.id);
       if (cached?.signature !== signature) {
