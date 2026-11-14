@@ -145,7 +145,7 @@
   </section>
   <Teleport v-if="experimentalFeaturesEnabled" defer :to="`#${boardLayoutRegistry.headerContentTargetId}`">
     <div class="experimental-goo-picker">
-      <ExperimentalFeatureIcon :size="18" />
+      <ExperimentalFeatureIcon :size="20" />
       <select id="experimental-goo-mode" v-model="experimentalGooMode" aria-label="Goo renderer">
         <option value="smooth">Smooth</option>
         <option value="liquid">Liquid</option>
@@ -360,13 +360,21 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 
 <style scoped>
 .experimental-goo-picker {
-  display: flex; align-items: center; gap: .4rem; flex: 0 0 auto;
-  color: var(--bo-ink-default); font-size: .85rem;
+  display: flex; align-items: center; gap: .35rem; flex: 0 0 auto;
+  height: 2rem; box-sizing: border-box; padding-left: .4rem;
+  color: var(--bo-link); font-size: .85rem; font-weight: 650;
+  background: var(--bo-surface-brand);
+  border: 1px solid color-mix(in srgb, var(--bo-link) 55%, var(--bo-border-brand));
+  border-radius: 8px;
+}
+.experimental-goo-picker:focus-within {
+  border-color: var(--bo-focus-ring);
+  box-shadow: 0 0 0 2px var(--bo-focus-ring-shadow);
 }
 .experimental-goo-picker select {
-  width: auto; height: 2rem; margin: 0; font: inherit; color: inherit;
-  background: var(--bo-surface-panel); border: 1px solid var(--bo-border-soft);
-  border-radius: 6px; padding: .25rem .4rem;
+  width: auto; height: 100%; margin: 0; font: inherit; color: inherit;
+  background: var(--bo-surface-brand); border: 0;
+  border-radius: 0 7px 7px 0; padding: .2rem .3rem;
 }
 
 .board {
