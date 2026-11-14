@@ -32,6 +32,7 @@
         </button>
       </div>
       <div class="header-meta">
+        <slot name="board-controls" />
         <BoDropdown
           v-if="isAuthenticated"
           class="header-menu header-menu--user"

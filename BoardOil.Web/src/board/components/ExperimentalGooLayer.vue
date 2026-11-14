@@ -13,7 +13,7 @@ import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
 import { BoardGooGeometry } from '../goo/boardGeometry';
 import { buildSlickGooDescriptors } from '../utils/slickGooAdapter';
-import { GooScene, type SlickActivity, type SlickAppearance } from '../goo/scene';
+import { GooScene, type SlickAppearance } from '../goo/scene';
 import { SmoothLayers, type ColumnOutline } from '../goo/smoothLayers';
 import { createLiquidWorker } from '../goo/liquidWorker';
 import type { ExperimentalGooMode } from '../goo/types';
@@ -25,7 +25,6 @@ const props = defineProps<{
   floatingCards: ReadonlyMap<number, HTMLElement>;
   layoutVersion: number;
 }>();
-const emit = defineEmits<{ activity: [value: SlickActivity[]] }>();
 const canvas = ref<HTMLCanvasElement | null>(null);
 const colourProbe = ref<HTMLElement | null>(null);
 const scene = new GooScene(createLiquidWorker, scheduleFrame);
@@ -38,7 +37,6 @@ let geometry: BoardGooGeometry | null = null;
 let themeObserver: MutationObserver | null = null;
 let reducedMotion: MediaQueryList | null = null;
 let frameId: number | null = null, last = 0, needsMeasurement = true, renders = 0;
-let activitySignature = '';
 let disposed = false;
 let appearances: SlickAppearance[] = [];
 
@@ -110,12 +108,10 @@ function frame(_timestamp: number) {
   if (simulate) scene.draw(context);
   else if (geometry?.viewport) smooth.draw(context, geometry.cards, appearances, geometry.viewport, props.floatingCards);
   canvas.value.dataset.outlineBuilds = String(smooth.outlineBuilds);
-  const activity = scene.activity;
-  const signature = JSON.stringify(activity);
-  if (signature !== activitySignature) { activitySignature = signature; emit('activity', activity); }
+  const diagnostics = scene.diagnostics;
   canvas.value.dataset.renderCount = String(++renders);
-  canvas.value.dataset.awake = String(activity.filter(slick => !slick.sleeping).length);
-  canvas.value.dataset.slicks = JSON.stringify(scene.diagnostics);
+  canvas.value.dataset.awake = String(diagnostics.filter(slick => !slick.sleeping).length);
+  canvas.value.dataset.slicks = JSON.stringify(diagnostics);
   canvas.value.dataset.simulation = scene.simulationBackend;
   if (simulate && scene.awake) scheduleFrame();
   else last = 0;

@@ -6,7 +6,6 @@ import { drawLiquids } from './liquidSurface';
 import type { GooCard, Viewport } from './types';
 
 export type SlickAppearance = { id: number; name: string; colour: string };
-export type SlickActivity = SlickAppearance & { sleeping: boolean; limited: boolean };
 type Pool = { liquid: Liquid; membership: string; residency: LiquidResidency };
 
 export class GooScene {
@@ -71,12 +70,6 @@ export class GooScene {
   }
 
   get awake() { return [...this.pools.values()].some(pool => !this.settling.sleeping(pool.liquid)); }
-  get activity(): SlickActivity[] {
-    return this.appearances.filter(slick => this.pools.has(slick.id)).map(slick => {
-      const liquid = this.pools.get(slick.id)!.liquid;
-      return { ...slick, sleeping: this.settling.sleeping(liquid), limited: this.settling.limited(liquid) };
-    });
-  }
   get diagnostics() {
     return [...this.pools].map(([id, { liquid }]) => ({ id, steps: liquid.steps, particles: liquid.particles.length,
       sleeping: this.settling.sleeping(liquid), limited: this.settling.limited(liquid) }));

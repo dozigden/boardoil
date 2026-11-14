@@ -13,6 +13,7 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
   const boardPage = new BoardPage(page);
   const picker = page.getByRole('combobox', { name: 'Goo renderer', exact: true });
   const canvas = page.locator('canvas.experimental-goo-layer');
+  const header = page.locator('header').filter({ has: page.getByRole('button', { name: 'User menu', exact: true }) });
 
   await test.step('opt in through the profile and get Smooth by default', async () => {
     await page.goto('/user-admin/profile');
@@ -31,6 +32,12 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
     await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
     await boardPage.open(board.id);
     await expect(picker).toHaveValue('smooth');
+    await expect(header.getByRole('combobox', { name: 'Goo renderer', exact: true })).toBeVisible();
+    await expect(header.getByRole('img', { name: 'Experimental feature', exact: true })).toBeVisible();
+    const pickerBox = (await picker.boundingBox())!;
+    const menuBox = (await header.getByRole('button', { name: 'User menu', exact: true }).boundingBox())!;
+    expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(menuBox.x);
+    await header.screenshot({ path: test.info().outputPath('renderer-header.png') });
     await expect(canvas).toHaveAttribute('data-renderer', 'smooth');
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => {
       const pixels = el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data;
@@ -112,9 +119,19 @@ test('experimental Smooth and Liquid follow the live board and stop when idle', 
     await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
     await expect(page.locator('.smooth-column-outline').first()).toBeAttached();
     await page.screenshot({ path: test.info().outputPath('board-reduced-motion.png') });
+    await page.setViewportSize({ width: 375, height: 800 });
+    await expect(picker).toBeVisible();
+    await expect(header.getByRole('button', { name: 'User menu', exact: true })).toBeVisible();
+    const bounds = (await picker.boundingBox())!;
+    const userBounds = (await header.getByRole('button', { name: 'User menu', exact: true }).boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(userBounds.x);
+    expect(userBounds.x + userBounds.width).toBeLessThanOrEqual(375);
+    await header.screenshot({ path: test.info().outputPath('renderer-header-mobile.png') });
   });
   await test.step('opt out and restore the existing renderer', async () => {
     await page.goto('/user-admin/profile');
+    await expect(picker).toHaveCount(0);
     await page.getByRole('checkbox', { name: 'Enable experimental features', exact: true }).uncheck();
     await page.getByRole('button', { name: 'Save profile', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();

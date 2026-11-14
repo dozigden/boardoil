@@ -1,6 +1,10 @@
 <template>
   <section class="demo-layout">
-    <DemoHeader />
+    <DemoHeader>
+      <template #board-controls>
+        <div :id="registry.headerContentTargetId" class="demo-header-controls-target" />
+      </template>
+    </DemoHeader>
     <p v-if="errorMessage" class="error demo-error">{{ errorMessage }}</p>
 
     <section class="demo-conveyor-region">
@@ -97,6 +101,8 @@ function parseRouteIntParam(value: unknown) {
 </script>
 
 <style scoped>
+.demo-header-controls-target { display: contents; }
+
 .demo-layout {
   --bo-board-layout-inline-gutter: 1.5rem;
   --bo-board-scroll-inline-padding: 1.5rem;

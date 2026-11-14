@@ -21,7 +21,6 @@
       :slicks="slicks"
       :floating-cards="motion.floatingCards"
       :layout-version="motion.gooLayoutVersion.value"
-      @activity="updateSlickActivity"
     />
     <GooLayer
       v-if="!experimentalFeaturesEnabled && gooRendererMode === 'full'"
@@ -144,18 +143,15 @@
     </div>
     <div :ref="motion.setMovementLayerRef" class="card-motion-layer" aria-hidden="true" inert />
   </section>
-  <div v-if="experimentalFeaturesEnabled" class="experimental-goo-picker">
-    <label for="experimental-goo-mode">Goo</label>
-    <select id="experimental-goo-mode" v-model="experimentalGooMode" aria-label="Goo renderer">
-      <option value="smooth">Smooth</option>
-      <option value="liquid">Liquid</option>
-    </select>
-    <span v-if="experimentalGooMode === 'liquid'" class="slick-activity" role="group" aria-label="Slick activity">
-      <span v-for="slick in slickActivity" :key="slick.id" class="slick-indicator"
-        :class="{ 'slick-indicator--sleeping': slick.sleeping }" :style="{ '--slick-colour': slick.colour }"
-        role="img" :aria-label="slickActivityLabel(slick)" :title="slickActivityLabel(slick)" />
-    </span>
-  </div>
+  <Teleport v-if="experimentalFeaturesEnabled" defer :to="`#${boardLayoutRegistry.headerContentTargetId}`">
+    <div class="experimental-goo-picker">
+      <ExperimentalFeatureIcon :size="18" />
+      <select id="experimental-goo-mode" v-model="experimentalGooMode" aria-label="Goo renderer">
+        <option value="smooth">Smooth</option>
+        <option value="liquid">Liquid</option>
+      </select>
+    </div>
+  </Teleport>
   <CardEditorDialog
     v-if="detailedCardDraft"
     :create-draft="detailedCardDraft"
@@ -173,9 +169,10 @@ import CreateCardInline from './CreateCardInline.vue';
 import CardEditorDialog from './CardEditorDialog.vue';
 import GooLayer from './GooLayer.vue';
 import ExperimentalGooLayer from './ExperimentalGooLayer.vue';
+import ExperimentalFeatureIcon from '../../shared/components/ExperimentalFeatureIcon.vue';
+import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
 import { useAuthStore } from '../../shared/stores/authStore';
 import type { ExperimentalGooMode } from '../goo/types';
-import type { SlickActivity } from '../goo/scene';
 import LiteGooLayer from './LiteGooLayer.vue';
 import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
 import { useBoardInlineCreation } from '../composables/useBoardInlineCreation';
@@ -207,16 +204,10 @@ const emit = defineEmits<{
   'clear-visible': [columnId: number];
 }>();
 
+const boardLayoutRegistry = useBoardLayoutRegistry();
 const { experimentalFeaturesEnabled } = storeToRefs(useAuthStore());
 const experimentalGooMode = ref<ExperimentalGooMode>('smooth');
-const slickActivity = ref<SlickActivity[]>([]);
-watch(experimentalFeaturesEnabled, () => { experimentalGooMode.value = 'smooth'; slickActivity.value = []; });
-function updateSlickActivity(activity: SlickActivity[]) { slickActivity.value = activity; }
-function slickActivityLabel(slick: SlickActivity) {
-  if (!slick.sleeping) return `${slick.name} · active`;
-  if (slick.limited) return `${slick.name} · sleeping · 10s limit`;
-  return `${slick.name} · sleeping`;
-}
+watch(experimentalFeaturesEnabled, () => { experimentalGooMode.value = 'smooth'; });
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
@@ -369,16 +360,14 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 
 <style scoped>
 .experimental-goo-picker {
-  position: fixed; right: 1.5rem; bottom: 5rem; z-index: 20;
-  display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; max-width: calc(100vw - 3rem);
-  padding: .5rem .7rem; border: 1px solid var(--bo-border-soft); border-radius: 12px;
-  background: var(--bo-surface-panel); color: var(--bo-text); box-shadow: 0 3px 14px #0003; font-size: .8rem;
+  display: flex; align-items: center; gap: .4rem; flex: 0 0 auto;
+  color: var(--bo-ink-default); font-size: .85rem;
 }
-.experimental-goo-picker select { width: auto; font: inherit; color: inherit; background: var(--bo-surface-panel); border: 1px solid var(--bo-border-soft); border-radius: 6px; padding: .25rem .4rem; }
-.experimental-goo-picker label { margin: 0; }
-.slick-activity { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-.slick-indicator { width: 16px; height: 16px; border-radius: 50%; background: var(--slick-colour); border: 2px solid #effff5; box-shadow: 0 0 9px var(--slick-colour); }
-.slick-indicator--sleeping { transform: scale(.5); opacity: .3; border-color: var(--slick-colour); box-shadow: none; }
+.experimental-goo-picker select {
+  width: auto; height: 2rem; margin: 0; font: inherit; color: inherit;
+  background: var(--bo-surface-panel); border: 1px solid var(--bo-border-soft);
+  border-radius: 6px; padding: .25rem .4rem;
+}
 
 .board {
   --column-min-width: 280px;

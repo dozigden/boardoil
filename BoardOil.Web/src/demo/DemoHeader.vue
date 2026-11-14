@@ -6,6 +6,7 @@
       <span class="demo-board-name">{{ board?.name ?? 'Interactive preview' }}</span>
     </div>
     <div class="demo-actions">
+      <slot name="board-controls" />
       <span class="demo-local-label">Refresh to reset</span>
       <button
         type="button"
