@@ -6,7 +6,9 @@
       <span class="demo-board-name">{{ board?.name ?? 'Interactive preview' }}</span>
     </div>
     <div class="demo-actions">
-      <slot name="board-controls" />
+      <select class="demo-slick-effect" aria-label="Slick effect" :value="slickEffect" @change="changeSlickEffect">
+        <option v-for="option in slickEffectOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+      </select>
       <span class="demo-local-label">Refresh to reset</span>
       <button
         type="button"
@@ -65,12 +67,20 @@ import { resetDemoData } from './demoBoardApi';
 import DemoLicencesDialog from './DemoLicencesDialog.vue';
 import { demoResetVersion } from './demoReset';
 import { activeDemoTheme, toggleDemoTheme } from './demoTheme';
+import { useSlickEffectStore } from '../shared/stores/slickEffectStore';
+import { slickEffectOptions, type SlickEffect } from '../shared/types/slickEffect';
 
 const boardStore = useBoardStore();
+const slickEffectStore = useSlickEffectStore();
+const { effect: slickEffect } = storeToRefs(slickEffectStore);
 const { board } = storeToRefs(boardStore);
 const licencesOpen = ref(false);
 const isResetting = ref(false);
 const themeButtonLabel = computed(() => activeDemoTheme.value === 'dark' ? 'Use light mode' : 'Use dark mode');
+
+function changeSlickEffect(event: Event) {
+  slickEffectStore.setEffect((event.target as HTMLSelectElement).value as SlickEffect);
+}
 
 async function resetPreview() {
   if (isResetting.value) {
@@ -142,6 +152,15 @@ async function resetPreview() {
   gap: 0.35rem;
 }
 
+.demo-slick-effect {
+  min-height: 2.25rem;
+  padding: 0.35rem;
+  color: var(--bo-ink-default);
+  background: var(--bo-surface-base);
+  border: 1px solid var(--bo-border-default);
+  border-radius: 8px;
+}
+
 @media (max-width: 760px) {
   .demo-header {
     min-height: 3.5rem;
@@ -178,7 +197,7 @@ async function resetPreview() {
   }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .demo-board-name {
     display: none;
   }

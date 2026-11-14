@@ -32,7 +32,6 @@
         </button>
       </div>
       <div class="header-meta">
-        <slot name="board-controls" />
         <BoDropdown
           v-if="isAuthenticated"
           class="header-menu header-menu--user"
@@ -53,12 +52,14 @@
           <template #default="{ close }">
             <RouterLink :to="{ name: 'user-admin-profile' }" class="bo-dropdown-item" @click="close">User settings</RouterLink>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
-            <section class="user-menu-theme" aria-label="Theme">
-              <span class="user-menu-theme-label">Theme</span>
-              <div class="btn-tab-list" role="group" aria-label="Theme mode">
+            <section class="user-menu-preference" aria-label="Appearance">
+              <span class="user-menu-preference-label">Appearance</span>
+              <div class="btn-tab-list" role="group" aria-label="Appearance">
                 <button
                   v-for="option in themeOptions"
                   :key="option.value"
+                  :aria-label="option.label"
+                  :title="option.label"
                   type="button"
                   class="btn btn--tab user-menu-theme-option"
                   :class="{ 'is-active': themeStore.mode === option.value }"
@@ -68,6 +69,20 @@
                   <component :is="option.icon" :size="14" aria-hidden="true" />
                   <span>{{ option.label }}</span>
                 </button>
+              </div>
+            </section>
+            <section class="user-menu-preference" aria-label="Slick effect">
+              <span class="user-menu-preference-label">Slick effect</span>
+              <div class="btn-tab-list" role="group" aria-label="Slick effect">
+                <button
+                  v-for="option in slickEffectOptions"
+                  :key="option.value"
+                  type="button"
+                  class="btn btn--tab"
+                  :class="{ 'is-active': slickEffectStore.effect === option.value }"
+                  :aria-pressed="slickEffectStore.effect === option.value"
+                  @click="slickEffectStore.setEffect(option.value)"
+                >{{ option.label }}</button>
               </div>
             </section>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
@@ -154,6 +169,8 @@ import { useBoardStore } from '../../board/stores/boardStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import { useAppUpdateStore } from '../../shared/stores/appUpdateStore';
 import { useThemeStore, type ThemeMode } from '../../shared/stores/themeStore';
+import { useSlickEffectStore } from '../../shared/stores/slickEffectStore';
+import { slickEffectOptions } from '../../shared/types/slickEffect';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
 
@@ -168,6 +185,7 @@ const systemInfoDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 const themeStore = useThemeStore();
+const slickEffectStore = useSlickEffectStore();
 const themeOptions: { value: ThemeMode; label: string; icon: Component }[] = [
   { value: 'system', label: 'System', icon: Monitor },
   { value: 'light', label: 'Light', icon: Sun },
@@ -269,8 +287,8 @@ watch(isAuthenticated, async authenticated => {
 </script>
 
 <style scoped>
-.user-menu-theme { display: grid; gap: 0.5rem; padding: 0.45rem 0.55rem; }
-.user-menu-theme-label { color: var(--bo-ink-muted); font-size: 0.85rem; }
+.user-menu-preference { display: grid; gap: 0.5rem; padding: 0.45rem 0.55rem; }
+.user-menu-preference-label { color: var(--bo-ink-muted); font-size: 0.85rem; }
 .user-menu-theme-option { gap: 0.3rem; }
 
 .app-header {

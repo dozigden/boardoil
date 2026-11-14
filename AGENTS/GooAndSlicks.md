@@ -15,13 +15,10 @@ Read this before changing slick grouping visuals in `BoardOil.Web`.
 
 ## Source of Truth and Flow
 
-1. Board cards + slick catalogue are loaded into stores.
-2. `useBoardMotion(...)` builds goo descriptors from filtered columns supplied by `BoardSurface.vue`:
-   - `buildSlickGooDescriptors(...)`
-   - `buildSlickGooMembershipSignature(...)`
-   - `buildSlickGooStyleSignature(...)`
-3. `useGooLayer(...)` tracks card DOM geometry and emits `gooGroups`.
-4. `BoardSurface.vue` renders goo groups/blobs in `.goo-layer` behind cards.
+1. Board cards and the slick catalogue are loaded into stores.
+2. `useBoardMotion(...)` supplies the filtered presentation columns, layout version and floating-card overrides.
+3. `BoardGooGeometry` measures the rendered DOM and projects ordinary scrolling from cached coordinates.
+4. `SlickGooLayer.vue` renders the browser's None, Bridges or Liquid preference. `SelectionBridgeLayer.vue` renders selection independently.
 
 `BoardView.vue` owns screen-level filters, selection actions and dialogs. `BoardSurface.vue` owns board rendering and drag interaction. `useBoardInlineCreation(...)` owns draft/focus/validation/save state and uses semantic creation lifecycle operations on `useBoardMotion(...)`; DOM lookup, handoff sequencing and animation-to-goo updates stay inside the motion layer. Low-level box effects for creation, editor handoff and removal remain in `useCardLayoutAnimation(...)`.
 
@@ -35,13 +32,13 @@ The motion layer uses one watcher for canonical membership/order, filtered sourc
 
 Saved-card content edits join that same layout pass, with or without slick membership. Compare title, card type, tag membership/order, assignee display name and checklist counts before rendering, then animate only actual height differences. Ordinary resizing changes only height so CSS boundary margins stay intact; editor handoff separately interpolates from its slot's zero bottom margin to the card's natural margin. Interrupted effects keep their existing completion callbacks and retarget from the displayed box. Neighbours, column heights and goo share the same timing. Duplicate HTTP/realtime content, unchanged heights, initial mounting and filter reveals stay immediate. Effective filter changes finish saved-card box effects while preserving inline-editor transitions. Restore captured scroll after starting height effects as well as before measurement, because a natural shrink can clamp the scroller until its old height is reinstated. Catalogue-only label changes and asynchronous thumbnail loading remain immediate in this slice.
 
-Canonical card removal uses `useBoardCardRemovals(...)` to retain visible departing card snapshots only in the presentation projection. Local delete, archive/transfer and realtime removal share this path without delaying stores or repeating HTTP/realtime effects. A departing card is inert, excluded from counts, selection and drop targets, and retains its displayed thumbnail until collapse finishes. Slick goo follows the retained geometry in both renderers; a card already floating keeps the established Full/Lite travel behaviour. Live cards use their final slick-boundary classes while retained cards keep their prior boundary classes. Each projected column array owns a precomputed boundary map, so repeated goo-driven renders use constant-time class lookups; live-card order and slick-membership changes create a fresh projection. Removal collapses height, padding, margins and opacity; horizontal borders are temporarily painted as inset shadows to avoid the browser's minimum 1px border producing a final 2px jump. The coordinator recalculates disappearing flex-gap compensation on interruption, including when subsequent removals empty a column. Changes to effective filter values settle movement and departing snapshots immediately (catalogue refreshes that recreate equivalent filter objects do not); reduced motion skips retention or finishes active effects. Teardown clears presentation state and effects.
+Canonical card removal uses `useBoardCardRemovals(...)` to retain visible departing card snapshots only in the presentation projection. Local delete, archive/transfer and realtime removal share this path without delaying stores or repeating HTTP/realtime effects. A departing card is inert, excluded from counts, selection and drop targets, and retains its displayed thumbnail until collapse finishes. Slick goo follows the retained geometry in all effects; a card already floating keeps the established floating-card travel behaviour. Live cards use their final slick-boundary classes while retained cards keep their prior boundary classes. Each projected column array owns a precomputed boundary map, so repeated goo-driven renders use constant-time class lookups; live-card order and slick-membership changes create a fresh projection. Removal collapses height, padding, margins and opacity; horizontal borders are temporarily painted as inset shadows to avoid the browser's minimum 1px border producing a final 2px jump. The coordinator recalculates disappearing flex-gap compensation on interruption, including when subsequent removals empty a column. Changes to effective filter values settle movement and departing snapshots immediately (catalogue refreshes that recreate equivalent filter objects do not); reduced motion skips retention or finishes active effects. Teardown clears presentation state and effects.
 
 `useBoardMotion` batches layout work for the current render. Before rendering it captures displayed movement geometry and unfinished box-effect styles before cancelling either effect. After rendering it prepares all creation effects and temporarily applies their final styles to measure final destinations/column heights, then restores the styles and starts creation. Same-column transforms are calculated against creation's starting layout so growing space is not counted twice; floating cards and column heights use the measured final layout. Interrupted effects retarget from their displayed positions over a fresh 200 ms. Draft opening/cancellation and saved-card handoff join this same pass through semantic calls from inline creation; focus and typing remain immediate. The movement snapshot also captures column scroll offsets before rendering. Restore those offsets before preparing effects unless a newly focused input has intentionally revealed a different viewport, and restore scrolled ancestors after temporary endpoint styles are removed, so native scroll anchoring/clamping cannot move the starting viewport. Queued scroll events with an unchanged restored offset do not settle movement; changed offsets retain the normal scroll-settling behaviour. Pending work is discarded on teardown.
 
 Movement detection uses canonical column membership/order, independently of filtering. `findMovedColumns` compares cards present in both snapshots so creation/removal alone and duplicate HTTP/realtime delivery do not trigger movement. Creation effects prepare their geometry separately from playback; unfinished effects retain their completion callback and can rebind to a remounted card after crossing columns.
 
-Within-column effects transform the real card. Cross-column effects use an inert floating copy in the board's motion layer while the real destination card reserves its layout space. Column heights animate with their cards so shrinking columns do not prematurely clip displaced neighbours. The coordinator passes prepared box-effect endpoints to movement; floating copies mirror padding, borders and opacity along with their own position/size, so a departing copy can collapse completely and a growing copy retains its current box styles. The HTML renderer includes travelling cards in its existing board-level slick goo groups, preserving connections to stationary cards. Lite keeps its existing column SVG layers: cross-column travelling cards have no slick goo until they land. Selection uses an independent Bridges layer in both modes and retains travelling-card outlines and connections. Movement owns a reactive map of floating card elements. The slick and selection layers observe that map directly and rebuild tracking when an override is registered, replaced or removed. Goo resolves registered floating elements before actual column cards, taking clipping from the resolved element; floating copies carry only their moving-card identity rather than a duplicate `data-card-id`. Landing returns tracking to the actual destination card and Lite rebuilds its column goo. Slick membership in the store stays intact throughout. `BoardSurface` resolves the renderer mode once and shares it with motion and rendering. Scrolling/resizing settles movement; offscreen cross-column endpoints remain clipped rather than floating over headers. Reduced motion skips/finishes effects, and filtering/removal/teardown cleans up copies and restores destination visibility. Both renderer modes can be exercised in Chromium, but Safari behaviour still needs real-world browser testing.
+Within-column effects transform the real card. Cross-column effects use an inert floating copy in the board's motion layer while the real destination card reserves its layout space. Column heights animate with their cards so shrinking columns do not prematurely clip displaced neighbours. The coordinator passes prepared box-effect endpoints to movement; floating copies mirror padding, borders and opacity along with their own position/size, so a departing copy can collapse completely and a growing copy retains its current box styles. All slick effects retain travelling-card outlines; Bridges and Liquid also retain their connections to stationary cards. Selection uses its own Bridges layer regardless of slick effect. Movement owns a reactive map of floating card elements. The slick and selection layers observe that map directly and rebuild tracking when an override is registered, replaced or removed. Goo resolves registered floating elements before actual column cards, taking clipping from the resolved element; floating copies carry only their moving-card identity rather than a duplicate `data-card-id`. Landing returns tracking to the actual destination card and restores cached column outlines. Slick membership in the store stays intact throughout. `BoardSurface` reads the shared slick-effect store; motion is independent of the selected effect. Scrolling/resizing settles movement; offscreen cross-column endpoints remain clipped rather than floating over headers. Reduced motion skips/finishes effects, and filtering/removal/teardown cleans up copies and restores destination visibility. All three slick effects can be exercised in Chromium, but Safari behaviour still needs real-world browser testing.
 
 Key files:
 
@@ -55,11 +52,11 @@ Key files:
 - `BoardOil.Web/src/board/composables/useCardMovementAnimation.ts`
 - `BoardOil.Web/src/board/utils/boardAnimationRunner.ts`
 - `BoardOil.Web/src/board/utils/cardMovement.ts`
-- `BoardOil.Web/src/board/composables/useGooLayer.ts`
+- `BoardOil.Web/src/board/components/SlickGooLayer.vue`
+- `BoardOil.Web/src/board/components/SelectionBridgeLayer.vue`
+- `BoardOil.Web/src/board/goo/boardGeometry.ts`
+- `BoardOil.Web/src/shared/stores/slickEffectStore.ts`
 - `BoardOil.Web/src/board/utils/slickGooAdapter.ts`
-- `BoardOil.Web/src/board/utils/gooLayout.ts`
-- `BoardOil.Web/src/board/utils/gooConfig.ts`
-- `BoardOil.Web/src/board/utils/gooGeometry.ts`
 
 ## Design Decisions
 
@@ -82,90 +79,34 @@ Key files:
 - Slick `solid` goo colour uses the slick style background color.
 - If style resolution fails or slick is missing, goo falls back to hashed colour by slick id.
 
-## Performance Strategy
+## Performance and Diagnostics
 
-`useGooLayer` is optimized around refresh reasons:
-
-- `structure`
-  - Rebuild tracked cards/elements and geometry baseline.
-  - Triggered by descriptor structure changes, resize observer, board changes.
-- `styles`
-  - Refresh colours only without full structure rebuild.
-- `scroll`
-  - Scroll path; prefers fast projection from cached geometry.
-- `layout`
-  - Remeasure the tracked elements' bounds during animation, retaining their membership and element tracking.
-
-Main mechanisms:
-
-- `requestAnimationFrame` coalescing: multiple refresh requests collapse into one frame.
-- Nested scroll capture on board root:
-  - listener is attached with `capture: true` to catch column scroller events.
-- Fast-path projection:
-  - Scroll and style refreshes project rects from cached geometry + scroll offsets; layout refreshes measure current bounds.
-  - Avoids repeated `getBoundingClientRect()` for every card on every scroll tick.
-- Culling:
-  - Cards are skipped when outside expanded clip rect.
-  - Margin is derived from bridge/growth config via `resolveGooCullingMarginPx(...)`.
-
-## Debug Mode
-
-Perf debug logs are disabled by default and enabled by any of:
-
-- query string: `?gooPerfDebug=1` (or `true`)
-- env: `VITE_GOO_PERF_DEBUG=true` (or `1`)
-
-Renderer overrides are temporary query-string diagnostics: `?gooRenderer=full` or `?gooRenderer=lite`.
-Goo diagnostics must not use browser storage.
-
-When enabled, console logs once per second:
-
-- `[goo-perf] avg(ms)` with average refresh/build time, average item count, and sample count.
-
-## Tuning Knobs
-
-Adjust only in `BoardOil.Web/src/board/utils/gooConfig.ts` for consistency.
-
-- Blob shape/size:
-  - `widthAdjustPx`, `heightAdjustPx`
-  - `horizontalOffsetPx`, `verticalOffsetPx`
-  - `blobBorderRadiusPx`, `minBlobSizePx`
-- Goo softness/intensity:
-  - `blurStdDeviation`
-  - `alphaMultiplier`, `alphaOffset`
-- Cross-column bridge behavior:
-  - `bridgeMaxGapPx`, `bridgeMaxVerticalDeltaPx`
-  - `bridgeOverlapPx`, `bridgeHeightRatio`
-- Clip behavior:
-  - `clipHorizontalInsetPx`
-
-Prefer config tuning over ad-hoc component CSS for goo behavior changes.
+- `BoardGooGeometry` measures cards, columns and floating overrides only on layout invalidation. Ordinary column scrolling projects cached positions; board scrolling changes the viewport origin.
+- Bridges and None reuse cached column-local SVG paths; only cross-column bridges and travelling cards draw on their viewport canvas. None disables cross-column connections and skips Liquid scene updates.
+- Selection caches the same column paths but composites them with bridges on one canvas before opacity is applied. Scroll projection must not rebuild outlines or read DOM bounds.
+- Keep canvas geometry stationary relative to `.board-viewport`, outside the board's scrolling content. Do not extend scroll ranges with viewport-sized canvas translations.
+- Slick canvas diagnostics expose render counts, outline builds, solver backend and per-slick simulation state. The numerical review harness below supplies geometry comparisons and CPU measurements.
+- Full/Lite, their browser detection and `gooRenderer` query overrides have been retired. Do not add browser-storage diagnostics or recreate those fallback paths.
 
 ## Guardrails for Changes
 
-- Keep slick domain logic and goo rendering logic separate.
-- Do not move goo calculations into broad reactive paths without profiling.
-- If you change grouping, clipping, bridging, or fast-path geometry:
-  - update unit tests in:
-    - `gooLayout.test.ts`
-    - `gooGeometry.test.ts`
-    - `slickGooAdapter.test.ts`
-    - `slickCardBoundary.test.ts`
-- If you change class names or layer structure in `BoardSurface.vue`, verify:
-  - per-column scroll alignment
-  - board horizontal scroll alignment
-  - no header bleed
-  - distinct slick separation
+- Keep slick domain logic, browser preferences and rendering separate. The closed local preference is None/Bridges/Liquid; unsupported storage values fall back to Bridges.
+- Keep renderer work out of broad reactive paths without profiling.
+- For geometry, grouping or clipping changes, update the relevant `boardGeometry`, `bridgeLayers`, `slickGooAdapter`, `selectionGooAdapter` and `slickCardBoundary` tests, together with browser regressions for DOM/scrolling boundaries.
+- Verify column and board scroll alignment, wrapped-header clipping, distinct slick separation, moving-card handoff, reduced motion and theme changes.
+- Tune surfaces in `src/board/goo/bridges.ts` and `surface.ts`; Liquid seeding and physics have their own shared settings. Prefer shared rendering settings over ad-hoc component CSS.
 
-## Experimental Renderers
+## Slick Effects
 
-- `BoardSurface` keeps the experimental canvas alongside the scrolling board inside `.board-viewport`, with an explicit board-element prop for geometry and scroll listeners. Keep the canvas stationary relative to that viewport and outside the board's scrollable content: translating a viewport-sized canvas by Safari's out-of-range scroll offsets can enlarge the scroll range and sustain runaway blank scrolling. Column-local Bridges SVGs remain inside their column scrollers.
-- `authStore.experimentalFeaturesEnabled` gates the board renderer picker in the header, immediately before the user menu. `BoardSurface` teleports it through the board layout registry’s header target, keeping its state and lifetime local to the board; both the regular and demo layouts provide that target. Opted-in users start with `Bridges` and can select `None` or `Liquid`; the choice is local to the mounted board surface. None reuses Bridges' vertically merged column outlines and travelling-card outlines without cross-column necks or bridge patches. It does not update or step Liquid; switching back to Liquid measures the current geometry. Opting out restores the existing Full/Lite browser selection.
-- `ExperimentalGooLayer.vue` delegates DOM geometry to `BoardGooGeometry`, which measures actual rendered cards, including `useBoardMotion`'s floating-card overrides. Ordinary scrolling projects cached positions by the changed column offset. Bridges’ column-local SVG outlines scroll natively with the cards; only cross-column bridges and travelling cards redraw on the board canvas in the scroll handler. Liquid keeps its existing animation-frame callback and uninterrupted simulation cadence. Resizing, catalogue/content changes and the motion runner's `gooLayoutVersion` invalidate those measurements. Theme changes refresh colours. Keep projected scrolling equivalent to a full DOM measurement. The hidden Full/Lite slick layer receives no descriptors while the experimental renderer is active; selection remains separate.
+- `BoardSurface` keeps the slick canvas alongside the scrolling board inside `.board-viewport`, with an explicit board-element prop for geometry and scroll listeners. Keep the canvas stationary relative to that viewport and outside the board's scrollable content: translating a viewport-sized canvas by Safari's out-of-range scroll offsets can enlarge the scroll range and sustain runaway blank scrolling. Column-local Bridges SVGs remain inside their column scrollers.
+- `useSlickEffectStore` owns `boardoil:slick-effect`, independently of account identity and experimental opt-in. Main and demo entry points initialize it before mounting. The regular application persists the choice across boards and browser sessions; storage events apply saves or clearing from other tabs. Inaccessible storage retains a working in-memory value. The demo respects its deliberate storage-disabled build and offers a session-only header selector.
+- The user-area Theme FormPage edits Appearance and Slick effect with Save/discard semantics. Draft changes do not apply until Save. The user-menu shortcuts save and apply both preferences immediately. Externally saved values update the form baseline and untouched fields through `updateSavedValues` while preserving fields with unsaved edits. The old experimental board-header picker is removed. Animated previews belong to a separate story.
+
+- `SlickGooLayer.vue` delegates DOM geometry to `BoardGooGeometry`, which measures actual rendered cards, including `useBoardMotion`'s floating-card overrides. Ordinary scrolling projects cached positions by the changed column offset. Bridges’ column-local SVG outlines scroll natively with the cards; only cross-column bridges and travelling cards redraw on the board canvas in the scroll handler. Liquid keeps its existing animation-frame callback and uninterrupted simulation cadence. Resizing, catalogue/content changes and the motion runner's `gooLayoutVersion` invalidate those measurements. Theme changes refresh colours. Keep projected scrolling equivalent to a full DOM measurement. Selection remains an independent Bridges layer.
 - The independent implementation lives in `src/board/goo`; it has no runtime dependency on `experiments/goo-playground`. Keep the saved playground available for visual comparison.
 - `BoardGooGeometry` owns measured cards, viewport clipping, cached column scroll offsets, column-local coordinates and resize observation. Keep it independent of Vue and the renderers. The component owns invalidation scheduling, scroll listeners, canvas sizing, colours and rendering lifecycle; dispose geometry observation on unmount. Scroll projection must match remeasurement without reading DOM bounds, and floating overrides must not move with their destination column.
-- `GooScene` owns Liquid simulation, residency, settling and drawing. `BridgeLayers` owns the active Bridges renderer, including the reduced-motion fallback. `ExperimentalGooLayer.vue` selects between them; production Full/Lite rendering remains separate.
-- Experimental geometry uses `GooCard.centreX/centreY` for card centres and `SurfaceRect.left/top` for rectangle corners. `cardSurface(...)` converts a card into its padded Bridges surface. Both types use pixel coordinates in the caller's board or column space; particles and point coordinates retain `x/y`.
+- `GooScene` owns Liquid simulation, residency, settling and drawing. `BridgeLayers` owns the active Bridges renderer, including the reduced-motion fallback. `SlickGooLayer.vue` selects between them; None reuses Bridges outlines without cross-column connections.
+- Renderer geometry uses `GooCard.centreX/centreY` for card centres and `SurfaceRect.left/top` for rectangle corners. `cardSurface(...)` converts a card into its padded Bridges surface. Both types use pixel coordinates in the caller's board or column space; particles and point coordinates retain `x/y`.
 - `liquidSeeding.ts` owns seed spacing, coating and bridge reach rules shared by the initial fill and viewport reseeding. Residency reach includes the configured particle jitter; derive it from the same coating/bridge values rather than maintaining separate padded constants. Keep seed grid phase and particle order stable when changing this boundary.
 - Bridges caches unfiltered SVG outlines in each column’s scrolling content, rebuilding only when column-local geometry, membership or colours change. Card-to-card blending retains inward side indents; bounded canvas patches add the softer cross-column shoulders. Keep these SVGs out of flex layout and verify that they do not extend column scroll ranges. Bridges scrolling does not transport dormant Liquid particles; switching back projects them to the current geometry. Liquid retains nearby particles across scrolling and card movement; membership changes rebuild only affected slick pools. `LiquidResidency` seeds newly revealed regions within the 120px simulation margin and discards particles beyond a further 40px retention margin. Card-relative coverage prevents reseeding retained sections during independent column scrolling or small reversals; returning distant sections get the default coating and bridge seeds. Its solver uses merged stack bodies while its minimum visible coating keeps individual card indents.
 - Liquid runs its fixed-step physics in one module worker, with at most one batch in flight. The UI thread owns card geometry, scroll transport, viewport residency, outline drawing and settling. Transfer double-precision particle snapshots; apply returned physics displacement on top of intervening scroll movement. Ignore results for replaced pools, changed layout revisions, sleeping pools, paused modes and disposed boards; never replace current coordinates with an old worker snapshot. Newly seeded particles wait for the next batch. Pause pending results for Bridges, reduced motion and hidden tabs; terminate the worker on teardown. Keep a synchronous fallback for unavailable or failed workers. Verify animation cadence, continuous independent column scrolling, mode changes, idle shutdown and the emitted worker bundle when changing this boundary.
@@ -202,4 +143,4 @@ The scenes cover isolated cards, stacks, diagonal bridges, junctions, competing 
 
 The benchmark performs two warmups and seven measured runs, reporting median, minimum, maximum and all samples per phase, plus Node/CPU/source metadata. Timings are totals for the complete workload, excluding compilation and hashing. It uses no-op canvas/Path2D shims: these are **Node CPU measurements, not browser frame times or FPS**. Raw-field timing uses fresh sample caches; Liquid outline timing exercises the renderer's persistent caches, with a separate unchanged redraw phase. Compare repeated before/after runs on the same idle machine; there is no timing pass/fail threshold.
 
-This harness does not exercise DOM layout, native scrolling, worker messages, browser rasterisation, Safari/WebKit or GPU performance. Keep the `experimental-goo` browser regression and real-browser visual review for those boundaries. Intentional visual changes require reviewing differences rather than automatically accepting a new capture. The harness is opt-in; its small report-comparison tests run with the usual web suite.
+This harness does not exercise DOM layout, native scrolling, worker messages, browser rasterisation, Safari/WebKit or GPU performance. Keep the `slick-effects` browser regression and real-browser visual review for those boundaries. Intentional visual changes require reviewing differences rather than automatically accepting a new capture. The harness is opt-in; its small report-comparison tests run with the usual web suite.

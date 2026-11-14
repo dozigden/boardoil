@@ -119,6 +119,30 @@ describe('form submission lifecycle', () => {
     expect(form.dirty.value).toBe(false);
   });
 
+  it('adopts externally saved untouched fields while retaining edits and the latest reset baseline', () => {
+    const config = defineForm({
+      title: 'Example', submitLabel: 'Save',
+      initialValues: () => ({ name: 'Initial', note: 'Original note' }),
+      fields: [
+        { name: 'name', label: 'Name', type: 'text' },
+        { name: 'note', label: 'Note', type: 'text' }
+      ],
+      submit: async () => ok(42)
+    });
+    const form = useForm(config);
+    form.setValue('name', 'Local name');
+    form.updateSavedValues({ name: 'Initial', note: 'Saved note' });
+    expect(form.draft.value).toEqual({ name: 'Local name', note: 'Saved note' });
+    expect(form.dirty.value).toBe(true);
+
+    form.setValue('note', 'Local note');
+    form.updateSavedValues({ name: 'Local name', note: 'Latest saved note' });
+    expect(form.draft.value).toEqual({ name: 'Local name', note: 'Local note' });
+    form.reset();
+    expect(form.draft.value).toEqual({ name: 'Local name', note: 'Latest saved note' });
+    expect(form.dirty.value).toBe(false);
+  });
+
   it('releases busy state if an unexpected submit exception escapes', async () => {
     const config = definition();
     config.submit = vi.fn().mockRejectedValue(new Error('Unexpected'));

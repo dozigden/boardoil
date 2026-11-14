@@ -20,7 +20,6 @@ export type BoardLayoutConveyorRegistration = {
 export type BoardLayoutRegistry = {
   conveyorConfig: Readonly<Ref<BoardLayoutConveyorConfig>>;
   conveyorContentTargetId: string;
-  headerContentTargetId: string;
   registerConveyor: (initial: BoardLayoutConveyorConfig) => BoardLayoutConveyorRegistration;
 };
 
@@ -43,7 +42,6 @@ let nextRegistryId = 1;
 export function createBoardLayoutRegistry() {
   const conveyorConfig = ref<BoardLayoutConveyorConfig>({ ...DEFAULT_CONVEYOR_CONFIG });
   const conveyorContentTargetId = `board-layout-conveyor-content-${nextRegistryId++}`;
-  const headerContentTargetId = `${conveyorContentTargetId}-header`;
   let activeOwner: symbol | null = null;
 
   function registerConveyor(initial: BoardLayoutConveyorConfig): BoardLayoutConveyorRegistration {
@@ -73,7 +71,6 @@ export function createBoardLayoutRegistry() {
   const registry: BoardLayoutRegistry = {
     conveyorConfig,
     conveyorContentTargetId,
-    headerContentTargetId,
     registerConveyor
   };
 

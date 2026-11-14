@@ -1,10 +1,6 @@
 <template>
   <section class="app-layout app-layout--board-with-conveyor app-layout-with-header">
-    <AppHeader compact-mobile>
-      <template #board-controls>
-        <div :id="registry.headerContentTargetId" class="board-header-controls-target" />
-      </template>
-    </AppHeader>
+    <AppHeader compact-mobile />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
 
     <section class="board-layout-conveyor-region">
@@ -104,7 +100,6 @@ function parseRouteIntParam(value: unknown) {
 </script>
 
 <style scoped>
-.board-header-controls-target { display: contents; }
 
 .app-layout--board-with-conveyor {
   height: 100vh;

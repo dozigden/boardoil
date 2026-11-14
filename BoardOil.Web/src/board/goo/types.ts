@@ -6,4 +6,3 @@ export type GooCard = { centreX: number; centreY: number; width: number; height:
 export type Particle = { x: number; y: number; vx: number; vy: number; px?: number; py?: number };
 export type Viewport = { left: number; top: number; width: number; height: number; clipTop: number; clipBottom: number };
 export type Bounds = { left: number; right: number; top: number; bottom: number };
-export type ExperimentalGooMode = 'none' | 'bridges' | 'liquid';

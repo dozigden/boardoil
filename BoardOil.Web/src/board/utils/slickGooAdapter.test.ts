@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
-import {
-  buildSlickGooDescriptors,
-  buildSlickGooMembershipSignature,
-  buildSlickGooStyleSignature
-} from './slickGooAdapter';
+import { buildSlickGooDescriptors } from './slickGooAdapter';
 
 describe('slickGooAdapter', () => {
   it('builds descriptors only for cards with slick membership and uses stable group keys', () => {
@@ -37,54 +33,7 @@ describe('slickGooAdapter', () => {
     expect(presetDescriptor?.colour).toBe('var(--bo-slick-preset-4)');
   });
 
-  it('builds deterministic signatures from visible card layout and slick membership', () => {
-    const columns = makeColumns();
-    const signature = buildSlickGooMembershipSignature(columns);
-    expect(signature).toBe('101:10:1|102:none:1|201:20:2');
-  });
 
-  it('changes membership signature when a slick card moves columns', () => {
-    const columns = makeColumns();
-    const movedColumns = columns.map(column => ({
-      ...column,
-      cards: column.id === 1
-        ? column.cards.filter(card => card.id !== 101)
-        : [makeCard(101, 2, 10), ...column.cards]
-    }));
-
-    const initial = buildSlickGooMembershipSignature(columns);
-    const moved = buildSlickGooMembershipSignature(movedColumns);
-
-    expect(initial).toBe('101:10:1|102:none:1|201:20:2');
-    expect(moved).toBe('102:none:1|101:10:2|201:20:2');
-  });
-
-  it('changes membership signature when an unslick card moves and slick geometry must refresh', () => {
-    const columns = makeColumns();
-    const movedColumns = columns.map(column => ({
-      ...column,
-      cards: column.id === 1
-        ? column.cards.filter(card => card.id !== 102)
-        : [makeCard(102, 2, null), ...column.cards]
-    }));
-
-    const initial = buildSlickGooMembershipSignature(columns);
-    const moved = buildSlickGooMembershipSignature(movedColumns);
-
-    expect(initial).toBe('101:10:1|102:none:1|201:20:2');
-    expect(moved).toBe('101:10:1|102:none:2|201:20:2');
-  });
-
-  it('builds deterministic style signatures sorted by slick id', () => {
-    const styleSignature = buildSlickGooStyleSignature([
-      makeSlick(20, 'presets', '{"presetIndex":4}'),
-      makeSlick(10, 'solid', '{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}')
-    ]);
-
-    expect(styleSignature).toBe(
-      '10:solid:{"backgroundColor":"#AABBCC","textColorMode":"auto","borderMode":"auto"}|20:presets:{"presetIndex":4}'
-    );
-  });
 });
 
 function makeColumns(): BoardColumn[] {

@@ -1,3 +1,4 @@
+import { setSlickEffect } from '../support/slickEffects';
 import { expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
 import { SelectionBridges } from '../ui/SelectionBridges';
@@ -44,7 +45,6 @@ test('selection Bridges remain independent of slick effects and follow visible s
   const unassigned = await api.createCard(board, 'In Progress', 'Selected unassigned');
   const bp = new BoardPage(page);
   const selection = new SelectionBridges(page);
-  const picker = page.getByRole('combobox', { name: 'Goo renderer', exact: true });
   const optIn = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
 
   for (const experimental of [false, true]) {
@@ -59,8 +59,8 @@ test('selection Bridges remain independent of slick effects and follow visible s
     await bp.selectCard('Todo', 'Selected first');
     await bp.selectCard('Todo', 'Selected second');
     await bp.selectCard('In Progress', 'Selected unassigned');
-    for (const mode of experimental ? ['none', 'bridges', 'liquid'] : ['full']) {
-      if (experimental) await picker.selectOption(mode);
+    for (const mode of ['none', 'bridges', 'liquid']) {
+      await setSlickEffect(page, mode);
       await expect(selection.canvas).toHaveAttribute('data-renderer', 'bridges');
       await expect.poll(() => selection.selectedIds()).toEqual([second.id, first.id, unassigned.id]);
       await expect.poll(() => selection.paintsBetween(bp.selectionModeCard('Todo', 'Selected second'),

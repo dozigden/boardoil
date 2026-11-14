@@ -1,8 +1,9 @@
+import { setSlickEffect } from '../support/slickEffects';
 import { expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
 import { reportHorizontalOverscroll } from '../support/experimentalGooScrolling';
 
-test('experimental None, Bridges and Liquid follow the live board and stop when idle', async ({ api, authenticatedPage: page }) => {
+test('None, Bridges and Liquid follow the live board and stop when idle', async ({ api, authenticatedPage: page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -12,34 +13,13 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
   const travelling = await api.createCard(board, 'Todo', 'Travelling card', '', [], 'Green pool');
   await api.createCard(board, 'In Progress', 'Across the gap', '', [], 'Green pool');
   const boardPage = new BoardPage(page);
-  const picker = page.getByRole('combobox', { name: 'Goo renderer', exact: true });
-  const canvas = page.locator('canvas.experimental-goo-layer');
+  const canvas = page.locator('canvas.slick-goo-layer');
   const header = page.locator('header').filter({ has: page.getByRole('button', { name: 'User menu', exact: true }) });
 
-  await test.step('opt in through the profile and get Bridges by default', async () => {
-    await page.goto('/user-admin/profile');
-    const optIn = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
-    await expect(optIn).toBeVisible();
-    if (await optIn.isChecked()) {
-      await optIn.uncheck();
-      await page.getByRole('button', { name: 'Save profile', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
-    }
+  await test.step('use Bridges by default without an experimental header picker', async () => {
     await boardPage.open(board.id);
-    await expect(picker).toHaveCount(0);
-    await page.goto('/user-admin/profile');
-    await page.getByRole('checkbox', { name: 'Enable experimental features', exact: true }).check();
-    await page.getByRole('button', { name: 'Save profile', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
-    await boardPage.open(board.id);
-    await expect(picker).toHaveValue('bridges');
-    await expect(picker.getByRole('option', { name: 'Bridges', exact: true })).toHaveAttribute('value', 'bridges');
-    await expect(header.getByRole('combobox', { name: 'Goo renderer', exact: true })).toBeVisible();
-    await expect(header.getByRole('img', { name: 'Experimental feature', exact: true })).toBeVisible();
-    const pickerBox = (await picker.boundingBox())!;
-    const menuBox = (await header.getByRole('button', { name: 'User menu', exact: true }).boundingBox())!;
-    expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(menuBox.x);
-    await header.screenshot({ path: test.info().outputPath('renderer-header.png') });
+    await expect(header.getByRole('combobox')).toHaveCount(0);
+    await expect(header.getByRole('img', { name: 'Experimental feature', exact: true })).toHaveCount(0);
     await expect(canvas).toHaveAttribute('data-renderer', 'bridges');
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => {
       const pixels = el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data;
@@ -71,7 +51,7 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
   await test.step('keep merged outlines without cross-column bridges or Liquid work in None', async () => {
     const outlines = page.locator('.bridge-column-outline path');
     const shapes = await outlines.evaluateAll(paths => paths.map(path => path.getAttribute('d')));
-    await picker.selectOption('none');
+    await setSlickEffect(page, 'none');
     await expect(canvas).toHaveAttribute('data-renderer', 'none');
     await expect.poll(() => outlines.evaluateAll(paths => paths.map(path => path.getAttribute('d')))).toEqual(shapes);
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => {
@@ -91,7 +71,7 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
     await Promise.all([
       page.waitForFunction(() => {
         if (!document.querySelector('[data-moving-card-id]')) return false;
-        const layer = document.querySelector<HTMLCanvasElement>('canvas.experimental-goo-layer')!;
+        const layer = document.querySelector<HTMLCanvasElement>('canvas.slick-goo-layer')!;
         return layer.getContext('2d')!.getImageData(0, 0, layer.width, layer.height).data
           .some((value, index) => index % 4 === 3 && value > 0);
       }),
@@ -108,7 +88,7 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
     expect(page.workers()).toHaveLength(0);
   });
   await test.step('sleep Liquid and preserve its frozen image through renderer changes', async () => {
-    await picker.selectOption('liquid');
+    await setSlickEffect(page, 'liquid');
     await expect(canvas).toHaveAttribute('data-simulation', 'worker');
     await expect(page.locator('.bridge-column-outline')).toHaveCount(0);
     await expect(canvas).toHaveAttribute('data-awake', '0', { timeout: 15_000 });
@@ -121,14 +101,14 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
       requestAnimationFrame(frame);
     }));
     await expect(canvas).toHaveAttribute('data-render-count', renders!);
-    await picker.selectOption('bridges');
+    await setSlickEffect(page, 'bridges');
     await expect(canvas).toHaveAttribute('data-renderer', 'bridges');
-    await picker.selectOption('liquid');
+    await setSlickEffect(page, 'liquid');
     await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL())).toBe(image);
     await page.screenshot({ path: test.info().outputPath('board-liquid.png') });
     const steps = JSON.parse((await canvas.getAttribute('data-slicks'))!) as { steps: number }[];
-    await picker.selectOption('none');
+    await setSlickEffect(page, 'none');
     await expect(canvas).toHaveAttribute('data-renderer', 'none');
     await expect(page.locator('.bridge-column-outline').first()).toBeAttached();
     await page.evaluate(() => new Promise<void>(resolve => {
@@ -138,7 +118,7 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
     }));
     expect((JSON.parse((await canvas.getAttribute('data-slicks'))!) as { steps: number }[]).map(slick => slick.steps))
       .toEqual(steps.map(slick => slick.steps));
-    await picker.selectOption('liquid');
+    await setSlickEffect(page, 'liquid');
     await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL())).toBe(image);
   });
   await test.step('scroll, move and filter cards while retaining the running solver', async () => {
@@ -172,7 +152,7 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
       return { x: canvasBounds.x - boardBounds.x, y: canvasBounds.y - boardBounds.y };
     }).toEqual({ x: 0, y: 0 });
     for (const mode of ['none', 'bridges', 'liquid']) {
-      await picker.selectOption(mode);
+      await setSlickEffect(page, mode);
       await expect(canvas).toHaveAttribute('data-renderer', mode);
       for (const direction of ['left', 'right'] as const) {
         const range = await reportHorizontalOverscroll(page.locator('section.board'), direction);
@@ -180,29 +160,16 @@ test('experimental None, Bridges and Liquid follow the live board and stop when 
       }
     }
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await picker.selectOption('bridges');
-    await picker.selectOption('liquid');
+    await setSlickEffect(page, 'bridges');
+    await setSlickEffect(page, 'liquid');
     await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
     await expect(page.locator('.bridge-column-outline').first()).toBeAttached();
     await page.screenshot({ path: test.info().outputPath('board-reduced-motion.png') });
     await page.setViewportSize({ width: 375, height: 800 });
-    await expect(picker).toBeVisible();
     await expect(header.getByRole('button', { name: 'User menu', exact: true })).toBeVisible();
-    const bounds = (await picker.boundingBox())!;
-    const userBounds = (await header.getByRole('button', { name: 'User menu', exact: true }).boundingBox())!;
-    expect(bounds.x).toBeGreaterThanOrEqual(0);
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(userBounds.x);
-    expect(userBounds.x + userBounds.width).toBeLessThanOrEqual(375);
-    await header.screenshot({ path: test.info().outputPath('renderer-header-mobile.png') });
   });
-  await test.step('opt out and restore the existing renderer', async () => {
+  await test.step('dispose the renderer and its worker when leaving the board', async () => {
     await page.goto('/user-admin/profile');
-    await expect(picker).toHaveCount(0);
-    await page.getByRole('checkbox', { name: 'Enable experimental features', exact: true }).uncheck();
-    await page.getByRole('button', { name: 'Save profile', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
-    await boardPage.open(board.id);
-    await expect(picker).toHaveCount(0);
     await expect(canvas).toHaveCount(0);
     await expect.poll(() => page.workers().filter(worker => worker.url().includes('liquid.worker')).length).toBe(0);
   });

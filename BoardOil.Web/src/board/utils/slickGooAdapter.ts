@@ -2,7 +2,13 @@ import type { BoardColumn, Slick } from '../../shared/types/boardTypes';
 import { getSlickPresetCssValue } from '../../shared/utils/presetTheme';
 import { deserializeStyle } from '../../shared/utils/stylePersistence';
 import { getSurfaceStyle } from '../../shared/utils/styleRenderer';
-import type { GooLayerDescriptor } from '../composables/useGooLayer';
+type GooLayerDescriptor = {
+  cardId: number;
+  columnId: number;
+  itemId: string;
+  groupKey: string;
+  colour: string;
+};
 
 export function buildSlickGooDescriptors(columns: BoardColumn[], slicksById: Map<number, Slick>): GooLayerDescriptor[] {
   const descriptors: GooLayerDescriptor[] = [];
@@ -24,22 +30,6 @@ export function buildSlickGooDescriptors(columns: BoardColumn[], slicksById: Map
   }
 
   return descriptors;
-}
-
-export function buildSlickGooMembershipSignature(columns: BoardColumn[]): string {
-  return columns
-    .flatMap(column =>
-      column.cards
-        .map(card => `${card.id}:${card.slickId ?? 'none'}:${column.id}`)
-    )
-    .join('|');
-}
-
-export function buildSlickGooStyleSignature(slicks: Slick[]): string {
-  return [...slicks]
-    .sort((left, right) => left.id - right.id)
-    .map(slick => `${slick.id}:${slick.styleName}:${slick.stylePropertiesJson}`)
-    .join('|');
 }
 
 function resolveSlickGooColour(slick: Slick | undefined, slickId: number): string {

@@ -163,6 +163,18 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
   await test.step('exercise demo-only controls', async () => {
     const installationLink = page.getByRole('link', { name: 'Get BoardOil' });
     await expect(installationLink).toHaveAttribute('href', ExpectedInstallationUrl);
+    const effect = page.getByRole('combobox', { name: 'Slick effect', exact: true });
+    await expect(effect).toHaveValue('bridges');
+    for (const value of ['none', 'liquid', 'bridges']) {
+      await effect.selectOption(value);
+      await expect(page.locator('canvas.slick-goo-layer')).toHaveAttribute('data-renderer', value);
+    }
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 430, height: 850 });
+    const linkBounds = (await installationLink.boundingBox())!;
+    expect(linkBounds.x + linkBounds.width).toBeLessThanOrEqual(430);
+    await page.screenshot({ path: test.info().outputPath('demo-slick-effect-mobile.png') });
+    await page.setViewportSize(viewport);
 
     await page.getByRole('button', { name: 'Use dark mode' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

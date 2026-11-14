@@ -5,10 +5,12 @@ import { router } from './router';
 import { installFrontendErrorReporting } from './shared/errors/clientErrorReporter';
 import { installRouteChunkRecovery } from './shared/routing/routeChunkRecovery';
 import { useThemeStore } from './shared/stores/themeStore';
+import { useSlickEffectStore } from './shared/stores/slickEffectStore';
 import './style.css';
 
 const pinia = createPinia();
 useThemeStore(pinia).initialize();
+useSlickEffectStore(pinia).initialize();
 
 const app = createApp(App);
 

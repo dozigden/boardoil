@@ -1,26 +1,6 @@
 <template>
-  <svg width="0" height="0" class="goo-filter-defs" aria-hidden="true" focusable="false">
-    <defs>
-      <filter id="goo">
-        <feGaussianBlur in="SourceGraphic" :stdDeviation="gooBlurStdDeviation" result="blur" />
-        <feColorMatrix
-          in="blur"
-          type="matrix"
-          :values="gooColorMatrixValues"
-          result="goo"
-        />
-      </filter>
-    </defs>
-  </svg>
-
   <div class="board-viewport">
-    <section class="board" :class="{ 'board--liquid': experimentalFeaturesEnabled && experimentalGooMode === 'liquid' }" :ref="setBoardRef">
-      <GooLayer
-        v-if="!experimentalFeaturesEnabled && gooRendererMode === 'full'"
-        :goo-renderer-mode="gooRendererMode"
-        :groups="gooGroups"
-        :blob-border-radius-px="gooBlobBorderRadiusPx"
-      />
+    <section class="board" :class="{ 'board--liquid': slickEffect === 'liquid' }" :ref="setBoardRef">
       <div v-for="column in renderedColumns" :key="column.id" class="column-stack">
         <article
           class="column"
@@ -51,12 +31,6 @@
               'column-content--drop-head': isDropAtColumnStart(column.id)
             }"
           >
-            <LiteGooLayer
-              v-if="!experimentalFeaturesEnabled && gooRendererMode === 'lite'"
-              :groups="gooGroupsByColumnId.get(column.id) ?? []"
-              :blob-border-radius-px="gooBlobBorderRadiusPx"
-              layer-class="goo-layer--column"
-            />
             <Transition
               :css="false"
               @enter="motion.creationTransition.enter"
@@ -121,10 +95,10 @@
       </div>
       <div :ref="motion.setMovementLayerRef" class="card-motion-layer" aria-hidden="true" inert />
     </section>
-    <ExperimentalGooLayer
-      v-if="experimentalFeaturesEnabled && boardElement"
+    <SlickGooLayer
+      v-if="boardElement"
       :board="boardElement"
-      :mode="experimentalGooMode"
+      :mode="slickEffect"
       :columns="renderedColumns"
       :slicks="slicks"
       :floating-cards="motion.floatingCards"
@@ -139,16 +113,6 @@
       :layout-version="motion.gooLayoutVersion.value"
     />
   </div>
-  <Teleport v-if="experimentalFeaturesEnabled" defer :to="`#${boardLayoutRegistry.headerContentTargetId}`">
-    <div class="experimental-goo-picker">
-      <ExperimentalFeatureIcon :size="20" />
-      <select id="experimental-goo-mode" v-model="experimentalGooMode" aria-label="Goo renderer">
-        <option value="none">None</option>
-        <option value="bridges">Bridges</option>
-        <option value="liquid">Liquid</option>
-      </select>
-    </div>
-  </Teleport>
   <CardEditorDialog
     v-if="detailedCardDraft"
     :create-draft="detailedCardDraft"
@@ -164,14 +128,9 @@ import BoardColumnHeader from './BoardColumnHeader.vue';
 import Card from './Card.vue';
 import CreateCardInline from './CreateCardInline.vue';
 import CardEditorDialog from './CardEditorDialog.vue';
-import GooLayer from './GooLayer.vue';
-import ExperimentalGooLayer from './ExperimentalGooLayer.vue';
+import SlickGooLayer from './SlickGooLayer.vue';
+import { useSlickEffectStore } from '../../shared/stores/slickEffectStore';
 import SelectionBridgeLayer from './SelectionBridgeLayer.vue';
-import ExperimentalFeatureIcon from '../../shared/components/ExperimentalFeatureIcon.vue';
-import { useBoardLayoutRegistry } from '../../site/layouts/boardLayoutRegistry';
-import { useAuthStore } from '../../shared/stores/authStore';
-import type { ExperimentalGooMode } from '../goo/types';
-import LiteGooLayer from './LiteGooLayer.vue';
 import { useBoardCardDragDrop } from '../composables/useBoardCardDragDrop';
 import { useBoardInlineCreation } from '../composables/useBoardInlineCreation';
 import { useBoardColumnClipping } from '../composables/useBoardColumnClipping';
@@ -183,7 +142,6 @@ import { useSlickStore } from '../stores/slickStore';
 import type { BoardColumn, CardEditModel } from '../../shared/types/boardTypes';
 import type { CardSearchAndTagFilter } from '../utils/cardFilters';
 import { formatColumnCardCount } from '../utils/columnCardCount';
-import { resolveGooRendererMode } from '../utils/gooRendererMode';
 
 const props = defineProps<{
   boardId: number;
@@ -202,10 +160,7 @@ const emit = defineEmits<{
   'clear-visible': [columnId: number];
 }>();
 
-const boardLayoutRegistry = useBoardLayoutRegistry();
-const { experimentalFeaturesEnabled } = storeToRefs(useAuthStore());
-const experimentalGooMode = ref<ExperimentalGooMode>('bridges');
-watch(experimentalFeaturesEnabled, () => { experimentalGooMode.value = 'bridges'; });
+const { effect: slickEffect } = storeToRefs(useSlickEffectStore());
 const cardStore = useCardStore();
 const cardTypeStore = useCardTypeStore();
 const cardAttachmentThumbnailStore = useCardAttachmentThumbnailStore();
@@ -218,20 +173,11 @@ const selectedCardIds = computed(() => props.selectedCardIds);
 const selectedCardIdSet = computed(() => new Set(selectedCardIds.value));
 const selectedCardCount = computed(() => selectedCardIds.value.length);
 const defaultCreateCardTypeId = computed(() => systemCardType.value?.id ?? cardTypes.value[0]?.id ?? null);
-const gooRendererMode = resolveGooRendererMode();
 const boardElement = shallowRef<HTMLElement | null>(null);
-const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, slicks, gooRendererMode,
-  computed(() => props.cardFilters), experimentalFeaturesEnabled);
-const {
-  renderedColumns,
-  gooGroups,
-  gooGroupsByColumnId,
-  gooBlurStdDeviation,
-  gooBlobBorderRadiusPx,
-  gooColorMatrixValues
-} = motion;
+const motion = useBoardMotion(filteredColumns, cardIdsByColumnId, computed(() => props.cardFilters));
+const { renderedColumns } = motion;
 const clipping = useBoardColumnClipping(renderedColumns, motion.gooLayoutVersion, motion.refreshGooLayout);
-watch(experimentalGooMode, motion.refreshGooLayout, { flush: 'post' });
+watch(slickEffect, motion.refreshGooLayout, { flush: 'post' });
 const {
   newCardDrafts,
   newCardDraftErrors,
@@ -354,24 +300,6 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 </script>
 
 <style scoped>
-.experimental-goo-picker {
-  display: flex; align-items: center; gap: .35rem; flex: 0 0 auto;
-  height: 2rem; box-sizing: border-box; padding-left: .4rem;
-  color: var(--bo-link); font-size: .85rem; font-weight: 650;
-  background: var(--bo-surface-brand);
-  border: 1px solid color-mix(in srgb, var(--bo-link) 55%, var(--bo-border-brand));
-  border-radius: 8px;
-}
-.experimental-goo-picker:focus-within {
-  border-color: var(--bo-focus-ring);
-  box-shadow: 0 0 0 2px var(--bo-focus-ring-shadow);
-}
-.experimental-goo-picker select {
-  width: auto; height: 100%; margin: 0; font: inherit; color: inherit;
-  background: var(--bo-surface-brand); border: 0;
-  border-radius: 0 7px 7px 0; padding: .2rem .3rem;
-}
-
 .board-viewport {
   position: relative;
   display: flex;
@@ -572,10 +500,6 @@ defineExpose({ resetInteraction: clearDragInteraction, getVisibleCardIds });
 .column-tail-drop-zone--active {
   background: color-mix(in srgb, var(--bo-focus-ring) 14%, transparent);
   border-color: color-mix(in srgb, var(--bo-focus-ring) 60%, transparent);
-}
-
-.goo-filter-defs {
-  position: absolute;
 }
 
 </style>

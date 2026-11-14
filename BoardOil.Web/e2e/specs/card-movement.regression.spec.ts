@@ -1,3 +1,4 @@
+import { openBoardWithSlickEffect, expectSlickOutlineAligned as aligned } from '../support/slickEffects';
 import type { Locator } from '@playwright/test';
 import { expect, test } from '../fixtures/boardOilTest';
 import { controlLayoutAnimations, seekLayoutAnimations } from '../support/layoutAnimations';
@@ -6,7 +7,7 @@ import { interceptBoardConnection } from '../support/boardRealtimeConnection';
 import { BoardPage } from '../ui/BoardPage';
 import { SelectionBridges } from '../ui/SelectionBridges';
 
-for (const renderer of ['full', 'lite']) {
+for (const renderer of ['bridges', 'none']) {
   test(`realtime movement reorders cards and ${renderer} goo together`, async ({ api, authenticatedPage: page }) => {
     const board = await api.createBoard(`Reorder ${renderer}`);
     const slick = await api.createSlick(board, 'Moving slick');
@@ -14,7 +15,7 @@ for (const renderer of ['full', 'lite']) {
     await api.createCard(board, 'Todo', 'Stationary neighbour', '', [], slick.name);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const bp = new BoardPage(page);
     const card = bp.card('Todo', 'Moving card');
     const neighbour = bp.card('Todo', 'Stationary neighbour');
@@ -29,7 +30,7 @@ for (const renderer of ['full', 'lite']) {
     const halfway = await box(card);
     expect(halfway.y).toBeLessThan(before.y);
     expect((await box(neighbour)).y).toBeGreaterThan(neighbourBefore.y);
-    await aligned(card, page.locator(`[data-goo-blob-id="card-${moving.id}"]`));
+    await aligned(card);
     await seekLayoutAnimations(page, 1);
     await expect.poll(async () => (await box(card)).y).toBeLessThan(halfway.y);
     await card.click();
@@ -44,7 +45,7 @@ for (const renderer of ['full', 'lite']) {
     await api.createCard(board, 'In Progress', 'Destination neighbour', '', [], slick.name);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const bp = new BoardPage(page);
     const before = await box(bp.card('Todo', 'Travelling card'));
     const sourceBefore = await box(bp.card('Todo', 'Source neighbour'));
@@ -70,22 +71,14 @@ for (const renderer of ['full', 'lite']) {
       const clip = element.closest('.column-content')!.getBoundingClientRect();
       return card.bottom - clip.bottom;
     })).toBeLessThanOrEqual(1);
-    const movingBlob = page.locator(`[data-goo-blob-id="card-${moving.id}"]`);
-    if (renderer === 'full') {
-      await aligned(floating, movingBlob);
-      // The travelling card stays in the same filtered group as its slick.
-      expect(await movingBlob.evaluate(element => element.parentElement!.querySelectorAll('[data-goo-blob-id^="card-"]').length)).toBe(3);
-    } else {
-      await expect(movingBlob).toHaveCount(0);
-      await expect(page.locator('.board > svg.goo-layer--lite')).toHaveCount(0);
-    }
+    await aligned(floating);
     // The floating presentation must really paint across the column boundary.
     expect(await floating.evaluate(element => getComputedStyle(element).visibility)).toBe('visible');
     await seekLayoutAnimations(page, 1);
     await expect(floating).toHaveCount(0);
     const saved = bp.card('In Progress', 'Travelling card');
     await expect(saved).toBeVisible();
-    await aligned(saved, movingBlob);
+    await aligned(saved);
     await saved.click();
     await expect(page.getByRole('dialog')).toBeVisible();
   });
@@ -98,7 +91,7 @@ for (const renderer of ['full', 'lite']) {
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await controlLayoutAnimations(page);
       const connection = await interceptBoardConnection(page);
-      await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+      await openBoardWithSlickEffect(page, board.id, renderer);
       const bp = new BoardPage(page);
       await expect(bp.card('Todo', 'Dropped card')).toBeVisible();
       if (delivery === 'http-only') {
@@ -139,7 +132,7 @@ for (const renderer of ['full', 'lite']) {
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await controlLayoutAnimations(page);
       const connection = await interceptBoardConnection(page);
-      await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+      await openBoardWithSlickEffect(page, board.id, renderer);
       const bp = new BoardPage(page);
       const source = bp.card('Todo', 'Tail traveller');
       const destination = bp.card('In Progress', 'Only destination card');
@@ -185,7 +178,7 @@ for (const renderer of ['full', 'lite']) {
     const moving = await api.createCard(board, 'Todo', 'Selected traveller');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const bp = new BoardPage(page);
     await bp.enterCardSelectionMode();
     await bp.selectCard('Todo', 'Selected traveller');
@@ -219,22 +212,22 @@ test('another arrival retargets a card already travelling into that column witho
   const firstCopy = page.locator(`[data-moving-card-id="${first.id}"]`);
   await expect(firstCopy).toHaveCount(1);
   await seekLayoutAnimations(page, 0.3);
-  const firstBlob = page.locator(`[data-goo-blob-id="card-${first.id}"]`);
-  await aligned(firstCopy, firstBlob);
+
+  await aligned(firstCopy);
   const before = await box(firstCopy);
   await api.moveCard(board.id, second.id, destinationId);
   await expect(page.locator('[data-moving-card-id]')).toHaveCount(2);
   await seekLayoutAnimations(page, 0);
   expect((await box(firstCopy)).x).toBeCloseTo(before.x, 0);
   expect((await box(firstCopy)).y).toBeCloseTo(before.y, 0);
-  await aligned(firstCopy, firstBlob);
+  await aligned(firstCopy);
   await seekLayoutAnimations(page, 0.5);
-  await aligned(firstCopy, firstBlob);
+  await aligned(firstCopy);
   await seekLayoutAnimations(page, 1);
   await expect(page.locator('[data-moving-card-id]')).toHaveCount(0);
   await expect(bp.card('In Progress', 'First traveller')).toBeVisible();
   await expect(bp.card('In Progress', 'Second traveller')).toBeVisible();
-  await aligned(bp.card('In Progress', 'First traveller'), firstBlob);
+  await aligned(bp.card('In Progress', 'First traveller'));
 });
 
 test('a bulk drop moves all selected cards and leaves no floating copies', async ({ api, authenticatedPage: page }) => {
@@ -339,14 +332,4 @@ async function box(locator: Locator) {
   const value = await locator.boundingBox();
   expect(value).not.toBeNull();
   return value!;
-}
-
-async function aligned(card: Locator, blob: Locator) {
-  await expect(blob).toHaveCount(1);
-  await expect.poll(async () => {
-    const a = await box(card);
-    const b = await box(blob);
-    return Math.abs(a.x + a.width / 2 - b.x - b.width / 2)
-      + Math.abs(a.y + a.height / 2 - b.y - b.height / 2);
-  }).toBeLessThanOrEqual(2);
 }

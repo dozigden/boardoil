@@ -1,14 +1,11 @@
-import { computed, nextTick, onBeforeUnmount, ref, shallowReactive, watch, type ComputedRef, type Ref } from 'vue';
-import type { BoardColumn, Card, Slick } from '../../shared/types/boardTypes';
-import { useGooLayer } from './useGooLayer';
+import { computed, nextTick, onBeforeUnmount, ref, shallowReactive, watch, type ComputedRef } from 'vue';
+import type { BoardColumn, Card } from '../../shared/types/boardTypes';
 import { useBoardCardRemovals } from './useBoardCardRemovals';
 import { useCardLayoutAnimation, type CardLayoutEffect } from './useCardLayoutAnimation';
 import { useCardMovementAnimation, type CardMovementSnapshot } from './useCardMovementAnimation';
 import { findMovedColumns, type CardIdsByColumn } from '../utils/cardMovement';
 import { createBoardAnimationRunner } from '../utils/boardAnimationRunner';
-import type { GooRendererMode } from '../utils/gooRendererMode';
 import type { CardSearchAndTagFilter } from '../utils/cardFilters';
-import { buildSlickGooDescriptors, buildSlickGooMembershipSignature, buildSlickGooStyleSignature } from '../utils/slickGooAdapter';
 
 type LayoutChange = {
   columnIds: Set<number>;
@@ -24,10 +21,7 @@ type LayoutChange = {
 export function useBoardMotion(
   columns: ComputedRef<BoardColumn[]>,
   cardIdsByColumnId: ComputedRef<CardIdsByColumn>,
-  slicks: Ref<Slick[]>,
-  gooRendererMode: GooRendererMode,
-  filters: ComputedRef<CardSearchAndTagFilter>,
-  experimentalGooEnabled: Ref<boolean> = computed(() => false)
+  filters: ComputedRef<CardSearchAndTagFilter>
 ) {
   let boardElement: HTMLElement | null = null;
   let pendingChange: LayoutChange | null = null;
@@ -51,27 +45,11 @@ export function useBoardMotion(
       return { ...column, cards: column.cards.filter(card => knownCardIds.has(card.id)) };
     }));
   });
-  const slicksById = computed(() => new Map(slicks.value.map(slick => [slick.id, slick] as const)));
   const gooLayoutVersion = ref(0);
   const animationRunner = createBoardAnimationRunner(refreshGooLayout);
   onBeforeUnmount(animationRunner.dispose);
   const movement = useCardMovementAnimation(animationRunner);
-  const gooColumns = computed(() => {
-    if (gooRendererMode === 'full') {
-      return renderedColumns.value;
-    }
-    return renderedColumns.value.map(column => ({
-      ...column, cards: column.cards.filter(card => !movement.floatingCards.has(card.id))
-    }));
-  });
-  const goo = useGooLayer(
-    computed(() => experimentalGooEnabled.value ? [] : buildSlickGooDescriptors(gooColumns.value, slicksById.value)),
-    computed(() => experimentalGooEnabled.value ? '' : buildSlickGooMembershipSignature(gooColumns.value)),
-    computed(() => buildSlickGooStyleSignature(slicks.value)),
-    movement.floatingCards
-  );
   function refreshGooLayout() {
-    goo.refreshGooLayout();
     gooLayoutVersion.value++;
   }
   const layoutAnimation = useCardLayoutAnimation(animationRunner);
@@ -275,7 +253,6 @@ export function useBoardMotion(
 
   function setBoardRef(element: unknown) {
     boardElement = element instanceof HTMLElement ? element : null;
-    goo.setBoardRef(element);
     movement.setBoardRef(element);
   }
 
@@ -292,7 +269,6 @@ export function useBoardMotion(
     if (disposed) {
       return;
     }
-    goo.scheduleGooStructureRefresh();
     refreshGooLayout();
   }
 
@@ -372,11 +348,6 @@ export function useBoardMotion(
     beginCreation,
     revealCard,
     creationTransition: { enter: enterDraft, leave: leaveDraft, cancel: cancelDraftTransition },
-    gooGroups: goo.gooGroups,
-    gooGroupsByColumnId: goo.gooGroupsByColumnId,
-    gooBlurStdDeviation: goo.gooBlurStdDeviation,
-    gooBlobBorderRadiusPx: goo.gooBlobBorderRadiusPx,
-    gooColorMatrixValues: goo.gooColorMatrixValues
   };
 }
 

@@ -1,3 +1,4 @@
+import { openBoardWithSlickEffect, expectSlickOutlineAligned as aligned } from '../support/slickEffects';
 import type { Locator } from '@playwright/test';
 import { expect, test } from '../fixtures/boardOilTest';
 import { controlLayoutAnimations, seekLayoutAnimations } from '../support/layoutAnimations';
@@ -5,7 +6,7 @@ import { holdCardCreationResponse } from '../support/cardCreationResponse';
 import { interceptBoardConnection } from '../support/boardRealtimeConnection';
 import { BoardPage } from '../ui/BoardPage';
 
-for (const renderer of ['full', 'lite']) {
+for (const renderer of ['bridges', 'none']) {
   for (const membership of ['same', 'different', 'none']) {
     test(`realtime removal collapses ${membership} slick spacing with ${renderer} goo`, async ({ api, authenticatedPage: page }) => {
       const board = await api.createBoard(`Removal ${renderer} ${membership}`);
@@ -17,7 +18,7 @@ for (const renderer of ['full', 'lite']) {
       const removed = await api.createCard(board, 'Todo', 'Departing', '', [], departingSlick);
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await controlLayoutAnimations(page);
-      await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+      await openBoardWithSlickEffect(page, board.id, renderer);
       const bp = new BoardPage(page);
       const card = page.locator(`[data-card-id="${removed.id}"]`);
       const survivor = bp.card('Todo', 'Neighbour');
@@ -36,14 +37,14 @@ for (const renderer of ['full', 'lite']) {
       expect(middle.height).toBeGreaterThan(0);
       expect(middle.height).toBeLessThan(before.card.height);
       expect((await box(survivor)).y).toBeLessThan(before.neighbour.y);
-      await aligned(survivor, page.locator(`[data-goo-blob-id="card-${neighbour.id}"]`));
-      if (departingSlick) { await aligned(card, page.locator(`[data-goo-blob-id="card-${removed.id}"]`)); }
+      await aligned(survivor);
+      if (departingSlick) { await aligned(card); }
       await seekLayoutAnimations(page, 0.9999);
       const landing = await box(survivor);
       await seekLayoutAnimations(page, 1);
       await expect(card).toHaveCount(0);
       expect((await box(survivor)).y).toBeCloseTo(landing.y, 0);
-      await expect(page.locator(`[data-goo-blob-id="card-${removed.id}"]`)).toHaveCount(0);
+      await expect(page.locator('[data-card-id="' + removed.id + '"]')).toHaveCount(0);
       expect(await seekLayoutAnimations(page, 0)).toBe(0);
     });
   }
@@ -57,7 +58,7 @@ for (const renderer of ['full', 'lite']) {
     const c = await api.createCard(board, 'In Progress', 'C', '', [], slick.name);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     await expect(page.locator(`[data-card-id="${a.id}"]`)).toBeVisible();
     connection.bufferEvents();
     await api.archiveCards(board.id, [a.id, b.id, c.id]);
@@ -71,7 +72,7 @@ for (const renderer of ['full', 'lite']) {
     await expect(page.locator('[data-card-id]')).toHaveCount(0);
     const finalHeights = await columns.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().height));
     heights.forEach((height, index) => expect(finalHeights[index]).toBeCloseTo(height, 0));
-    await expect(page.locator('[data-goo-blob-id]')).toHaveCount(0);
+    await expect(page.locator('.bridge-column-outline path')).toHaveCount(0);
   });
 
   test(`deletion during cross-column travel cleans up continuously with ${renderer} goo`, async ({ api, authenticatedPage: page }) => {
@@ -81,7 +82,7 @@ for (const renderer of ['full', 'lite']) {
     const neighbour = await api.createCard(board, 'In Progress', 'Neighbour', '', [], slick.name);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const bp = new BoardPage(page);
     await expect(bp.card('Todo', 'Traveller')).toBeVisible();
     await api.moveCard(board.id, moving.id, neighbour.boardColumnId);
@@ -98,13 +99,13 @@ for (const renderer of ['full', 'lite']) {
     expect((await box(bp.card('In Progress', 'Neighbour'))).y).toBeCloseTo(neighbourBefore.y, 0);
     await seekLayoutAnimations(page, 0.5);
     expect((await box(copy)).height).toBeLessThan(before.height / 2);
-    if (renderer === 'full') { await aligned(copy, page.locator(`[data-goo-blob-id="card-${moving.id}"]`)); }
+    await aligned(copy);
     await seekLayoutAnimations(page, 0.9999);
     expect((await box(copy)).height).toBeLessThan(0.5);
     await seekLayoutAnimations(page, 1);
     await expect(copy).toHaveCount(0);
     await expect(page.locator(`[data-card-id="${moving.id}"]`)).toHaveCount(0);
-    await aligned(bp.card('In Progress', 'Neighbour'), page.locator(`[data-goo-blob-id="card-${neighbour.id}"]`));
+    await aligned(bp.card('In Progress', 'Neighbour'));
     expect(await seekLayoutAnimations(page, 0)).toBe(0);
   });
 
@@ -118,7 +119,7 @@ for (const renderer of ['full', 'lite']) {
     }
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const column = new BoardPage(page).column('Todo');
     const scroller = column.locator('.column-content');
     const tail = page.locator(`[data-card-id="${cards[0]!.id}"]`);
@@ -157,7 +158,7 @@ for (const renderer of ['full', 'lite']) {
     await api.createCard(board, 'Todo', 'Neighbour');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const bp = new BoardPage(page);
     await expect(bp.card('Todo', 'Neighbour')).toBeVisible();
     const arriving = await api.createCard(board, 'Todo', 'Arrival');
@@ -184,7 +185,7 @@ for (const renderer of ['full', 'lite']) {
     const first = await api.createCard(board, 'Todo', 'First');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const a = page.locator(`[data-card-id="${first.id}"]`);
     const b = page.locator(`[data-card-id="${second.id}"]`);
     await expect(a).toBeVisible();
@@ -214,7 +215,7 @@ for (const renderer of ['full', 'lite']) {
     const neighbour = await api.createCard(board, 'Todo', 'Neighbour');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const survivor = page.locator(`[data-card-id="${neighbour.id}"]`);
     await expect(survivor).toBeVisible();
     const before = await box(survivor);
@@ -244,7 +245,7 @@ for (const renderer of ['full', 'lite']) {
     await api.createCard(board, 'Todo', 'Neighbour', '', [], slick.name);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const bp = new BoardPage(page);
     const column = bp.column('Todo');
     const neighbour = bp.card('Todo', 'Neighbour');
@@ -268,7 +269,7 @@ for (const renderer of ['full', 'lite']) {
     await api.createCard(board, 'Todo', 'Hidden card');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const bp = new BoardPage(page);
     await expect(bp.card('Todo', 'Only match')).toBeVisible();
     await page.getByPlaceholder('Search', { exact: true }).fill('Only match');
@@ -445,12 +446,4 @@ async function box(locator: Locator) {
   const result = await locator.boundingBox();
   expect(result).not.toBeNull();
   return result!;
-}
-
-async function aligned(card: Locator, blob: Locator) {
-  await expect.poll(async () => {
-    const a = await box(card);
-    const b = await box(blob);
-    return Math.max(Math.abs(a.x + a.width / 2 - b.x - b.width / 2), Math.abs(a.y + a.height / 2 - b.y - b.height / 2));
-  }).toBeLessThanOrEqual(1);
 }

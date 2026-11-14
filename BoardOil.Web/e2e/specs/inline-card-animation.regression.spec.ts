@@ -1,3 +1,4 @@
+import { openBoardWithSlickEffect, expectSlickOutlineAligned as aligned } from '../support/slickEffects';
 import type { Locator } from '@playwright/test';
 import { expect, test } from '../fixtures/boardOilTest';
 import { controlLayoutAnimations, seekLayoutAnimations } from '../support/layoutAnimations';
@@ -5,7 +6,7 @@ import { holdCardCreationResponse } from '../support/cardCreationResponse';
 import { interceptBoardConnection } from '../support/boardRealtimeConnection';
 import { BoardPage } from '../ui/BoardPage';
 
-for (const renderer of ['full', 'lite']) {
+for (const renderer of ['bridges', 'none']) {
   test(`opening an editor in a scrolled column reveals its focused title with ${renderer} goo`, async ({ api, authenticatedPage: page }) => {
     const board = await api.createBoard(`Scrolled editor focus ${renderer}`);
     for (let index = 0; index < 18; index++) {
@@ -13,7 +14,7 @@ for (const renderer of ['full', 'lite']) {
     }
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const column = new BoardPage(page).column('Todo');
     const scroller = column.locator('.column-content');
     await expect(column).toBeVisible();
@@ -38,11 +39,11 @@ for (const renderer of ['full', 'lite']) {
     await controlLayoutAnimations(page);
     // Isolate the in-place height handoff; early realtime delivery is covered below.
     const connection = await interceptBoardConnection(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const boardPage = new BoardPage(page);
     const column = boardPage.column('Todo');
     const card = boardPage.card('Todo', 'Existing slick card');
-    const blob = page.locator(`[data-goo-blob-id="card-${existing.id}"]`);
+
     await expect(card).toBeVisible();
     connection.pauseEvents();
     const initialY = (await box(card)).y;
@@ -53,10 +54,10 @@ for (const renderer of ['full', 'lite']) {
       expect(await seekLayoutAnimations(page, 0.5)).toBe(1);
       const halfwayY = (await box(card)).y;
       expect(halfwayY).toBeGreaterThan(initialY);
-      await expectGooAligned(card, blob);
+      await aligned(card);
       await seekLayoutAnimations(page, 1);
       await expect.poll(async () => (await box(card)).y).toBeGreaterThan(halfwayY);
-      await expectGooAligned(card, blob);
+      await aligned(card);
     });
 
     await test.step('cancelling closes the space', async () => {
@@ -66,7 +67,7 @@ for (const renderer of ['full', 'lite']) {
       const halfwayY = (await box(card)).y;
       expect(halfwayY).toBeGreaterThan(initialY);
       expect(halfwayY).toBeLessThan(openY);
-      await expectGooAligned(card, blob);
+      await aligned(card);
       await seekLayoutAnimations(page, 1);
       await expect(column.getByPlaceholder('Title')).toHaveCount(0);
       await expect.poll(async () => (await box(card)).y).toBeCloseTo(initialY, 0);
@@ -87,11 +88,11 @@ for (const renderer of ['full', 'lite']) {
       const startHeight = (await box(savedCard)).height;
       await seekLayoutAnimations(page, 0.5);
       const middleHeight = (await box(savedCard)).height;
-      await expectGooAligned(card, blob);
+      await aligned(card);
       await seekLayoutAnimations(page, 1);
       await expect.poll(async () => (await box(savedCard)).height).toBeLessThan(middleHeight);
       expect(middleHeight).toBeLessThan(startHeight);
-      await expectGooAligned(card, blob);
+      await aligned(card);
       await savedCard.click();
       await expect(page.getByRole('dialog')).toBeVisible();
     });
@@ -103,11 +104,11 @@ for (const renderer of ['full', 'lite']) {
     const existing = await api.createCard(board, 'Todo', 'Visible existing card', '', [], slick.name);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const boardPage = new BoardPage(page);
     const column = boardPage.column('Todo');
     const card = boardPage.card('Todo', 'Visible existing card');
-    const blob = page.locator(`[data-goo-blob-id="card-${existing.id}"]`);
+
     await expect(card).toBeVisible();
     await page.getByPlaceholder('Search', { exact: true }).fill('Visible');
     const initialY = (await box(card)).y;
@@ -123,11 +124,11 @@ for (const renderer of ['full', 'lite']) {
     const halfwayY = (await box(card)).y;
     expect(halfwayY).toBeGreaterThan(initialY);
     expect(halfwayY).toBeLessThan(openY);
-    await expectGooAligned(card, blob);
+    await aligned(card);
     await seekLayoutAnimations(page, 1);
     await expect(title).toHaveCount(0);
     await expect.poll(async () => (await box(card)).y).toBeCloseTo(initialY, 0);
-    await expectGooAligned(card, blob);
+    await aligned(card);
     await expect(boardPage.card('Todo', 'Hidden new card')).toHaveCount(0);
     await boardPage.clearCardFilters();
     await expect(boardPage.card('Todo', 'Hidden new card')).toBeVisible();
@@ -139,11 +140,11 @@ for (const renderer of ['full', 'lite']) {
     const existing = await api.createCard(board, 'Todo', 'Existing slick card', '', [], slick.name);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await controlLayoutAnimations(page);
-    await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+    await openBoardWithSlickEffect(page, board.id, renderer);
     const boardPage = new BoardPage(page);
     const column = boardPage.column('Todo');
     const card = boardPage.card('Todo', 'Existing slick card');
-    const blob = page.locator(`[data-goo-blob-id="card-${existing.id}"]`);
+
     await expect(card).toBeVisible();
     await column.getByRole('button', { name: 'Add default card' }).click();
     await seekLayoutAnimations(page, 1);
@@ -176,11 +177,11 @@ for (const renderer of ['full', 'lite']) {
       const middleHeight = (await box(savedCard)).height;
       expect(middleHeight).toBeLessThan(startHeight);
       expect((await box(savedCard)).y).toBeCloseTo(editorY, 0);
-      await expectGooAligned(card, blob);
+      await aligned(card);
       await seekLayoutAnimations(page, 1);
       await expect.poll(async () => (await box(savedCard)).height).toBeLessThan(middleHeight);
       expect((await box(savedCard)).y).toBeCloseTo(editorY, 0);
-      await expectGooAligned(card, blob);
+      await aligned(card);
       await savedCard.click();
       await expect(page.getByRole('dialog')).toBeVisible();
     } finally {
@@ -342,12 +343,4 @@ async function box(locator: Locator) {
   const result = await locator.boundingBox();
   expect(result).not.toBeNull();
   return result!;
-}
-
-async function expectGooAligned(card: Locator, blob: Locator) {
-  await expect.poll(async () => {
-    const cardBox = await box(card);
-    const blobBox = await box(blob);
-    return Math.abs(cardBox.y + cardBox.height / 2 - blobBox.y - blobBox.height / 2);
-  }).toBeLessThanOrEqual(1);
 }

@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvas" class="experimental-goo-layer" aria-hidden="true" :data-renderer="mode" />
+  <canvas ref="canvas" class="slick-goo-layer" aria-hidden="true" :data-renderer="mode" />
   <Teleport v-for="column in nativeColumns" :key="column.index" :to="column.element">
     <svg v-if="showNativeOutlines" class="goo-layer bridge-column-outline" aria-hidden="true" focusable="false">
       <path v-for="outline in column.outlines" :key="outline.id" :d="outline.d" :fill="outline.colour" fill-rule="evenodd" />
@@ -16,11 +16,11 @@ import { buildSlickGooDescriptors } from '../utils/slickGooAdapter';
 import { GooScene, type SlickAppearance } from '../goo/scene';
 import { BridgeLayers, type ColumnOutline } from '../goo/bridgeLayers';
 import { createLiquidWorker } from '../goo/liquidWorker';
-import type { ExperimentalGooMode } from '../goo/types';
+import type { SlickEffect } from '../../shared/types/slickEffect';
 
 const props = defineProps<{
   board: HTMLElement;
-  mode: ExperimentalGooMode;
+  mode: SlickEffect;
   columns: BoardColumn[];
   slicks: Slick[];
   floatingCards: ReadonlyMap<number, HTMLElement>;
@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.experimental-goo-layer { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; }
+.slick-goo-layer { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; }
 .bridge-column-outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 0; }
 .goo-colour-probe { position: absolute; visibility: hidden; pointer-events: none; }
 </style>

@@ -1,3 +1,4 @@
+import { expectSlickOutlineAligned as aligned } from '../support/slickEffects';
 import type { Locator } from '@playwright/test';
 import { expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
@@ -8,7 +9,7 @@ test('slick goo realigns when an unslicked card above it grows', async ({ api, a
   const expandedUpperCardTitle = 'A much longer unslicked card title that wraps across several lines and makes the card noticeably taller';
   const slickCardTitle = 'Slicked card below';
   const slick = await api.createSlick(board, 'Layout regression slick');
-  const slickCard = await api.createCard(board, 'Todo', slickCardTitle, '', [], slick.name);
+  await api.createCard(board, 'Todo', slickCardTitle, '', [], slick.name);
   await api.createCard(board, 'Todo', upperCardTitle);
   const boardPage = new BoardPage(page);
 
@@ -16,12 +17,11 @@ test('slick goo realigns when an unslicked card above it grows', async ({ api, a
 
   const upperCard = boardPage.card('Todo', upperCardTitle);
   const targetCard = boardPage.card('Todo', slickCardTitle);
-  const targetBlob = page.locator(`[data-goo-blob-id="card-${slickCard.id}"]`);
+
   const initialUpperCardBox = await requireBoundingBox(upperCard);
   const initialTargetCardBox = await requireBoundingBox(targetCard);
 
-  await expect(targetBlob).toBeVisible();
-  await expect.poll(() => resolveVerticalCentreDifference(targetCard, targetBlob)).toBeLessThanOrEqual(1);
+  await aligned(targetCard);
 
   await boardPage.openCard('Todo', upperCardTitle);
   await boardPage.renameOpenCard(expandedUpperCardTitle);
@@ -32,16 +32,8 @@ test('slick goo realigns when an unslicked card above it grows', async ({ api, a
     .toBeGreaterThan(initialUpperCardBox.height);
   await expect.poll(async () => (await requireBoundingBox(targetCard)).y)
     .toBeGreaterThan(initialTargetCardBox.y);
-  await expect.poll(() => resolveVerticalCentreDifference(targetCard, targetBlob)).toBeLessThanOrEqual(1);
+  await aligned(targetCard);
 });
-
-async function resolveVerticalCentreDifference(card: Locator, blob: Locator) {
-  const cardBox = await requireBoundingBox(card);
-  const blobBox = await requireBoundingBox(blob);
-  const cardCentre = cardBox.y + (cardBox.height / 2);
-  const blobCentre = blobBox.y + (blobBox.height / 2);
-  return Math.abs(cardCentre - blobCentre);
-}
 
 async function requireBoundingBox(locator: Locator) {
   const boundingBox = await locator.boundingBox();

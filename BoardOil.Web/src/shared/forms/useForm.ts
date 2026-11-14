@@ -54,9 +54,15 @@ export function useForm<T extends object, R>(definition: FormDefinition<T, R>) {
 
   function updateSavedValues(values: T) {
     if (disposed || !isCurrent()) return;
-    const preserveDraft = dirty.value;
+    const nextDraft = clone(values);
+    const unsaved = clone(draft.value);
+    for (const field of Object.keys(draft.value) as (keyof T)[]) {
+      if (!equalFormDrafts({ value: draft.value[field] }, { value: initial.value[field] })) {
+        nextDraft[field] = unsaved[field];
+      }
+    }
     initial.value = clone(values);
-    if (!preserveDraft) draft.value = clone(values);
+    draft.value = nextDraft;
   }
 
   async function runReassessment(updateBaseline = false) {

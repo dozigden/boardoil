@@ -1,16 +1,17 @@
+import { openBoardWithSlickEffect } from '../support/slickEffects';
 import { expect, test } from '../fixtures/boardOilTest';
 import { holdCardCreationResponse } from '../support/cardCreationResponse';
 import { controlLayoutAnimations, seekLayoutAnimations } from '../support/layoutAnimations';
 import { BoardPage } from '../ui/BoardPage';
 import { CardEditorPage } from '../ui/CardEditorPage';
 
-for (const renderer of ['full', 'lite']) {
+for (const renderer of ['bridges', 'none']) {
   for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     test(`Enter continues from creation to description with ${renderer} goo and ${reducedMotion} motion`, async ({ api, authenticatedPage: page }) => {
       const board = await api.createBoard(`Creation keyboard ${renderer} ${reducedMotion}`);
       await page.emulateMedia({ reducedMotion });
       await controlLayoutAnimations(page);
-      await page.goto(`/boards/${board.id}?gooRenderer=${renderer}`);
+      await openBoardWithSlickEffect(page, board.id, renderer);
       const bp = new BoardPage(page);
       const column = bp.column('Todo');
       await column.getByRole('button', { name: 'Add default card' }).click();

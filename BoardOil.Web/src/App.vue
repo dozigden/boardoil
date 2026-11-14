@@ -21,6 +21,7 @@ import { useBoardStore } from './board/stores/boardStore';
 import { useAuthStore } from './shared/stores/authStore';
 import { useUserProfileImageStore } from './shared/stores/userProfileImageStore';
 import { useThemeStore } from './shared/stores/themeStore';
+import { useSlickEffectStore } from './shared/stores/slickEffectStore';
 import { useAppUpdateStore } from './shared/stores/appUpdateStore';
 import StandardLayout from './site/layouts/StandardLayout.vue';
 import BoardWithConveyorLayout from './site/layouts/BoardWithConveyorLayout.vue';
@@ -40,6 +41,7 @@ const boardCatalogueStore = useBoardCatalogueStore();
 const authStore = useAuthStore();
 const userProfileImageStore = useUserProfileImageStore();
 const themeStore = useThemeStore();
+const slickEffectStore = useSlickEffectStore();
 const appUpdateStore = useAppUpdateStore();
 const route = useRoute();
 const { boards } = storeToRefs(boardCatalogueStore);
@@ -75,6 +77,7 @@ onMounted(async () => {
 onUnmounted(async () => {
   appUpdateStore.dispose();
   themeStore.dispose();
+  slickEffectStore.dispose();
   await boardStore.dispose();
   boardCatalogueStore.dispose();
 });
