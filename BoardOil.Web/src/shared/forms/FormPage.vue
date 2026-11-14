@@ -13,14 +13,16 @@
       </button>
     </header>
     <slot name="before-fields" :values="draft" :busy="locked" />
-    <section class="panel panel-stack panel-stack--cozy">
-      <slot name="fields-header" :values="draft" :busy="locked" />
-      <FormFeedback ref="feedback" :category="definition.category" general-errors="toast">
-        <FormReassessment v-if="definition.reassess" :error="reassessmentError" @retry="reassess" />
-        <FormFields :fields="fields" :values="draft" :busy="locked" @change="setValue" />
-        <slot name="after-fields" :values="draft" :busy="locked" :dirty="dirty" :reset="reset" />
-      </FormFeedback>
-    </section>
+    <FormFeedback ref="feedback" :category="definition.category" general-errors="toast">
+      <slot name="fields" :fields="fields" :values="draft" :busy="locked" :set-value="setValue">
+        <section class="panel panel-stack panel-stack--cozy">
+          <slot name="fields-header" :values="draft" :busy="locked" />
+          <FormReassessment v-if="definition.reassess" :error="reassessmentError" @retry="reassess" />
+          <FormFields :fields="fields" :values="draft" :busy="locked" @change="setValue" />
+          <slot name="after-fields" :values="draft" :busy="locked" :dirty="dirty" :reset="reset" />
+        </section>
+      </slot>
+    </FormFeedback>
   </form>
 </template>
 

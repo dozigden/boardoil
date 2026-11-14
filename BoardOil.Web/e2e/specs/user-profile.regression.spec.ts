@@ -7,7 +7,7 @@ test('experimental features opt-in applies on Save and survives a new session', 
   await api.createUser(userName, password);
   await authenticatePage(page, userName, password);
   await page.goto('/user-admin/profile');
-  const experimental = page.getByRole('checkbox', { name: 'Experimental features', exact: true });
+  const experimental = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
   const save = page.getByRole('button', { name: 'Save profile', exact: true });
 
   await test.step('leave an unsaved opt-in and discard it', async () => {
