@@ -21,7 +21,8 @@
   font-display: swap;
 }
 
-:root {
+:root,
+.bo-theme-scope[data-theme] {
   color-scheme: light;
   font-family: "Montserrat", "Segoe UI", sans-serif;
   --bo-emoji-font-family: "Twemoji Mozilla", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "EmojiOne Color", "Android Emoji", sans-serif;
@@ -112,11 +113,15 @@
   --bo-admin-scroll-block-start-padding: 0;
   --bo-admin-scroll-block-end-padding: 0;
 
-  background: linear-gradient(165deg, var(--bo-bg-root-start) 0%, var(--bo-bg-root-end) 100%);
   color: var(--bo-ink-strong);
 }
 
-:root[data-theme='dark'] {
+:root {
+  background: linear-gradient(165deg, var(--bo-bg-root-start) 0%, var(--bo-bg-root-end) 100%);
+}
+
+:root[data-theme='dark'],
+.bo-theme-scope[data-theme='dark'] {
   color-scheme: dark;
   --bo-bg-root-start: #131820;
   --bo-bg-root-end: #1a2029;
