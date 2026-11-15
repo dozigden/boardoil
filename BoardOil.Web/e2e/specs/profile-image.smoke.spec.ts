@@ -41,7 +41,9 @@ test('crop and upload a profile image that remains after reload', async ({ authe
   await page.getByRole('link', { name: 'Theme', exact: true }).click();
   await page.getByRole('dialog', { name: 'Discard unsaved changes', exact: true })
     .getByRole('button', { name: 'Discard', exact: true }).click();
+  await expect(page).toHaveURL(/\/user-admin\/theme$/);
   await page.getByRole('link', { name: 'Profile', exact: true }).click();
+  await expect(page).toHaveURL(/\/user-admin\/profile$/);
   await expect(name).toHaveValue(savedName);
 
   await page.reload();
