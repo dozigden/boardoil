@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { setSlickEffect } from '../support/slickEffects';
-import { expect, test } from '../fixtures/boardOilTest';
+import { authenticatePage, expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
 import { SelectionBridges } from '../ui/SelectionBridges';
 
@@ -35,22 +36,28 @@ test('selection clips outlines and bridge shoulders below each wrapped column he
   await page.screenshot({ path: test.info().outputPath('selection-wrapped-header-scrolled.png') });
 });
 
-test('selection Bridges remain independent of slick effects and follow visible selection', async ({ api, authenticatedPage: page }) => {
-  const board = await api.createBoard('Selection Bridges');
-  await api.createSlick(board, 'First slick');
-  await api.createSlick(board, 'Second slick');
-  for (let index = 0; index < 12; index++) await api.createCard(board, 'Todo', `Unselected ${index}`);
-  const first = await api.createCard(board, 'Todo', 'Selected first', '', [], 'First slick');
-  const second = await api.createCard(board, 'Todo', 'Selected second', '', [], 'Second slick');
-  const unassigned = await api.createCard(board, 'In Progress', 'Selected unassigned');
-  const bp = new BoardPage(page);
-  const selection = new SelectionBridges(page);
-  const optIn = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
+for (const experimental of [false, true]) {
+  test(`selection Bridges remain independent of slick effects and follow visible selection (experimental opt-in: ${experimental})`, async ({ api, page }) => {
+    const board = await api.createBoard('Selection Bridges');
+    await api.createSlick(board, 'First slick');
+    await api.createSlick(board, 'Second slick');
+    for (let index = 0; index < 12; index++) await api.createCard(board, 'Todo', `Unselected ${index}`);
+    const first = await api.createCard(board, 'Todo', 'Selected first', '', [], 'First slick');
+    const second = await api.createCard(board, 'Todo', 'Selected second', '', [], 'Second slick');
+    const unassigned = await api.createCard(board, 'In Progress', 'Selected unassigned');
+    const bp = new BoardPage(page);
+    const selection = new SelectionBridges(page);
 
-  for (const experimental of [false, true]) {
+    const userName = `selection-${randomUUID().slice(0, 8)}`;
+    const password = 'SelectionPassword1234!';
+    const user = await api.createUser(userName, password);
+    await api.addBoardMember(board.id, user.id, 'Owner');
+    await authenticatePage(page, userName, password);
+    const optIn = page.getByRole('checkbox', { name: 'Enable experimental features', exact: true });
     await page.goto('/user-admin/profile');
-    if (await optIn.isChecked() !== experimental) {
-      await optIn.setChecked(experimental);
+    await expect(optIn).not.toBeChecked();
+    if (experimental) {
+      await optIn.check();
       await page.getByRole('button', { name: 'Save profile', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
     }
@@ -60,15 +67,17 @@ test('selection Bridges remain independent of slick effects and follow visible s
     await bp.selectCard('Todo', 'Selected second');
     await bp.selectCard('In Progress', 'Selected unassigned');
     for (const mode of ['none', 'bridges', 'liquid']) {
-      await setSlickEffect(page, mode);
-      await expect(selection.canvas).toHaveAttribute('data-renderer', 'bridges');
-      await expect.poll(() => selection.selectedIds()).toEqual([second.id, first.id, unassigned.id]);
-      await expect.poll(() => selection.paintsBetween(bp.selectionModeCard('Todo', 'Selected second'),
-        bp.selectionModeCard('In Progress', 'Selected unassigned'))).toBe(true);
-      await expect.poll(() => selection.paintsAround(bp.selectionModeCard('Todo', 'Selected first'))).toBe(true);
-      expect(await selection.colourAround(bp.selectionModeCard('Todo', 'Selected first')))
-        .toEqual(await selection.colourAround(bp.selectionModeCard('In Progress', 'Selected unassigned')));
-      await page.screenshot({ path: test.info().outputPath(`selection-${mode}.png`) });
+      await test.step(`selection Bridges with ${mode} slick effect`, async () => {
+        await setSlickEffect(page, mode);
+        await expect(selection.canvas).toHaveAttribute('data-renderer', 'bridges');
+        await expect.poll(() => selection.selectedIds()).toEqual([second.id, first.id, unassigned.id]);
+        await expect.poll(() => selection.paintsBetween(bp.selectionModeCard('Todo', 'Selected second'),
+          bp.selectionModeCard('In Progress', 'Selected unassigned'))).toBe(true);
+        await expect.poll(() => selection.paintsAround(bp.selectionModeCard('Todo', 'Selected first'))).toBe(true);
+        expect(await selection.colourAround(bp.selectionModeCard('Todo', 'Selected first')))
+          .toEqual(await selection.colourAround(bp.selectionModeCard('In Progress', 'Selected unassigned')));
+        await page.screenshot({ path: test.info().outputPath(`selection-${mode}.png`) });
+      });
     }
     const scroller = bp.column('Todo').locator('.column-content');
     const builds = await selection.canvas.getAttribute('data-outline-builds');
@@ -100,9 +109,5 @@ test('selection Bridges remain independent of slick effects and follow visible s
     await expect(selection.canvas).toBeAttached();
     await page.getByTitle('Done selecting cards').click();
     await expect(selection.canvas).toHaveCount(0);
-  }
-  await page.goto('/user-admin/profile');
-  await optIn.uncheck();
-  await page.getByRole('button', { name: 'Save profile', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled();
-});
+  });
+}
