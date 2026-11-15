@@ -339,7 +339,10 @@
             @update:external-url="updateDraftExternalUrlFromEditor"
           />
 
-          <div class="card-editor-select-field card-editor-assigned-user-picker">
+          <div
+            class="card-editor-select-field card-editor-assigned-user-picker"
+            :class="{ 'card-editor-assigned-user-picker--empty': cardDraft.assignedUserId === null }"
+          >
             <span class="card-editor-field-label">Assigned to</span>
             <div class="card-editor-assigned-user-control">
               <UserAvatar
@@ -353,17 +356,9 @@
                 align="left"
                 label="Select assigned user"
                 :teleport="false"
-                :text="selectedAssignedUserLabel"
+                :text="cardDraft.assignedUserId === null ? 'Assign' : selectedAssignedUserLabel"
               >
                 <template #default="{ close }">
-                  <button
-                    type="button"
-                    class="bo-dropdown-item"
-                    @click="setDraftAssignedUserId(null, close)"
-                  >
-                    <span class="bo-dropdown-item-main">Unassigned</span>
-                    <span v-if="cardDraft.assignedUserId === null" class="badge bo-dropdown-item-meta">Selected</span>
-                  </button>
                   <button
                     v-for="member in boardMembers"
                     :key="member.userId"
@@ -384,6 +379,16 @@
                   </button>
                 </template>
               </BoDropdown>
+              <button
+                v-if="cardDraft.assignedUserId !== null"
+                type="button"
+                class="btn btn--secondary btn--icon card-editor-clear-assignee"
+                aria-label="Remove assignee"
+                title="Remove assignee"
+                @click="setDraftAssignedUserId(null)"
+              >
+                <Trash2 :size="14" aria-hidden="true" />
+              </button>
             </div>
           </div>
 
@@ -2192,6 +2197,47 @@ onBeforeRouteUpdate(async (to, from) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.card-editor-assigned-user-control :deep(.bo-dropdown) {
+  min-width: 0;
+  flex: 1;
+}
+
+.card-editor-assigned-user-control :deep(.bo-dropdown-trigger > span) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-editor-clear-assignee {
+  flex: 0 0 auto;
+}
+
+.card-editor-assigned-user-picker--empty .card-editor-assigned-user-control {
+  margin-left: auto;
+}
+
+.card-editor-assigned-user-picker--empty {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.card-editor-assigned-user-picker--empty > .card-editor-field-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.card-editor-assigned-user-picker--empty :deep(.bo-dropdown) {
+  width: auto;
+}
+
+.card-editor-assigned-user-picker--empty :deep(.bo-dropdown-trigger) {
+  width: auto;
+  padding: 0.3rem 0.45rem;
 }
 
 .card-editor-assignee-avatar {

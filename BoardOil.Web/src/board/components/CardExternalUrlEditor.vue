@@ -1,25 +1,24 @@
 <template>
   <div class="card-external-url-editor" role="group" aria-label="External link">
-    <span class="card-editor-field-label">External link</span>
-
-    <div v-if="!isEditing" class="card-external-url-display">
-      <a
-        v-if="externalUrlModel"
-        class="card-external-url-link"
-        :href="externalUrlModel"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {{ externalUrlModel }}
-      </a>
-      <span v-else class="card-external-url-empty">-</span>
-      <button type="button" class="btn btn--secondary card-external-url-edit" @click="beginEdit">
+    <div class="card-external-url-heading">
+      <span class="card-editor-field-label">External link</span>
+      <button v-if="!isEditing" type="button" class="btn btn--secondary card-external-url-edit" @click="beginEdit">
         <Pencil :size="14" aria-hidden="true" />
         <span>{{ externalUrlModel ? 'Edit' : 'Add' }}</span>
       </button>
     </div>
 
-    <div v-else class="card-external-url-edit-row">
+    <a
+      v-if="!isEditing && externalUrlModel"
+      class="card-external-url-link"
+      :href="externalUrlModel"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {{ externalUrlModel }}
+    </a>
+
+    <div v-if="isEditing" class="card-external-url-edit-row">
       <input
         ref="inputRef"
         :value="draftUrl"
@@ -130,12 +129,16 @@ watch(
   color: var(--bo-ink-muted);
 }
 
-.card-external-url-display,
+.card-external-url-heading,
 .card-external-url-edit-row {
   display: flex;
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
+}
+
+.card-external-url-heading {
+  justify-content: space-between;
 }
 
 .card-external-url-link {
@@ -144,11 +147,6 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.card-external-url-empty {
-  flex: 1 1 auto;
-  color: var(--bo-ink-subtle);
 }
 
 .card-external-url-edit {

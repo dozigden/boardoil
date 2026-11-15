@@ -5,6 +5,47 @@ import { ArchivedCardsPage } from '../ui/ArchivedCardsPage';
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 
+test.describe('attachment saving tooltip', () => {
+  test.use({ hasTouch: true });
+
+  test('supports hover, keyboard and touch without closing the card', async ({ api, authenticatedPage: page }) => {
+    const board = await api.createBoard('Regression attachment tooltip');
+    await api.createCard(board, 'Todo', 'Card');
+    const boardPage = new BoardPage(page);
+    const panel = new AttachmentPanel(page);
+    await boardPage.open(board.id);
+    await boardPage.openCard('Todo', 'Card');
+    const info = panel.region().getByRole('button', { name: 'About attachment saving' });
+    const tooltip = panel.region().getByRole('tooltip');
+    const upload = panel.region().getByRole('button', { name: 'Upload', exact: true });
+
+    await info.hover();
+    await expect(tooltip).toHaveText('Uploads and deletions are saved immediately.');
+    await expect(tooltip).toBeVisible();
+    await tooltip.hover();
+    await expect(tooltip).toBeVisible();
+    await upload.hover();
+    await expect(tooltip).toBeHidden();
+
+    await info.focus();
+    await expect(tooltip).toBeVisible();
+    await expect(info).toHaveAccessibleDescription('Uploads and deletions are saved immediately.');
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toBeHidden();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expect(tooltip).toBeHidden();
+
+    await info.tap();
+    await expect(tooltip).toBeVisible();
+    await page.getByText('Assigned to', { exact: true }).tap();
+    await expect(tooltip).toBeHidden();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+});
+
 test('cancelling attachment selection leaves the card dialog open', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression attachment picker cancellation');
   await api.createCard(board, 'Todo', 'Card');
@@ -16,7 +57,9 @@ test('cancelling attachment selection leaves the card dialog open', async ({ api
   await panel.cancelFileSelection();
 
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(panel.region().getByText('No attachments.', { exact: true })).toBeVisible();
+  await expect(panel.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
+  await expect(panel.region().getByRole('status')).toHaveCount(0);
+  await expect(panel.region().getByRole('link')).toHaveCount(0);
   await panel.upload('after-cancel.txt', Buffer.from('Still editing'));
   await panel.downloadLink('after-cancel.txt').focus();
   await page.keyboard.press('Escape');
@@ -98,7 +141,9 @@ test('attachment additions and deletions update another open card through realti
     await otherBoard.openCard('Todo', 'Shared card');
     const firstPanel = new AttachmentPanel(page);
     const otherPanel = new AttachmentPanel(otherPage);
-    await expect(otherPanel.region().getByText('No attachments.', { exact: true })).toBeVisible();
+    await expect(otherPanel.region().getByRole('button', { name: 'Upload', exact: true })).toBeEnabled();
+    await expect(otherPanel.region().getByRole('status')).toHaveCount(0);
+    await expect(otherPanel.region().getByRole('link')).toHaveCount(0);
 
     await firstPanel.upload('shared.bin', Buffer.from([1, 2, 3]));
     await expect(otherPanel.downloadLink('shared.bin')).toBeVisible();
