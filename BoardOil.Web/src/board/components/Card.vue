@@ -65,6 +65,7 @@
         >
         </Tag>
       </div>
+      <slot name="footer" />
     </div>
     <svg
       v-if="cardThumbnailUrl && checklistCounts.total > 0"

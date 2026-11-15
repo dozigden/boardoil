@@ -11,7 +11,7 @@
     @close="closeCardEditor"
     @submit="saveCard"
     @keydown="handleCardEditorKeydown"
-    @opened="focusInitialField"
+    @opened="handleEditorOpened"
   >
     <template #headerActions>
       <BoDropdown
@@ -316,6 +316,29 @@
             </BoDropdown>
           </div>
 
+          <CardSlickPicker
+            :slick-name="cardDraft.slickName"
+            :slicks="slicks"
+            @update:slick-name="updateDraftSlickNameFromEditor"
+          />
+
+          <SlickMiniMap
+            v-if="board && (cardDraft.slickName || miniMapDraftCard)"
+            ref="miniMapRef"
+            :key="cardDraft.slickName ?? ''"
+            :slick="selectedMapSlick"
+            :columns="board.columns"
+            :current-card-id="isNewCard ? null : routeCardId"
+            :draft-card="miniMapDraftCard"
+            :cohesion-enabled="board.slickCohesionModeEnabled"
+            @open-card="openSlickCard"
+          />
+
+          <CardExternalUrlEditor
+            :external-url="cardDraft.externalUrl"
+            @update:external-url="updateDraftExternalUrlFromEditor"
+          />
+
           <div class="card-editor-select-field card-editor-assigned-user-picker">
             <span class="card-editor-field-label">Assigned to</span>
             <div class="card-editor-assigned-user-control">
@@ -364,17 +387,6 @@
             </div>
           </div>
 
-          <CardSlickPicker
-            :slick-name="cardDraft.slickName"
-            :slicks="slicks"
-            @update:slick-name="updateDraftSlickNameFromEditor"
-          />
-
-          <CardExternalUrlEditor
-            :external-url="cardDraft.externalUrl"
-            @update:external-url="updateDraftExternalUrlFromEditor"
-          />
-
           <CardAttachments v-if="routeCardId !== null" :board-id="boardId" :card-id="routeCardId"
             :read-only="isDuplicatingCard" :duplicating="isDuplicatingCard" />
 
@@ -412,6 +424,25 @@
       </div>
     </template>
   </FixedChromeDialog>
+  <FixedChromeDialog
+    :open="pendingCardNavigation !== null"
+    title="Unsaved changes"
+    close-label="Cancel navigation"
+    :busy="isSavingCard || cardBusy"
+    @close="cancelCardNavigation"
+    @submit="saveBeforeCardNavigation"
+  >
+    <p v-if="pendingCardNavigation">
+      You have unsaved changes, navigate to <strong>{{ pendingCardNavigation.title }}</strong>?
+    </p>
+    <template #actions>
+      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
+        <button type="submit" class="btn" :disabled="hasPendingCommentChanges || imageUploadBlocking">Save</button>
+        <button type="button" class="btn btn--danger" @click="discardBeforeCardNavigation">Discard</button>
+        <button type="button" class="btn btn--secondary" @click="cancelCardNavigation">Cancel</button>
+      </div>
+    </template>
+  </FixedChromeDialog>
 </template>
 
 <script setup lang="ts">
@@ -430,6 +461,7 @@ import BoDropdown from '../../shared/components/BoDropdown.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import CardTagEditor from './CardTagEditor.vue';
 import CardSlickPicker from './CardSlickPicker.vue';
+import SlickMiniMap from './SlickMiniMap.vue';
 import CardExternalUrlEditor from './CardExternalUrlEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
 import FixedChromeDialog from '../../shared/components/FixedChromeDialog.vue';
@@ -500,7 +532,18 @@ const cardDraftSource = ref<CardEditModel | null>(null);
 const isCardDraftDirty = ref(false);
 const isDuplicatingCard = ref(false);
 const isSavingCard = ref(false);
+const pendingCardNavigation = ref<Card | null>(null);
+let resolveCardNavigation: ((proceed: boolean) => void) | null = null;
 const isNewCard = computed(() => isCreatingCard.value || isDuplicatingCard.value);
+const selectedMapSlick = computed(() => {
+  const name = cardDraft.value?.slickName?.trim().toUpperCase();
+  return slicks.value.find(slick => slick.name.toUpperCase() === name) ?? null;
+});
+
+function openSlickCard(cardId: number) {
+  void router.push({ name: 'board-card', params: { boardId: boardId.value, cardId } });
+}
+
 const dialogTitle = computed(() => {
   if (isCreatingCard.value) return 'Create Card';
   return isDuplicatingCard.value ? 'Duplicate Card' : 'Edit Card';
@@ -514,6 +557,7 @@ const primaryActionText = computed(() => {
   return isDuplicatingCard.value ? 'Create duplicate' : 'Save';
 });
 const editorDialogRef = ref<InstanceType<typeof FixedChromeDialog> | null>(null);
+const miniMapRef = ref<InstanceType<typeof SlickMiniMap> | null>(null);
 let stopDuplicateAnimation: (() => void) | undefined;
 const newCommentText = ref('');
 const isCommentDraftDirty = ref(false);
@@ -547,6 +591,7 @@ const descriptionImageBlocking = ref(false);
 const commentImageBlocking = ref(false);
 
 const hasUnsavedChanges = computed(() => isCardDraftDirty.value || isCommentDraftDirty.value || isEditedCommentDirty.value);
+const hasPendingCommentChanges = computed(() => isCommentDraftDirty.value || isEditedCommentDirty.value);
 const isTransferDisabled = computed(() => hasUnsavedChanges.value || attachments.busy);
 const transferActionTitle = computed(() => isTransferDisabled.value
   ? 'Save or discard unsaved changes before moving this card.'
@@ -641,6 +686,29 @@ const selectedAssignedMember = computed(() => {
   }
 
   return boardMembers.value.find(x => x.userId === cardDraft.value!.assignedUserId) ?? null;
+});
+const miniMapDraftCard = computed<Card | null>(() => {
+  const card = editingCard.value;
+  const draft = cardDraft.value;
+  if (isNewCard.value || !card || !draft || !cardDraftSource.value || areCardEditModelsEqual(draft, cardDraftSource.value)) {
+    return null;
+  }
+
+  return {
+    ...card,
+    ...draft,
+    cardTypeId: draft.cardTypeId ?? card.cardTypeId,
+    cardTypeName: selectedCardTypeLabel.value,
+    cardTypeEmoji: selectedCardTypeEmoji.value,
+    slickId: selectedMapSlick.value?.id ?? null,
+    slick: selectedMapSlick.value,
+    tags: draft.tagNames.flatMap(name => {
+      const tag = tagStore.getTagByName(name);
+      return tag ? [tag] : [];
+    }),
+    assignedUserDisplayName: draft.assignedUserId === null ? null : selectedAssignedUserLabel.value,
+    assignedUserImageRelativePath: selectedAssignedMember.value?.profileImageRelativePath ?? null
+  };
 });
 const disabledToolbarState = computed<Partial<Record<MdEditorToolbarActionId, MdEditorToolbarActionState>>>(() => {
   return createDisabledToolbarState(mdEditorToolbarActions.map(action => action.id));
@@ -923,6 +991,33 @@ async function confirmDiscardUnsavedChanges() {
     confirmLabel: 'Discard',
     danger: true
   });
+}
+
+function confirmCardNavigation(destination: Card) {
+  finishCardNavigation(false);
+  pendingCardNavigation.value = destination;
+  return new Promise<boolean>(resolve => { resolveCardNavigation = resolve; });
+}
+
+function finishCardNavigation(proceed: boolean) {
+  const resolve = resolveCardNavigation;
+  resolveCardNavigation = null;
+  pendingCardNavigation.value = null;
+  resolve?.(proceed);
+}
+
+function cancelCardNavigation() {
+  finishCardNavigation(false);
+}
+
+function discardBeforeCardNavigation() {
+  finishCardNavigation(true);
+}
+
+async function saveBeforeCardNavigation() {
+  if (hasPendingCommentChanges.value || imageUploadBlocking.value || isSavingCard.value || cardBusy.value) { return; }
+  await saveCardDraft(false);
+  finishCardNavigation(!hasUnsavedChanges.value);
 }
 
 async function closeCardEditor() {
@@ -1223,6 +1318,11 @@ async function resolveDraftTags(tagNames: string[]) {
   return ensureTagsExist(boardId.value, tagNames);
 }
 
+function handleEditorOpened() {
+  void miniMapRef.value?.revealCurrentCard();
+  focusInitialField();
+}
+
 function focusInitialField() {
   if (isCreatingCard.value && !cardDraft.value?.title.trim()) {
     createTitleInputRef.value?.focus();
@@ -1252,7 +1352,10 @@ async function beginDuplicate() {
   activeEditor.value = 'description';
 }
 
-onBeforeUnmount(() => stopDuplicateAnimation?.());
+onBeforeUnmount(() => {
+  stopDuplicateAnimation?.();
+  finishCardNavigation(false);
+});
 
 function revealCreatedDuplicate(cardId: number) {
   const card = document.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`);
@@ -1577,6 +1680,14 @@ async function shouldBlockRouteNavigation(
   const navigatingToDifferentCard = toBoardId !== fromBoardId || toCardId !== fromCardId;
   if (!navigatingToDifferentRoute && !navigatingToDifferentCard) {
     return false;
+  }
+
+  if (toName === 'board-card' && toBoardId === fromBoardId && !isNewCard.value && !attachments.busy && hasUnsavedChanges.value) {
+    const destinationId = Number(toCardId);
+    const destination = cardStore.getCardById(destinationId);
+    if (destination) {
+      return !await confirmCardNavigation(destination);
+    }
   }
 
   const shouldDiscard = await confirmDiscardUnsavedChanges();
