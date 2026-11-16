@@ -355,6 +355,7 @@
               <BoDropdown
                 align="left"
                 label="Select assigned user"
+                :icon="cardDraft.assignedUserId === null ? UserRoundPlus : null"
                 :teleport="false"
                 :text="cardDraft.assignedUserId === null ? 'Assign' : selectedAssignedUserLabel"
               >
@@ -451,7 +452,7 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, X } from '@lucide/vue';
+import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, UserRoundPlus, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';

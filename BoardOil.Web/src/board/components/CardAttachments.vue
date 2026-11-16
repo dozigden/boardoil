@@ -12,7 +12,10 @@
           Uploads and deletions are saved immediately.
         </span>
       </span>
-      <button v-if="canManage" type="button" class="btn btn--secondary" :title="`Up to ${formatSize(store.maxUploadByteLength)} per file`" :disabled="store.busy || store.loading || store.maxUploadByteLength === 0" @click="selectFiles">Upload</button>
+      <button v-if="canManage" type="button" class="btn btn--secondary" :title="`Up to ${formatSize(store.maxUploadByteLength)} per file`" :disabled="store.busy || store.loading || store.maxUploadByteLength === 0" @click="selectFiles">
+        <Upload :size="18" aria-hidden="true" />
+        Upload
+      </button>
     </div>
     <input v-if="canManage" ref="picker" type="file" multiple hidden aria-label="Choose attachments" @change="filesSelected" />
     <small v-if="duplicating">Attachments will be copied when you create the duplicate.</small>
@@ -65,7 +68,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
-import { Info, Trash2 } from '@lucide/vue';
+import { Info, Trash2, Upload } from '@lucide/vue';
 import { useAttachmentStore } from '../stores/attachmentStore';
 import { buildApiUrl } from '../../shared/api/config';
 import { formatAttachmentSize as formatSize } from '../utils/formatAttachmentSize';

@@ -3,7 +3,8 @@
     <div class="card-external-url-heading">
       <span class="card-editor-field-label">External link</span>
       <button v-if="!isEditing" type="button" class="btn btn--secondary card-external-url-edit" @click="beginEdit">
-        <Pencil :size="14" aria-hidden="true" />
+        <Link2 v-if="!externalUrlModel" :size="18" aria-hidden="true" />
+        <Pencil v-else :size="18" aria-hidden="true" />
         <span>{{ externalUrlModel ? 'Edit' : 'Add' }}</span>
       </button>
     </div>
@@ -15,7 +16,8 @@
       target="_blank"
       rel="noopener noreferrer"
     >
-      {{ externalUrlModel }}
+      <span class="card-external-url-text">{{ externalUrlModel }}</span>
+      <ExternalLink :size="14" aria-hidden="true" />
     </a>
 
     <div v-if="isEditing" class="card-external-url-edit-row">
@@ -31,17 +33,17 @@
         @keydown.esc.stop.prevent="cancelEdit"
       />
       <button type="button" class="btn card-external-url-action" aria-label="Apply external URL" title="Apply" @click="finishEdit">
-        <Check :size="14" aria-hidden="true" />
+        <Check :size="18" aria-hidden="true" />
       </button>
       <button type="button" class="btn btn--secondary card-external-url-action" aria-label="Cancel external URL edit" title="Cancel" @click="cancelEdit">
-        <X :size="14" aria-hidden="true" />
+        <X :size="18" aria-hidden="true" />
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Check, Pencil, X } from '@lucide/vue';
+import { Check, ExternalLink, Link2, Pencil, X } from '@lucide/vue';
 import { nextTick, ref, watch } from 'vue';
 import { isHttpOrHttpsUrl } from '../../shared/utils/linkUrl';
 
@@ -142,11 +144,22 @@ watch(
 }
 
 .card-external-url-link {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.card-external-url-text {
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.card-external-url-link svg {
+  flex: 0 0 auto;
 }
 
 .card-external-url-edit {
