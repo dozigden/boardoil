@@ -25,6 +25,7 @@
       <slot name="trigger">
         <span v-if="triggerText">{{ triggerText }}</span>
       </slot>
+      <ChevronDown v-if="showChevron && !effectiveIsIconOnly" class="bo-dropdown-chevron" :size="14" aria-hidden="true" />
     </button>
     <Teleport v-if="teleport" to="body">
       <div
@@ -59,6 +60,7 @@
 </template>
 
 <script setup lang="ts">
+import { ChevronDown } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue';
 import type { Component } from 'vue';
 import { useClickOutside } from '../composables/useClickOutside';
@@ -71,6 +73,7 @@ const props = withDefaults(defineProps<{
   iconSize?: number;
   align?: 'left' | 'right' | 'center';
   iconOnly?: boolean;
+  showChevron?: boolean;
   disabled?: boolean;
   buttonClass?: string | string[] | Record<string, boolean> | null;
   panelRole?: string;
@@ -79,6 +82,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   align: 'left',
   iconOnly: false,
+  showChevron: false,
   disabled: false,
   text: null,
   icon: null,
@@ -239,6 +243,11 @@ onBeforeUnmount(() => {
 .bo-dropdown-trigger {
   user-select: none;
   gap: 0.4rem;
+}
+
+.bo-dropdown-chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .bo-dropdown-panel {

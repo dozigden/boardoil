@@ -5,6 +5,7 @@
       :disabled="disabled"
       align="left"
       label="Select slick"
+      show-chevron
       :teleport="false"
       :text="selectedSlickLabel"
     >

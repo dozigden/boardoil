@@ -267,6 +267,7 @@
               class="card-editor-column-dropdown"
               align="left"
               label="Select column"
+              show-chevron
               :teleport="false"
               :text="selectedBoardColumnLabel"
             >
@@ -290,6 +291,7 @@
             <BoDropdown
               align="left"
               label="Select card type"
+              show-chevron
               :teleport="false"
               :text="selectedCardTypeLabel"
             >
@@ -355,6 +357,7 @@
               <BoDropdown
                 align="left"
                 label="Select assigned user"
+                show-chevron
                 :icon="cardDraft.assignedUserId === null ? UserRoundPlus : null"
                 :teleport="false"
                 :text="cardDraft.assignedUserId === null ? 'Assign' : selectedAssignedUserLabel"

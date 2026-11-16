@@ -2,6 +2,7 @@
   <BoDropdown
     class="emoji-picker-dropdown"
     label="Emoji picker"
+    show-chevron
     :trigger-label="triggerLabel"
     :text="selectedEmoji ?? placeholder"
     :disabled="disabled"
