@@ -34,17 +34,15 @@
             :disabled="busy"
           >
             <template #default="{ close }">
-              <button type="button" class="bo-dropdown-item" @click="openEditorFromMenu(cardType.id, close)">
+              <BoDropdownItem :icon="Pencil" @click="openEditorFromMenu(cardType.id, close)">
                 Edit
-              </button>
-              <button
+              </BoDropdownItem>
+              <BoDropdownItem :icon="Star"
                 v-if="!cardType.isSystem"
-                type="button"
-                class="bo-dropdown-item"
                 @click="openDefaultDialog(cardType, close)"
               >
                 Set as default
-              </button>
+              </BoDropdownItem>
             </template>
           </BoDropdown>
         </div>
@@ -60,11 +58,12 @@
 </template>
 
 <script setup lang="ts">
-import { MoreVertical, Plus } from '@lucide/vue';
+import { MoreVertical, Pencil, Plus, Star } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoDropdownItem from '../../shared/components/BoDropdownItem.vue';
 import CardTypeBadge from '../components/CardTypeBadge.vue';
 import SetDefaultCardTypeDialog from '../components/SetDefaultCardTypeDialog.vue';
 import type { CardType } from '../../shared/types/boardTypes';

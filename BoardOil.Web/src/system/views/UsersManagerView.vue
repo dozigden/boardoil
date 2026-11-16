@@ -64,32 +64,26 @@
             :disabled="busy"
           >
             <template #default="{ close }">
-              <button
-                type="button"
-                class="bo-dropdown-item"
+              <BoDropdownItem :icon="Pencil"
                 :disabled="busy"
                 @click="openEditUserFromMenu(asManagedUser(row), close)"
               >
                 Edit details
-              </button>
+              </BoDropdownItem>
               <span class="bo-dropdown-divider" aria-hidden="true"></span>
-              <button
-                type="button"
-                class="bo-dropdown-item"
+              <BoDropdownItem :icon="KeyRound"
                 :disabled="busy"
                 @click="openResetPasswordFromMenu(asManagedUser(row), close)"
               >
                 Reset password
-              </button>
+              </BoDropdownItem>
               <span class="bo-dropdown-divider" aria-hidden="true"></span>
-              <button
-                type="button"
-                class="bo-dropdown-item"
+              <BoDropdownItem :icon="Trash2" danger
                 :disabled="busy || isCurrentUser(Number(row.id))"
                 @click="deleteUserFromMenu(asManagedUser(row), close)"
               >
                 Delete
-              </button>
+              </BoDropdownItem>
             </template>
           </BoDropdown>
         </template>
@@ -114,10 +108,11 @@
 </template>
 
 <script setup lang="ts">
-import { MoreVertical } from '@lucide/vue';
+import { KeyRound, MoreVertical, Pencil, Trash2 } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoDropdownItem from '../../shared/components/BoDropdownItem.vue';
 import BoGrid from '../../shared/components/BoGrid.vue';
 import PasswordResetDialog from '../../shared/components/PasswordResetDialog.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';

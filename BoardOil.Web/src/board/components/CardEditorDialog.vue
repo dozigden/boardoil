@@ -25,43 +25,27 @@
         :icon-size="16"
       >
         <template #default="{ close }">
-          <button
-            type="button"
-            class="bo-dropdown-item"
+          <BoDropdownItem :icon="Copy"
             :disabled="isDuplicateDisabled"
             :title="duplicateActionTitle"
             @click="close(); beginDuplicate()"
           >
-            <span class="bo-dropdown-item-main card-editor-menu-item">
-              <Copy :size="14" aria-hidden="true" />
-              <span>Duplicate</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            class="bo-dropdown-item"
+            Duplicate
+          </BoDropdownItem>
+          <BoDropdownItem :icon="ArrowRightLeft"
             :disabled="isTransferDisabled"
             :title="transferActionTitle"
             @click="close(); void openCardTransfer()"
           >
-            <span class="bo-dropdown-item-main card-editor-menu-item">
-              <ArrowRightLeft :size="14" aria-hidden="true" />
-              <span>Move to another board</span>
-            </span>
-          </button>
-          <button type="button" class="bo-dropdown-item" :disabled="attachments.busy" @click="close(); void archiveEditingCard()">
-            <span class="bo-dropdown-item-main card-editor-menu-item">
-              <Archive :size="14" aria-hidden="true" />
-              <span>Archive</span>
-            </span>
-          </button>
+            Move to another board
+          </BoDropdownItem>
+          <BoDropdownItem :icon="Archive" :disabled="attachments.busy" @click="close(); void archiveEditingCard()">
+            Archive
+          </BoDropdownItem>
           <span class="bo-dropdown-divider" aria-hidden="true"></span>
-          <button type="button" class="bo-dropdown-item" :disabled="attachments.busy" @click="close(); void deleteEditingCard()">
-            <span class="bo-dropdown-item-main card-editor-menu-item card-editor-menu-item--danger">
-              <Trash2 :size="14" aria-hidden="true" />
-              <span>Delete</span>
-            </span>
-          </button>
+          <BoDropdownItem :icon="Trash2" danger :disabled="attachments.busy" @click="close(); void deleteEditingCard()">
+            Delete
+          </BoDropdownItem>
         </template>
       </BoDropdown>
     </template>
@@ -193,12 +177,12 @@
                     :icon-size="14"
                   >
                     <template #default="{ close }">
-                      <button v-if="canEditComment(comment)" type="button" class="bo-dropdown-item" :disabled="commentsBusy || imageUploadBlocking" @click="close(); void beginCommentEdit(comment)">
+                      <BoDropdownItem v-if="canEditComment(comment)" :icon="Pencil" :disabled="commentsBusy || imageUploadBlocking" @click="close(); void beginCommentEdit(comment)">
                         Edit
-                      </button>
-                      <button v-if="canDeleteComment(comment)" type="button" class="bo-dropdown-item" :disabled="commentsBusy || imageUploadBlocking" @click="close(); void deleteComment(comment)">
+                      </BoDropdownItem>
+                      <BoDropdownItem v-if="canDeleteComment(comment)" :icon="Trash2" danger :disabled="commentsBusy || imageUploadBlocking" @click="close(); void deleteComment(comment)">
                         Delete
-                      </button>
+                      </BoDropdownItem>
                     </template>
                   </BoDropdown>
                   <div v-if="editingCommentId === comment.id" class="card-editor-comment-edit" @keydown="handleCommentEditKeydown">
@@ -445,7 +429,7 @@
 </template>
 
 <script setup lang="ts">
-import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Trash2, UserRoundPlus, X } from '@lucide/vue';
+import { Archive, ArrowRightLeft, Check, Copy, Ellipsis, Pencil, Trash2, UserRoundPlus, X } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
@@ -2159,16 +2143,6 @@ onBeforeRouteUpdate(async (to, from) => {
 
 .card-editor-actions-menu {
   flex: 0 0 auto;
-}
-
-.card-editor-menu-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.card-editor-menu-item--danger {
-  color: var(--bo-colour-danger-ink);
 }
 
 .card-editor-assignee-option {

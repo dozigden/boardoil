@@ -38,16 +38,16 @@
               :disabled="busy"
             >
               <template #default="{ close }">
-                <button type="button" class="bo-dropdown-item" @click="openBoardFromMenu(board.id, close)">
+                <BoDropdownItem :icon="Eye" @click="openBoardFromMenu(board.id, close)">
                   View
-                </button>
-                <button type="button" class="bo-dropdown-item" @click="openConfigurationFromMenu(board.id, close)">
+                </BoDropdownItem>
+                <BoDropdownItem :icon="Settings" @click="openConfigurationFromMenu(board.id, close)">
                   Configuration
-                </button>
+                </BoDropdownItem>
                 <span class="bo-dropdown-divider" aria-hidden="true"></span>
-                <button type="button" class="bo-dropdown-item" @click="openDeleteFromMenu(board.id, close)">
+                <BoDropdownItem :icon="Trash2" danger @click="openDeleteFromMenu(board.id, close)">
                   Delete
-                </button>
+                </BoDropdownItem>
               </template>
             </BoDropdown>
           </div>
@@ -64,12 +64,13 @@
 </template>
 
 <script setup lang="ts">
-import { MoreVertical } from '@lucide/vue';
+import { Eye, MoreVertical, Settings, Trash2 } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoardCreateDialog from '../components/BoardCreateDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoDropdownItem from '../../shared/components/BoDropdownItem.vue';
 import type { BoardSummary } from '../../shared/types/boardTypes';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useBoardCatalogueStore } from '../../shared/stores/boardCatalogueStore';

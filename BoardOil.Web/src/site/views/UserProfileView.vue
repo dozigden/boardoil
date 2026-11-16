@@ -29,17 +29,15 @@
                 :icon-size="14"
               >
                 <template #default="{ close }">
-                  <button type="button" class="bo-dropdown-item" :disabled="imageBusy" @click="openImagePicker(close)">
+                  <BoDropdownItem :icon="Upload" :disabled="imageBusy" @click="openImagePicker(close)">
                     Upload image
-                  </button>
-                  <button
-                    type="button"
-                    class="bo-dropdown-item"
+                  </BoDropdownItem>
+                  <BoDropdownItem :icon="Trash2" danger
                     :disabled="!userProfileImageUrl || imageBusy"
                     @click="removeImage(close)"
                   >
                     Remove image
-                  </button>
+                  </BoDropdownItem>
                 </template>
               </BoDropdown>
             </div>
@@ -103,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { EllipsisVertical } from '@lucide/vue';
+import { EllipsisVertical, Trash2, Upload } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref, shallowRef, watch } from 'vue';
 import LoadingIndicator from '../../shared/components/LoadingIndicator.vue';
@@ -113,6 +111,7 @@ import FormFields from '../../shared/forms/FormFields.vue';
 import { createUserProfileForm } from '../forms/userProfileForm';
 import ProfileImageCropDialog from '../components/ProfileImageCropDialog.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoDropdownItem from '../../shared/components/BoDropdownItem.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';

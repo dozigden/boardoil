@@ -274,7 +274,7 @@ onBeforeUnmount(() => {
   text-align: left;
   white-space: nowrap;
   text-decoration: none;
-  color: var(--bo-ink-default);
+  color: var(--bo-dropdown-item-ink, var(--bo-ink-default));
   border-radius: 6px;
   padding: 0.45rem 0.55rem;
   border: 1px solid transparent;
@@ -286,7 +286,7 @@ onBeforeUnmount(() => {
 :deep(.bo-dropdown-item:hover),
 :deep(.bo-dropdown-item:focus-visible) {
   background: var(--bo-surface-energy);
-  color: var(--bo-colour-energy);
+  color: var(--bo-dropdown-item-hover-ink, var(--bo-colour-energy));
 }
 
 :deep(.bo-dropdown-item:disabled) {

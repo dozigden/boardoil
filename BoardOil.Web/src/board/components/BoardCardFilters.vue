@@ -68,19 +68,13 @@
           :disabled="disableSelectionMenuAction"
         >
           <template #default="{ close }">
-            <button type="button" class="bo-dropdown-item" @click="openInvertSelectionFromMenu(close)">
-              <span class="bo-dropdown-item-main board-selection-menu-item">
-                <ArrowRightLeft :size="16" aria-hidden="true" />
-                <span>Invert selection</span>
-              </span>
-            </button>
+            <BoDropdownItem :icon="ArrowRightLeft" @click="openInvertSelectionFromMenu(close)">
+              Invert selection
+            </BoDropdownItem>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
-            <button type="button" class="bo-dropdown-item" :disabled="selectedCount === 0" @click="openBulkDeleteFromMenu(close)">
-              <span class="bo-dropdown-item-main board-selection-menu-item board-selection-delete-item">
-                <Trash2 :size="16" aria-hidden="true" />
-                <span>Delete selected</span>
-              </span>
-            </button>
+            <BoDropdownItem :icon="Trash2" danger :disabled="selectedCount === 0" @click="openBulkDeleteFromMenu(close)">
+              Delete selected
+            </BoDropdownItem>
           </template>
         </BoDropdown>
       </div>
@@ -111,6 +105,7 @@
 import { ArrowRightLeft, ChevronDown, Pencil, Trash2, X } from '@lucide/vue';
 import { computed } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoDropdownItem from '../../shared/components/BoDropdownItem.vue';
 import type { CardType, Slick } from '../../shared/types/boardTypes';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
 import BoardCardFilterPicker from './BoardCardFilterPicker.vue';
@@ -335,20 +330,6 @@ const hasActiveOptionFilters = computed(() =>
   min-width: 2rem;
   padding: 0;
   line-height: 1;
-}
-
-.board-selection-menu-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.board-selection-menu-item svg {
-  flex: 0 0 auto;
-}
-
-.board-selection-delete-item {
-  color: var(--bo-colour-danger-strong);
 }
 
 .board-selection-toggle-count {
