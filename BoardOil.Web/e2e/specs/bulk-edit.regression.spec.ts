@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
-import { holdRejectedBulkEdit } from '../support/bulkEditSubmission';
+import { holdRejectedBulkEdit, trackBulkEditWrites } from '../support/bulkEditSubmission';
 
 test('bulk edits retain combined changes after a backend column rejection and apply them together on retry', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Bulk edit combined');
@@ -21,7 +21,8 @@ test('bulk edits retain combined changes after a backend column rejection and ap
   const destination = board.columns.find(item => item.title === 'Done')!;
   await column.selectOption({ label: removedColumn.title });
   await dialog.getByRole('combobox', { name: 'Slick', exact: true }).selectOption({ label: 'Set slick' });
-  await dialog.getByRole('combobox', { name: 'Slick to set', exact: true }).selectOption({ label: slick.name });
+  await dialog.getByTitle('Select slick', { exact: true }).click();
+  await dialog.getByRole('menu', { name: 'Select slick' }).getByRole('button', { name: slick.name, exact: true }).click();
   await dialog.getByRole('button', { name: 'Mark for add Add me', exact: true }).click();
   await dialog.getByRole('button', { name: 'Mark for remove Remove me', exact: true }).click();
   await api.deleteColumn(board.id, removedColumn.id);
@@ -63,11 +64,11 @@ test('bulk slick intent requires a choice and distinguishes clear from no change
   await operation.selectOption({ label: 'Set slick' });
   await dialog.getByRole('button', { name: 'Mark for add Added', exact: true }).click();
   await apply.click();
-  await expect(dialog.getByRole('combobox', { name: 'Slick to set', exact: true })).toHaveAccessibleDescription('Select a slick.');
+  await expect(dialog.getByRole('group', { name: 'Slick to set', exact: true })).toHaveAccessibleDescription('Select a slick.');
   expect(await api.getCard(board.id, card.id)).toMatchObject({ tagNames: ['Keep me'], slickName: slick.name });
   await operation.selectOption({ label: 'No change' });
   await expect(dialog.getByRole('alert')).toHaveCount(0);
-  await expect(dialog.getByRole('combobox', { name: 'Slick to set', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('group', { name: 'Slick to set', exact: true })).toHaveCount(0);
   await apply.click();
   await expect(dialog).toBeHidden();
   expect(await api.getCard(board.id, card.id)).toMatchObject({ boardColumnId: card.boardColumnId, tagNames: ['Added', 'Keep me'], slickName: slick.name });
@@ -92,11 +93,17 @@ test('bulk editing locks controls while saving and retains selection and draft a
   const column = dialog.getByRole('combobox', { name: 'Column', exact: true });
   const apply = dialog.getByRole('button', { name: 'Apply edits', exact: true });
   await column.selectOption({ label: 'In Progress' });
+  await dialog.getByRole('combobox', { name: 'Slick', exact: true }).selectOption({ label: 'Set slick' });
+  const picker = dialog.getByTitle('Select slick', { exact: true });
+  await picker.click();
+  await dialog.getByRole('textbox', { name: 'Search slicks', exact: true }).fill('New release');
+  await dialog.getByRole('button', { name: 'Create and use "New release"', exact: true }).click();
   const pending = await holdRejectedBulkEdit(page, board.id, 'Bulk editing is temporarily unavailable.');
   try {
     await apply.click();
     await pending.request;
     await expect(column).toBeDisabled();
+    await expect(picker).toBeDisabled();
     await expect(apply).toBeDisabled();
     await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
     pending.release();
@@ -105,6 +112,8 @@ test('bulk editing locks controls while saving and retains selection and draft a
     await expect(page.getByRole('checkbox', { name: 'Toggle card selection mode' })).toBeChecked();
     await expect(dialog.getByText('Edit 1 selected card.', { exact: true })).toBeVisible();
     await expect(column.getByRole('option', { selected: true })).toHaveText('In Progress');
+    await expect(picker).toBeEnabled();
+    await expect(picker).toHaveText('New release');
     await apply.click();
     await expect(dialog).toBeHidden();
     expect(await api.getCard(board.id, card.id)).toMatchObject({ boardColumnId: board.columns.find(item => item.title === 'In Progress')!.id });
@@ -154,4 +163,33 @@ test('bulk tag choices follow tags created while an initially empty catalogue is
 
   await expect(dialog).toBeHidden();
   expect(await api.getCard(board.id, card.id)).toMatchObject({ tagNames: ['New tag'] });
+});
+
+test('bulk editing creates a slick only on Apply and shares it with the card editor', async ({ api, authenticatedPage: page }) => {
+  const board = await api.createBoard('Bulk slick creation');
+  const first = await api.createCard(board, 'Todo', 'First');
+  const second = await api.createCard(board, 'Todo', 'Second');
+  const bp = new BoardPage(page);
+  await bp.open(board.id);
+  const writes = trackBulkEditWrites(page, board.id);
+  await bp.enterCardSelectionMode();
+  await bp.selectCard('Todo', 'First');
+  await bp.selectCard('Todo', 'Second');
+  const dialog = await bp.openBulkEdit();
+  await dialog.getByRole('combobox', { name: 'Slick', exact: true }).selectOption({ label: 'Set slick' });
+  const picker = dialog.getByTitle('Select slick', { exact: true });
+  await picker.click();
+  await dialog.getByRole('textbox', { name: 'Search slicks', exact: true }).fill('Bulk release');
+  await dialog.getByRole('button', { name: 'Create and use "Bulk release"', exact: true }).click();
+  await expect(picker).toHaveText('Bulk release');
+  expect(writes).toEqual({ bulkEdits: 0, slickCreates: 0 });
+  expect(await api.getCard(board.id, first.id)).toMatchObject({ slickName: null });
+  await dialog.getByRole('button', { name: 'Apply edits', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(writes).toEqual({ bulkEdits: 1, slickCreates: 0 });
+  for (const card of [first, second]) {
+    expect(await api.getCard(board.id, card.id)).toMatchObject({ slickName: 'Bulk release' });
+  }
+  await bp.openCard('Todo', 'First');
+  await expect(page.getByRole('dialog').getByTitle('Select slick', { exact: true })).toHaveText('Bulk release');
 });

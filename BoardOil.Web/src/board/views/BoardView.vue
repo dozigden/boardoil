@@ -61,7 +61,6 @@
         :board-id="board.id"
         :selected-card-ids="selectedCards.map(card => card.id)"
         :columns="filteredColumns.map(column => ({ id: column.id, title: column.title }))"
-        :slicks="slicks"
         @update:busy="onBulkEditBusyChange"
         @close="closeBulkEditDialog"
         @saved="onBulkEditSaved"

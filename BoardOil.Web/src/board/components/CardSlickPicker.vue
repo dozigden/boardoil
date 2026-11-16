@@ -1,7 +1,8 @@
 <template>
   <div class="card-editor-select-field card-editor-slick-picker">
-    <span class="card-editor-field-label">Slick</span>
+    <span v-if="showLabel" class="card-editor-field-label">Slick</span>
     <BoDropdown
+      :disabled="disabled"
       align="left"
       label="Select slick"
       :teleport="false"
@@ -16,21 +17,21 @@
         >
           <span class="card-editor-slick-swatch-label">{{ selectedSlick.name }}</span>
         </span>
-        <span v-else-if="hasSelectedSlickName">{{ selectedSlickLabel }}</span>
+        <span v-else>{{ selectedSlickLabel }}</span>
       </template>
       <template #default="{ close }">
         <div class="card-editor-slick-search">
           <input
             :value="slickSearchEntry"
             type="text"
-            maxlength="40"
             placeholder="Search slicks"
             aria-label="Search slicks"
-            @input="setSlickSearchEntry(($event.target as HTMLInputElement).value)"
+            @input="onSlickSearchInput"
             @keydown.enter.prevent="applySlickSearchSelection(close)"
           />
         </div>
         <button
+          v-if="allowClear"
           type="button"
           class="bo-dropdown-item"
           @click="setDraftSlickName(null, close)"
@@ -74,9 +75,12 @@ import BoDropdown from '../../shared/components/BoDropdown.vue';
 import type { Slick } from '../../shared/types/boardTypes';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   slicks: Slick[];
-}>();
+  disabled?: boolean;
+  showLabel?: boolean;
+  allowClear?: boolean;
+}>(), { disabled: false, showLabel: true, allowClear: true });
 
 const slickNameModel = defineModel<string | null>('slickName', { required: true });
 const slickSearchEntry = ref('');
@@ -92,7 +96,7 @@ const selectedSlick = computed<Slick | null>(() => {
 const hasSelectedSlickName = computed(() => normaliseSlickNameForSave(slickNameModel.value) !== null);
 const selectedSlickLabel = computed(() => {
   if (!hasSelectedSlickName.value) {
-    return 'No slick';
+    return props.allowClear ? 'No slick' : 'Select slick';
   }
 
   if (selectedSlick.value) {
@@ -122,11 +126,13 @@ const canCreateSlickFromEntry = computed(() => {
   return !existing;
 });
 
-function setSlickSearchEntry(value: string) {
-  slickSearchEntry.value = value.slice(0, 40);
+function onSlickSearchInput(event: Event) {
+  const input = event.target;
+  if (input instanceof HTMLInputElement) slickSearchEntry.value = input.value;
 }
 
 function setDraftSlickName(slickName: string | null, close?: () => void) {
+  if (props.disabled) return;
   slickNameModel.value = normaliseSlickNameForSave(slickName);
   slickSearchEntry.value = '';
   close?.();

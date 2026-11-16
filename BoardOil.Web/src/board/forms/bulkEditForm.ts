@@ -3,6 +3,7 @@ import type { BulkEditCardsOptions, BulkEditSlickOperation } from '../../shared/
 import type { Card } from '../../shared/types/boardTypes';
 import type { Result } from '../../shared/types/result';
 import type { TagFilterStateMap } from '../../shared/types/tagFilterTypes';
+import BulkSlickFormControl from '../components/BulkSlickFormControl.vue';
 import BulkTagFormControl from '../components/BulkTagFormControl.vue';
 
 export type BulkEditDraft = {
@@ -14,7 +15,6 @@ export type BulkEditDraft = {
 
 type BulkEditOperations = {
   columns: () => readonly { id: number; title: string }[];
-  slicks: () => readonly { name: string }[];
   tagNames: () => readonly string[];
   selectedCount: () => number;
   save: (options: BulkEditCardsOptions) => Promise<Result<Card[], FormError>>;
@@ -43,9 +43,9 @@ export function createBulkEditForm(operations: BulkEditOperations) {
     if (values.slickOperation === 'set') result.push({
       name: 'targetSlickName',
       label: 'Slick to set',
-      type: 'select',
-      errorFields: ['slick.name'],
-      options: () => [{ value: null, label: 'Select slick' }, ...operations.slicks().map(slick => ({ value: slick.name, label: slick.name }))]
+      type: 'custom',
+      component: BulkSlickFormControl,
+      errorFields: ['slick.name']
     });
     result.push({
       name: 'tagStates',

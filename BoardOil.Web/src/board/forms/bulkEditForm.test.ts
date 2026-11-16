@@ -6,6 +6,7 @@ import { useForm } from '../../shared/forms/useForm';
 import { useValidationStore } from '../../shared/stores/validationStore';
 import { err, ok } from '../../shared/types/result';
 
+vi.mock('../components/BulkSlickFormControl.vue', () => ({ default: {} }));
 vi.mock('../components/BulkTagFormControl.vue', () => ({ default: {} }));
 
 beforeEach(() => setActivePinia(createPinia()));
@@ -14,7 +15,7 @@ function setup() {
   const count = ref(2);
   const save = vi.fn().mockResolvedValue(ok([]));
   const form = useForm(createBulkEditForm({
-    columns: () => [{ id: 2, title: 'Doing' }], slicks: () => [{ name: 'Release' }],
+    columns: () => [{ id: 2, title: 'Doing' }],
     tagNames: () => ['Feature', 'Bug'], selectedCount: () => count.value,
     save, isCurrent: () => true
   }));
@@ -80,4 +81,24 @@ it('retains failed edits, clears mapped errors on correction and prevents submis
   count.value = 1;
   await form.submit();
   expect(save).toHaveBeenLastCalledWith({ moveTargetColumnId: null, addTagNames: ['Feature'], removeTagNames: [] });
+});
+
+it('submits a new slick name in the bulk edit and retains backend field errors for correction', async () => {
+  const { form, save, validation } = setup();
+  await Promise.resolve();
+  form.setValue('slickOperation', 'set');
+  await Promise.resolve();
+  form.setValue('targetSlickName', 'New release');
+  save.mockResolvedValueOnce(err({ message: 'Validation failed.', validationErrors: { 'slick.name': ['Choose another name.'] } }));
+
+  await form.submit();
+
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(save).toHaveBeenCalledWith({ moveTargetColumnId: null, addTagNames: [], removeTagNames: [], slickName: 'New release' });
+  expect(form.draft.value.targetSlickName).toBe('New release');
+  expect(validation.getFieldErrors('slick.name')).toEqual(['Choose another name.']);
+  form.setValue('targetSlickName', 'Corrected release');
+  expect(validation.getFieldErrors('slick.name')).toEqual([]);
+  await form.submit();
+  expect(save).toHaveBeenLastCalledWith({ moveTargetColumnId: null, addTagNames: [], removeTagNames: [], slickName: 'Corrected release' });
 });

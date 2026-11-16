@@ -16,7 +16,6 @@ const props = defineProps<{
   boardId: number;
   selectedCardIds: number[];
   columns: Array<{ id: number; title: string }>;
-  slicks: Array<{ name: string }>;
 }>();
 const emit = defineEmits<{ close: []; saved: []; 'update:busy': [value: boolean] }>();
 const cards = useCardStore();
@@ -24,7 +23,6 @@ const tags = useTagStore();
 const targetBoardId = props.boardId;
 const form = createBulkEditForm({
   columns: () => props.columns,
-  slicks: () => props.slicks,
   tagNames: () => tags.tags.map(tag => tag.name),
   selectedCount: () => props.selectedCardIds.length,
   isCurrent: () => cards.activeBoardId === targetBoardId && props.boardId === targetBoardId,
