@@ -15,6 +15,7 @@
       <p v-if="!isOwner" class="board-details-owner-note">Owner permission required to export this board.</p>
       <div class="board-details-actions">
         <button type="button" class="btn" :disabled="!canExport" @click="exportBoardPackage">
+          <Download :size="16" aria-hidden="true" />
           {{ exporting ? 'Exporting...' : 'Export' }}
         </button>
       </div>
@@ -23,6 +24,7 @@
 </template>
 
 <script setup lang="ts">
+import { Download } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, ref } from 'vue';
 import { createBoardApi } from '../../shared/api/boardApi';

@@ -66,14 +66,21 @@
         </template>
       </p>
       <div v-if="showPaginationControls" class="bo-grid-pagination-controls">
-        <button type="button" class="btn btn--secondary" :disabled="!canGoPrevious" @click="onPreviousPage">Previous</button>
-        <button type="button" class="btn btn--secondary" :disabled="!canGoNext" @click="onNextPage">Next</button>
+        <button type="button" class="btn btn--secondary" :disabled="!canGoPrevious" @click="onPreviousPage">
+          <ArrowLeft :size="16" aria-hidden="true" />
+          Previous
+        </button>
+        <button type="button" class="btn btn--secondary" :disabled="!canGoNext" @click="onNextPage">
+          Next
+          <ArrowRight :size="16" aria-hidden="true" />
+        </button>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ArrowLeft, ArrowRight } from '@lucide/vue';
 import { computed } from 'vue';
 
 type GridColumn = {
