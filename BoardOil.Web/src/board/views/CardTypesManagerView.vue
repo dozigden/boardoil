@@ -19,10 +19,7 @@
           :aria-label="`Edit card type ${cardType.name}`"
           @click="openEditor(cardType.id)"
         >
-          <span class="entity-row-title card-type-title">
-            <span v-if="cardType.emoji" class="card-type-emoji bo-emoji" aria-hidden="true">{{ cardType.emoji }}</span>
-            <span>{{ cardType.name }}</span>
-          </span>
+          <span class="entity-row-title card-type-title"><CardTypeBadge :card-type="cardType" /></span>
           <span class="entity-row-badges">
             <span v-if="cardType.isSystem" class="badge">Default</span>
           </span>
@@ -68,6 +65,7 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import CardTypeBadge from '../components/CardTypeBadge.vue';
 import SetDefaultCardTypeDialog from '../components/SetDefaultCardTypeDialog.vue';
 import type { CardType } from '../../shared/types/boardTypes';
 import { useBoardStore } from '../stores/boardStore';
@@ -116,8 +114,7 @@ function closeDefaultDialog() {
 
 <style scoped>
 .card-type-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
 }
 </style>

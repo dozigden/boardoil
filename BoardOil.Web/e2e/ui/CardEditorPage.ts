@@ -120,13 +120,14 @@ export class CardEditorPage {
   }
 
   public slickOption(name: string) {
-    return this.dialog().getByRole('menu', { name: 'Select slick' }).getByRole('button', { name, exact: true });
+    return this.dialog().getByRole('menu', { name: 'Select slick' }).getByRole('menuitemradio', { name, exact: true });
   }
 
   public async createSlick(name: string) {
     await this.openSlickPicker();
     await this.dialog().getByRole('textbox', { name: 'Search slicks' }).fill(name);
-    await this.slickOption(`Create and use "${name}"`).click();
+    await this.dialog().getByRole('menu', { name: 'Select slick' })
+      .getByRole('button', { name: `Create and use "${name}"`, exact: true }).click();
   }
 
   private toolbar() {

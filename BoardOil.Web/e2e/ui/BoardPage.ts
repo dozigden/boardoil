@@ -125,7 +125,7 @@ export class BoardPage {
     await dialog.getByTitle('Select column').click();
     await dialog
       .getByRole('menu', { name: 'Select column' })
-      .getByRole('button', { name: columnTitle, exact: true })
+      .getByRole('menuitemradio', { name: columnTitle, exact: true })
       .click();
   }
 

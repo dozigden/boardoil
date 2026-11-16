@@ -97,7 +97,7 @@ test('card-editor column dropdown remains reachable at constrained height', asyn
   await dialog.getByTitle('Select column').click();
   const columnMenu = dialog.getByRole('menu', { name: 'Select column' });
   await expectPanelToBeReachable(columnMenu, page);
-  await columnMenu.getByRole('button', { name: 'In Progress', exact: true }).click();
+  await columnMenu.getByRole('menuitemradio', { name: 'In Progress', exact: true }).click();
   await expect(columnMenu).toBeHidden();
 });
 

@@ -97,7 +97,7 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     await dialog.getByTitle('Select column').click();
     await dialog
       .getByRole('menu', { name: 'Select column' })
-      .getByRole('button', { name: 'Todo', exact: true })
+      .getByRole('menuitemradio', { name: 'Todo', exact: true })
       .click();
     await dialog.getByRole('button', { name: 'Save card' }).click();
 

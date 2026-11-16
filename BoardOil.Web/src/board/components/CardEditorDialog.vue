@@ -272,16 +272,14 @@
               :text="selectedBoardColumnLabel"
             >
               <template #default="{ close }">
-                <button
+                <BoDropdownItem
                   v-for="column in boardColumns"
                   :key="column.id"
-                  type="button"
-                  class="bo-dropdown-item"
+                  :selected="column.id === cardDraft.boardColumnId"
                   @click="setDraftBoardColumnId(column.id, close)"
                 >
                   <span class="bo-dropdown-item-main">{{ column.title }}</span>
-                  <span v-if="column.id === cardDraft.boardColumnId" class="badge bo-dropdown-item-meta">Selected</span>
-                </button>
+                </BoDropdownItem>
               </template>
             </BoDropdown>
           </div>
@@ -296,24 +294,18 @@
               :text="selectedCardTypeLabel"
             >
               <template #trigger>
-                <span class="card-editor-type-trigger-content">
-                  <span v-if="selectedCardTypeEmoji" class="bo-emoji" aria-hidden="true">{{ selectedCardTypeEmoji }}</span>
-                  <span>{{ selectedCardTypeLabel }}</span>
-                </span>
+                <CardTypeBadge v-if="selectedCardType" :card-type="selectedCardType" class="card-editor-type-trigger-content" />
+                <span v-else>{{ selectedCardTypeLabel }}</span>
               </template>
               <template #default="{ close }">
-                <button
+                <BoDropdownItem
                   v-for="cardType in cardTypes"
                   :key="cardType.id"
-                  type="button"
-                  class="bo-dropdown-item"
+                  :selected="cardType.id === cardDraft.cardTypeId"
                   @click="setDraftCardTypeId(cardType.id, close)"
                 >
-                  <span class="bo-dropdown-item-main">
-                    <span v-if="cardType.emoji" class="bo-emoji" aria-hidden="true">{{ cardType.emoji }}</span>{{ cardType.emoji ? ' ' : '' }}{{ cardType.name }}
-                  </span>
-                  <span v-if="cardType.id === cardDraft.cardTypeId" class="badge bo-dropdown-item-meta">Selected</span>
-                </button>
+                  <CardTypeBadge :card-type="cardType" />
+                </BoDropdownItem>
               </template>
             </BoDropdown>
           </div>
@@ -363,11 +355,10 @@
                 :text="cardDraft.assignedUserId === null ? 'Assign' : selectedAssignedUserLabel"
               >
                 <template #default="{ close }">
-                  <button
+                  <BoDropdownItem
                     v-for="member in boardMembers"
                     :key="member.userId"
-                    type="button"
-                    class="bo-dropdown-item"
+                    :selected="member.userId === cardDraft.assignedUserId"
                     @click="setDraftAssignedUserId(member.userId, close)"
                   >
                     <span class="bo-dropdown-item-main card-editor-assignee-option">
@@ -379,8 +370,7 @@
                       />
                       <span>{{ member.displayName }}</span>
                     </span>
-                    <span v-if="member.userId === cardDraft.assignedUserId" class="badge bo-dropdown-item-meta">Selected</span>
-                  </button>
+                  </BoDropdownItem>
                 </template>
               </BoDropdown>
               <button
@@ -467,9 +457,11 @@ import { useAttachmentStore } from '../stores/attachmentStore';
 import MdEditorToolbar from '../../shared/components/MdEditorToolbar.vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoDropdownItem from '../../shared/components/BoDropdownItem.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import CardTagEditor from './CardTagEditor.vue';
 import CardSlickPicker from './CardSlickPicker.vue';
+import CardTypeBadge from './CardTypeBadge.vue';
 import SlickMiniMap from './SlickMiniMap.vue';
 import CardExternalUrlEditor from './CardExternalUrlEditor.vue';
 import CardTitleEditor from './CardTitleEditor.vue';
@@ -658,18 +650,8 @@ const selectedBoardColumnLabel = computed(() => {
 
   return boardColumns.value.find(column => column.id === cardDraft.value!.boardColumnId)?.title ?? 'Select column';
 });
-const selectedCardTypeLabel = computed(() => {
-  if (!cardDraft.value) {
-    return 'Select card type';
-  }
-
-  const selectedCardType = cardTypes.value.find(cardType => cardType.id === cardDraft.value!.cardTypeId);
-  if (!selectedCardType) {
-    return 'Select card type';
-  }
-
-  return selectedCardType.name;
-});
+const selectedCardType = computed(() => cardTypes.value.find(cardType => cardType.id === cardDraft.value?.cardTypeId));
+const selectedCardTypeLabel = computed(() => selectedCardType.value?.name ?? 'Select card type');
 const selectedCardTypeEmoji = computed(() => {
   return resolveSelectedCardTypeEmoji(
     cardDraft.value?.cardTypeId ?? null,
@@ -2097,9 +2079,7 @@ onBeforeRouteUpdate(async (to, from) => {
 }
 
 .card-editor-type-trigger-content {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+  flex: 1;
   min-width: 0;
 }
 

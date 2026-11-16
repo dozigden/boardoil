@@ -52,9 +52,7 @@
             :title="`New ${cardType.name}`"
             @click="emit('openCardDraftForType', columnId, cardType.id); close()"
           >
-            <span class="bo-dropdown-item-main">
-              <span v-if="cardType.emoji" class="bo-emoji" aria-hidden="true">{{ cardType.emoji }}</span>{{ cardType.emoji ? ' ' : '' }}{{ cardType.name }}
-            </span>
+            <CardTypeBadge :card-type="cardType" class="bo-dropdown-item-main" />
           </button>
           <span class="bo-dropdown-divider" aria-hidden="true"></span>
           <button type="button" class="bo-dropdown-item" @click="openCardDetails(columnId); close()">
@@ -71,6 +69,7 @@ import { ChevronDown, Plus } from '@lucide/vue';
 import { ref } from 'vue';
 import type { CardType } from '../../shared/types/boardTypes';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import CardTypeBadge from './CardTypeBadge.vue';
 
 const addMenuRef = ref<InstanceType<typeof BoDropdown> | null>(null);
 

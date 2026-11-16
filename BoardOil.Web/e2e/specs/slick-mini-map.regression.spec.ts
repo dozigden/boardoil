@@ -137,7 +137,7 @@ test('slick mini map previews draft column and type changes without moving the s
   const currentDot = map.getByRole('button', { name: `#${current.id}: ${current.title}`, exact: true });
   const boardPage = new BoardPage(page);
   await page.getByTitle('Select card type', { exact: true }).click();
-  await page.getByRole('menu', { name: 'Select card type', exact: true }).getByRole('button', { name: typeName, exact: true }).click();
+  await page.getByRole('menu', { name: 'Select card type', exact: true }).getByRole('menuitemradio', { name: typeName, exact: true }).click();
   await expect(currentDot).toHaveAttribute('aria-description', 'Unsaved changes');
   await expect(map.getByRole('group', { name: 'Todo', exact: true }).getByRole('button')).toHaveCount(1);
   await boardPage.moveOpenCardTo('Done');

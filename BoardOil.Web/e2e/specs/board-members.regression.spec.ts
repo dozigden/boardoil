@@ -77,7 +77,7 @@ test('reopening a card retries a failed member lookup', async ({ api, authentica
   await expect(page.getByRole('dialog')).toBeHidden();
   await boardPage.openCard('Todo', 'Retry member lookup');
   await page.getByTitle('Select assigned user', { exact: true }).click();
-  await expect(page.getByRole('menu', { name: 'Select assigned user' }).getByRole('button', { name: /smoke-admin/ })).toBeVisible();
+  await expect(page.getByRole('menu', { name: 'Select assigned user' }).getByRole('menuitemradio', { name: /smoke-admin/ })).toBeVisible();
   await expect(page.getByText('Member lookup unavailable.', { exact: true })).toBeHidden();
   expect(memberLoads).toBe(2);
 });

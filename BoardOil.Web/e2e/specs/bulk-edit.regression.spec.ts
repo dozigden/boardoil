@@ -22,7 +22,7 @@ test('bulk edits retain combined changes after a backend column rejection and ap
   await column.selectOption({ label: removedColumn.title });
   await dialog.getByRole('combobox', { name: 'Slick', exact: true }).selectOption({ label: 'Set slick' });
   await dialog.getByTitle('Select slick', { exact: true }).click();
-  await dialog.getByRole('menu', { name: 'Select slick' }).getByRole('button', { name: slick.name, exact: true }).click();
+  await dialog.getByRole('menu', { name: 'Select slick' }).getByRole('menuitemradio', { name: slick.name, exact: true }).click();
   await dialog.getByRole('button', { name: 'Mark for add Add me', exact: true }).click();
   await dialog.getByRole('button', { name: 'Mark for remove Remove me', exact: true }).click();
   await api.deleteColumn(board.id, removedColumn.id);

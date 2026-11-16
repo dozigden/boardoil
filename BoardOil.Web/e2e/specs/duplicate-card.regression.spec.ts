@@ -37,7 +37,7 @@ test('duplicate a card as an editable draft before creating it', async ({ api, a
 
     await dialog.getByTitle('Select column').click();
     await dialog.getByRole('menu', { name: 'Select column' })
-      .getByRole('button', { name: 'In Progress', exact: true })
+      .getByRole('menuitemradio', { name: 'In Progress', exact: true })
       .click();
     await dialog.getByRole('button', { name: 'Create duplicate card' }).click();
 

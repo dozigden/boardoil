@@ -31,20 +31,17 @@
             @keydown.enter.prevent="applySlickSearchSelection(close)"
           />
         </div>
-        <button
+        <BoDropdownItem
           v-if="allowClear"
-          type="button"
-          class="bo-dropdown-item"
+          :selected="!hasSelectedSlickName"
           @click="setDraftSlickName(null, close)"
         >
           <span class="bo-dropdown-item-main">No slick</span>
-          <span v-if="!hasSelectedSlickName" class="badge bo-dropdown-item-meta">Selected</span>
-        </button>
-        <button
+        </BoDropdownItem>
+        <BoDropdownItem
           v-for="slick in filteredSlicks"
           :key="slick.id"
-          type="button"
-          class="bo-dropdown-item"
+          :selected="selectedSlick?.id === slick.id"
           @click="setDraftSlickName(slick.name, close)"
         >
           <span class="bo-dropdown-item-main card-editor-slick-option">
@@ -52,8 +49,7 @@
               <span class="card-editor-slick-swatch-label">{{ slick.name }}</span>
             </span>
           </span>
-          <span v-if="selectedSlick?.id === slick.id" class="badge bo-dropdown-item-meta">Selected</span>
-        </button>
+        </BoDropdownItem>
         <button
           v-if="canCreateSlickFromEntry"
           type="button"
@@ -73,6 +69,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
+import BoDropdownItem from '../../shared/components/BoDropdownItem.vue';
 import type { Slick } from '../../shared/types/boardTypes';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 
