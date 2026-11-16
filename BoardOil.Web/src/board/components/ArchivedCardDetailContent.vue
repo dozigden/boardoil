@@ -89,7 +89,9 @@
 
       <div class="card-editor-option-section">
         <span class="card-editor-field-label">Slick</span>
-        <span>{{ slickLabel }}</span>
+        <span v-if="archivedCard.archivedSlickStyle" class="archived-card-slick"
+          :class="slickStyleClasses" :style="slickStyle" :title="slickLabel">{{ slickLabel }}</span>
+        <span v-else>{{ slickLabel }}</span>
       </div>
 
       <div class="card-editor-option-section">
@@ -101,7 +103,8 @@
           target="_blank"
           rel="noopener noreferrer"
         >
-          {{ safeExternalUrl }}
+          <span class="archived-card-external-url-text">{{ safeExternalUrl }}</span>
+          <ExternalLink :size="14" aria-hidden="true" />
         </a>
         <span v-else>-</span>
       </div>
@@ -128,12 +131,14 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { ExternalLink } from '@lucide/vue';
 import MdViewer from '../../shared/components/MdViewer.vue';
 import UserAvatar from '../../shared/components/UserAvatar.vue';
 import Tag from './Tag.vue';
 import CardAttachments from './CardAttachments.vue';
 import type { ArchivedCard } from '../../shared/types/boardTypes';
 import { isHttpOrHttpsUrl } from '../../shared/utils/linkUrl';
+import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import { apiBase } from '../../shared/api/config';
 import type { MarkdownImageContext } from '../../shared/components/markdownImages';
 
@@ -169,7 +174,7 @@ const assignedUserLabel = computed(() => {
 });
 
 const slickLabel = computed(() => {
-  const slickName = card.value.slickName?.trim();
+  const slickName = (props.archivedCard.archivedSlickName ?? card.value.slickName)?.trim();
   if (slickName && slickName.length > 0) {
     return slickName;
   }
@@ -180,6 +185,13 @@ const slickLabel = computed(() => {
 
   return '-';
 });
+
+const slickStyleClasses = computed(() => getSemanticStyleClasses(props.archivedCard.archivedSlickStyle, 'slick'));
+const slickStyle = computed(() => getSurfaceStyle(props.archivedCard.archivedSlickStyle, {
+  fallbackBackground: 'var(--bo-surface-base)',
+  fallbackColor: 'var(--bo-ink-strong)',
+  fallbackBorderColor: 'var(--bo-border-soft)'
+}));
 
 const safeExternalUrl = computed(() => {
   const externalUrl = card.value.externalUrl?.trim() ?? '';
@@ -412,8 +424,31 @@ function formatDateTime(value: string) {
   overflow-wrap: anywhere;
 }
 
+.archived-card-slick {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--bo-border-soft);
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .archived-card-external-url {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.archived-card-external-url-text {
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.archived-card-external-url svg {
+  flex: 0 0 auto;
 }
 
 @media (max-width: 900px) {

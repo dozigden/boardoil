@@ -1,4 +1,5 @@
 using BoardOil.Contracts.Slick;
+using BoardOil.Contracts.Style;
 
 namespace BoardOil.Contracts.Card;
 
@@ -57,7 +58,9 @@ public sealed record ArchivedCardDetailDto(
     IReadOnlyList<string> TagNames,
     DateTime ArchivedAtUtc,
     CardDto Card,
-    IReadOnlyList<ArchivedCardCommentDto> Comments);
+    IReadOnlyList<ArchivedCardCommentDto> Comments,
+    string? ArchivedSlickName = null,
+    StyleDefaultDto? ArchivedSlickStyle = null);
 
 public sealed record ArchivedCardCommentDto(
     string Text,

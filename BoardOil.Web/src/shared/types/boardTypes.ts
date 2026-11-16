@@ -138,6 +138,8 @@ export type ArchivedCardComment = {
 export type ArchivedCard = ArchivedCardListItem & {
   card: Card;
   comments: ArchivedCardComment[];
+  archivedSlickName?: string | null;
+  archivedSlickStyle?: StyleDefault | null;
 };
 
 export type ArchivedCardList = {

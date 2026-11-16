@@ -11,6 +11,49 @@ namespace BoardOil.Services.Tests;
 public sealed class CardArchiveStyleTests : TestBaseDb
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetArchivedCard_ShouldExposeSnapshotSlickStyleIndependentlyOfCurrentDefinition(bool currentSlickExists)
+    {
+        var board = CreateBoard().AddColumn("Todo").Build();
+        await SeedSnapshotAsync(board.BoardId, "presets", """{"presetIndex":7}""");
+        if (currentSlickExists)
+        {
+            DbContextForArrange.Slicks.Add(new EntitySlick
+            {
+                BoardId = board.BoardId,
+                Name = "ARCHIVED SLICK",
+                NormalisedName = "ARCHIVED SLICK",
+                StyleName = "presets",
+                StylePropertiesJson = """{"presetIndex":4}"""
+            });
+            await DbContextForArrange.SaveChangesAsync();
+        }
+
+        var result = await ResolveService<ICardArchiveService>().GetArchivedCardAsync(board.BoardId, 100, ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal("Archived slick", result.Data!.ArchivedSlickName);
+        Assert.Equal("presets", result.Data.ArchivedSlickStyle!.StyleName);
+        Assert.Equal("""{"presetIndex":7}""", result.Data.ArchivedSlickStyle.StylePropertiesJson);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("unknown", "not json")]
+    public async Task GetArchivedCard_WhenSnapshotStyleUnavailable_ShouldRetainNameWithoutStyle(string? styleName, string? properties)
+    {
+        var board = CreateBoard().AddColumn("Todo").Build();
+        await SeedSnapshotAsync(board.BoardId, styleName, properties, includeStyleMetadata: styleName is not null);
+
+        var result = await ResolveService<ICardArchiveService>().GetArchivedCardAsync(board.BoardId, 100, ActorUserId);
+
+        Assert.True(result.Success);
+        Assert.Equal("Archived slick", result.Data!.ArchivedSlickName);
+        Assert.Null(result.Data.ArchivedSlickStyle);
+    }
+
+    [Theory]
     [InlineData("presets", "{\"presetIndex\":7}", "presets", "presets")]
     [InlineData("PRESETS", "{\"presetIndex\":\"7\"}", "presets", "presets")]
     [InlineData("solid", "{\"backgroundColor\":\"#aabbcc\",\"textColorMode\":\"custom\",\"textColor\":\"#112233\",\"borderMode\":\"custom\",\"borderColor\":\"#445566\"}", "solid", "solid")]

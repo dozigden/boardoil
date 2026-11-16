@@ -6,7 +6,8 @@ import { BoardPage } from '../ui/BoardPage';
 test('archive and restore a card to its original column', async ({ api, authenticatedPage: page }) => {
   const board = await api.createBoard('Regression card archive');
   const cardTitle = 'Card to archive and restore';
-  await api.createCard(board, 'In Progress', cardTitle);
+  const slick = await api.createSlick(board, 'Archived slick colours');
+  await api.createCard(board, 'In Progress', cardTitle, '', [], slick.name);
 
   const boardPage = new BoardPage(page);
   const archivedCardsPage = new ArchivedCardsPage(page);
@@ -23,6 +24,9 @@ test('archive and restore a card to its original column', async ({ api, authenti
     await boardPage.openArchivedCards();
     await expect(archivedCardsPage.row(cardTitle)).toBeVisible();
     await archivedCardsPage.openCard(cardTitle);
+    const slickPreview = page.getByRole('dialog').getByTitle(slick.name, { exact: true });
+    await expect(slickPreview).toBeVisible();
+    await expect(slickPreview).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await archivedCardsPage.unarchiveOpenCard(cardTitle);
     await expect(archivedCardsPage.row(cardTitle)).toHaveCount(0);
   });

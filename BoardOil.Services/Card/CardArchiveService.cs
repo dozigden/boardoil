@@ -4,6 +4,7 @@ using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.Common;
+using BoardOil.Contracts.Style;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Card;
 using BoardOil.Data.Abstractions.CardType;
@@ -104,7 +105,19 @@ public sealed class CardArchiveService(
             snapshot.AssignedUserEmail);
         currentSnapshotCard = currentSnapshotCard with { Id = archivedCard.OriginalCardId };
         var comments = await ResolveArchivedCommentsAsync(snapshot.Comments);
-        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard, comments));
+        var archivedSlickStyle = ParseArchivedStyle(snapshot.SlickStyleName, snapshot.SlickStylePropertiesJson);
+        StyleDefaultDto? slickStyle = null;
+        if (archivedSlickStyle is SolidStyleDefinition or PresetStyleDefinition)
+        {
+            slickStyle = new StyleDefaultDto(
+                StyleDefinitionCodec.GetStyleName(archivedSlickStyle),
+                StyleDefinitionCodec.Serialise(archivedSlickStyle));
+        }
+        return ApiResults.Ok(archivedCard.ToArchivedCardDetailDto(currentSnapshotCard, comments) with
+        {
+            ArchivedSlickName = snapshot.Card.SlickName,
+            ArchivedSlickStyle = slickStyle
+        });
     }
 
     public async Task<ApiResult<ArchivedCardDto>> ArchiveCardAsync(int boardId, int id, int actorUserId)

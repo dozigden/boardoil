@@ -75,6 +75,7 @@
       <template #actions>
         <div v-if="selectedArchivedCard" class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
           <button type="button" class="btn" :disabled="isUnarchiving" @click="unarchiveSelectedCard">
+            <ArchiveRestore :size="18" aria-hidden="true" />
             {{ isUnarchiving ? 'Unarchiving...' : 'Unarchive' }}
           </button>
         </div>
@@ -84,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+import { ArchiveRestore } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
