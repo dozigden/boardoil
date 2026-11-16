@@ -55,6 +55,7 @@
           :disabled="disableBulkEditAction"
           @click="emit('openBulkEdit')"
         >
+          <Pencil :size="16" aria-hidden="true" />
           Edit
         </button>
         <BoDropdown
@@ -68,11 +69,17 @@
         >
           <template #default="{ close }">
             <button type="button" class="bo-dropdown-item" @click="openInvertSelectionFromMenu(close)">
-              <span class="bo-dropdown-item-main">Invert selection</span>
+              <span class="bo-dropdown-item-main board-selection-menu-item">
+                <ArrowRightLeft :size="16" aria-hidden="true" />
+                <span>Invert selection</span>
+              </span>
             </button>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" :disabled="selectedCount === 0" @click="openBulkDeleteFromMenu(close)">
-              <span class="bo-dropdown-item-main board-selection-delete-item">Delete selected</span>
+              <span class="bo-dropdown-item-main board-selection-menu-item board-selection-delete-item">
+                <Trash2 :size="16" aria-hidden="true" />
+                <span>Delete selected</span>
+              </span>
             </button>
           </template>
         </BoDropdown>
@@ -101,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown, X } from '@lucide/vue';
+import { ArrowRightLeft, ChevronDown, Pencil, Trash2, X } from '@lucide/vue';
 import { computed } from 'vue';
 import BoDropdown from '../../shared/components/BoDropdown.vue';
 import type { CardType, Slick } from '../../shared/types/boardTypes';
@@ -328,6 +335,16 @@ const hasActiveOptionFilters = computed(() =>
   min-width: 2rem;
   padding: 0;
   line-height: 1;
+}
+
+.board-selection-menu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.board-selection-menu-item svg {
+  flex: 0 0 auto;
 }
 
 .board-selection-delete-item {
