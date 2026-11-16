@@ -47,6 +47,9 @@ This file defines how agents should manage work tracking and source control in t
   - A story should only move to `Done` once the last approved commit is pushed.
   - Work should be manually reviewed after completion and before final closure.
   - Update the story description with outcomes and validation commands before moving to `Done`.
+- Jenkins failure fixes:
+  - Once the user has reviewed the fix and the approved commit is pushed, move the card to `Done` without waiting for subsequent Jenkins runs.
+  - Record any pending Jenkins verification in the card. If Jenkins fails again, reopen the card and investigate the new failure.
 
 ## Release Notes Scope
 
