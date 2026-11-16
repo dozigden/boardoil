@@ -14,7 +14,7 @@
           :aria-label="`Remove ${tagName}`"
           @click="removeTag(tagName)"
         >
-          x
+          <X :size="12" aria-hidden="true" />
         </button>
       </Tag>
     </div>
@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check } from '@lucide/vue';
+import { Check, X } from '@lucide/vue';
 import { computed, nextTick, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import Tag from './Tag.vue';
@@ -243,8 +243,13 @@ async function resetTagEntry() {
 }
 
 .tag-pill-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   width: auto;
   min-width: 1.1rem;
+  min-height: 1.1rem;
   border: none;
   border-radius: 999px;
   background: color-mix(in srgb, var(--bo-colour-brand) 16%, transparent);
