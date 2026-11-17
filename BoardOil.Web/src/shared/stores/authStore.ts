@@ -2,11 +2,20 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { createAuthApi } from '../api/authApi';
 import { setCsrfToken, setUnauthorizedHandler } from '../api/http';
-import { router } from '../../router';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { AuthUser } from '../types/authTypes';
-import { buildLoginRedirectQuery } from '../../site/auth/redirectTarget';
+
+export type AuthNavigation = {
+  onUnauthorized: () => void | Promise<void>;
+  onInitialAdminSignInFailed: () => void | Promise<void>;
+};
+
+let authNavigation: AuthNavigation | null = null;
+
+export function configureAuthNavigation(navigation: AuthNavigation | null) {
+  authNavigation = navigation;
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const api = createAuthApi();
@@ -48,13 +57,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   setUnauthorizedHandler(async () => {
-    const currentPath = router.currentRoute.value.fullPath;
     handleUnauthorized();
-
-    const routeName = router.currentRoute.value.name;
-    if (routeName !== 'unauthorized' && routeName !== 'setup-initial-admin' && routeName !== 'login') {
-      await router.replace({ name: 'unauthorized', query: buildLoginRedirectQuery(currentPath) });
-    }
+    await authNavigation?.onUnauthorized();
   });
 
   function initialize() {
@@ -114,7 +118,7 @@ export const useAuthStore = defineStore('auth', () => {
         // Setup succeeded. Do not let navigation retry restoration or offer
         // another registration after a failed follow-up token request.
         initialized.value = true;
-        await router.replace({ name: 'login' });
+        await authNavigation?.onInitialAdminSignInFailed();
         return err({ ...restored.error, message });
       }
       return restored;

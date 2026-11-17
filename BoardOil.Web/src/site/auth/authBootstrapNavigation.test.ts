@@ -1,17 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryHistory, createRouter } from 'vue-router';
+import { createAuthNavigation } from './authNavigation';
 import { resolveAuthNavigation } from './navigationGuard';
-
-const { router } = vi.hoisted(() => ({
-  router: {
-    currentRoute: { value: { name: undefined as string | undefined, fullPath: '/' } },
-    replace: vi.fn(async () => undefined)
-  }
-}));
-
-vi.mock('../../router', () => ({
-  router
-}));
 
 describe('auth bootstrap navigation', () => {
   afterEach(() => {
@@ -45,17 +36,22 @@ describe('auth bootstrap navigation', () => {
       ));
 
     setActivePinia(createPinia());
-    const { useAuthStore } = await import('../../shared/stores/authStore');
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/login', name: 'login', component: {}, meta: { requiresAuth: false } },
+        { path: '/unauthorized', name: 'unauthorized', component: {}, meta: { requiresAuth: false } }
+      ]
+    });
+    const replace = vi.spyOn(router, 'replace');
+    const { configureAuthNavigation, useAuthStore } = await import('../../shared/stores/authStore');
+    configureAuthNavigation(createAuthNavigation(router));
     const authStore = useAuthStore();
-
-    const result = await resolveAuthNavigation({
-      name: 'login',
-      fullPath: '/login',
-      matched: [{ meta: { requiresAuth: false } }]
-    }, authStore);
+    router.beforeEach(to => resolveAuthNavigation(to, authStore));
+    await router.push('/login');
     await Promise.resolve();
 
-    expect(result).toBe(true);
+    expect(router.currentRoute.value.name).toBe('login');
     expect(authStore.initialized).toBe(true);
     expect(authStore.isAuthenticated).toBe(false);
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
@@ -63,6 +59,6 @@ describe('auth bootstrap navigation', () => {
       'http://localhost:5173/api/auth/refresh',
       'http://localhost:5173/api/auth/bootstrap-status'
     ]);
-    expect(router.replace).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

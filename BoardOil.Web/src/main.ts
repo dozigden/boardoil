@@ -2,6 +2,8 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
 import { router } from './router';
+import { createAuthNavigation } from './site/auth/authNavigation';
+import { configureAuthNavigation } from './shared/stores/authStore';
 import { installFrontendErrorReporting } from './shared/errors/clientErrorReporter';
 import { installRouteChunkRecovery } from './shared/routing/routeChunkRecovery';
 import { useThemeStore } from './shared/stores/themeStore';
@@ -9,6 +11,7 @@ import { useSlickEffectStore } from './shared/stores/slickEffectStore';
 import './style.css';
 
 const pinia = createPinia();
+configureAuthNavigation(createAuthNavigation(router));
 useThemeStore(pinia).initialize();
 useSlickEffectStore(pinia).initialize();
 

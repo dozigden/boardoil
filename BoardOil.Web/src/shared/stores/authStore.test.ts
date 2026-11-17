@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { useAuthStore } from './authStore';
+import { configureAuthNavigation, useAuthStore } from './authStore';
 import { err, ok } from '../types/result';
 import type { AppError } from '../types/appError';
 import type { AuthSession, AuthUser, CsrfTokenDto } from '../types/authTypes';
@@ -17,12 +17,8 @@ const authApi = {
 
 const setCsrfToken = vi.fn();
 const setUnauthorizedHandler = vi.fn();
-const { router } = vi.hoisted(() => ({
-  router: {
-    currentRoute: { value: { name: 'boards' as string | null, fullPath: '/' } },
-    replace: vi.fn(async () => undefined)
-  }
-}));
+const onUnauthorized = vi.fn(async () => undefined);
+const onInitialAdminSignInFailed = vi.fn(async () => undefined);
 
 vi.mock('../api/authApi', () => ({
   createAuthApi: () => authApi
@@ -31,10 +27,6 @@ vi.mock('../api/authApi', () => ({
 vi.mock('../api/http', () => ({
   setCsrfToken: (token: string | null) => setCsrfToken(token),
   setUnauthorizedHandler: (handler: (() => void | Promise<void>) | null) => setUnauthorizedHandler(handler)
-}));
-
-vi.mock('../../router', () => ({
-  router
 }));
 
 describe('authStore', () => {
@@ -46,9 +38,7 @@ describe('authStore', () => {
     authApi.getBootstrapStatus.mockResolvedValue(ok(false));
     authApi.logout.mockResolvedValue(ok(undefined));
     setUnauthorizedHandler.mockClear();
-    router.replace.mockClear();
-    router.currentRoute.value.name = 'boards';
-    router.currentRoute.value.fullPath = '/';
+    configureAuthNavigation({ onUnauthorized, onInitialAdminSignInFailed });
   });
 
   it('initialize keeps anonymous state when /me returns no user', async () => {
@@ -143,6 +133,7 @@ describe('authStore', () => {
     expect(store.requiresInitialAdminSetup).toBe(false);
     expect(setCsrfToken).toHaveBeenLastCalledWith('csrf-token');
     expect(authApi.getCsrfToken).toHaveBeenCalledTimes(1);
+    expect(onInitialAdminSignInFailed).not.toHaveBeenCalled();
   });
 
   it.each(['login', 'registerInitialAdmin', 'initialize'] as const)(
@@ -206,7 +197,7 @@ describe('authStore', () => {
       if (operation === 'registerInitialAdmin') {
         expect(store.initialized).toBe(true);
         expect(store.errorMessage).toContain('Your admin account was created');
-        expect(router.replace).toHaveBeenCalledWith({ name: 'login' });
+        expect(onInitialAdminSignInFailed).toHaveBeenCalledOnce();
       }
       expect(setCsrfToken).toHaveBeenLastCalledWith(null);
     }
@@ -277,6 +268,7 @@ describe('authStore', () => {
     expect(success).toEqual(err(apiError));
     expect(store.errorMessage).toBeNull();
     expect(store.isAuthenticated).toBe(false);
+    expect(onInitialAdminSignInFailed).not.toHaveBeenCalled();
   });
 
   it('logout clears local session even when API succeeds', async () => {
@@ -350,7 +342,7 @@ describe('authStore', () => {
     expect(setCsrfToken).toHaveBeenLastCalledWith(null);
   });
 
-  it('registers unauthorized handler that clears session and routes to unauthorized page', async () => {
+  it('clears the session before awaiting unauthorised navigation', async () => {
     const store = useAuthStore();
     authApi.login.mockResolvedValue(
       ok<AuthSession>({
@@ -366,11 +358,46 @@ describe('authStore', () => {
       | undefined;
     expect(typeof registered).toBe('function');
 
-    router.currentRoute.value.fullPath = '/boards/3/card/12';
-    await registered?.();
+    let completeNavigation!: () => void;
+    onUnauthorized.mockReturnValueOnce(new Promise(resolve => { completeNavigation = () => resolve(undefined); }));
+    const handlerFinished = vi.fn();
+    const pending = registered?.().then(handlerFinished);
 
     expect(store.user).toBeNull();
+    expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+    await Promise.resolve();
+    expect(handlerFinished).not.toHaveBeenCalled();
+
+    completeNavigation();
+    await pending;
+
+    expect(handlerFinished).toHaveBeenCalledOnce();
+    expect(store.user).toBeNull();
     expect(store.isAuthenticated).toBe(false);
-    expect(router.replace).toHaveBeenCalledWith({ name: 'unauthorized', query: { redirect: '/boards/3/card/12' } });
+    expect(onInitialAdminSignInFailed).not.toHaveBeenCalled();
+  });
+
+  it('keeps session handling usable without application navigation', async () => {
+    configureAuthNavigation(null);
+    const store = useAuthStore();
+    const user: AuthUser = { id: 1, userName: 'admin', displayName: 'Admin', role: 'Admin', experimentalFeaturesEnabled: false };
+    store.user = user;
+    const registered = setUnauthorizedHandler.mock.calls[setUnauthorizedHandler.mock.calls.length - 1]?.[0] as () => Promise<void>;
+
+    await registered();
+
+    expect(store.user).toBeNull();
+    expect(setCsrfToken).toHaveBeenLastCalledWith(null);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+
+    authApi.registerInitialAdmin.mockResolvedValue(ok({ user }));
+    authApi.getCsrfToken.mockResolvedValue(err({ kind: 'network', message: 'Token request failed.' }));
+    const result = await store.registerInitialAdmin('admin', 'admin@example.test', 'Password1234!', 'Europe/London');
+
+    expect(result.ok).toBe(false);
+    expect(store.initialized).toBe(true);
+    expect(store.requiresInitialAdminSetup).toBe(false);
+    expect(onInitialAdminSignInFailed).not.toHaveBeenCalled();
   });
 });
