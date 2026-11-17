@@ -1,7 +1,8 @@
 <template>
   <figure class="slick-effect-preview" aria-label="Slick effect preview">
     <figcaption class="preview-caption">Preview</figcaption>
-    <div ref="viewport" class="preview-viewport bo-theme-scope" :data-theme="previewTheme" role="img"
+    <p v-if="reducedMotion" class="preview-disabled" role="status">Preview is disabled as device settings are requesting reduced motion. Liquid mode is not recommended.</p>
+    <div v-show="!reducedMotion" ref="viewport" class="preview-viewport bo-theme-scope" :data-theme="previewTheme" role="img"
       :aria-label="`${effectLabel}: a stationary column on the left and a smoothly scrolling column on the right`">
       <div class="preview-scene">
         <div ref="board" class="preview-board" :class="{ 'preview-board--liquid': mode === 'liquid' }" aria-hidden="true">
@@ -39,13 +40,14 @@ const viewport = useTemplateRef<HTMLElement>('viewport');
 const board = useTemplateRef<HTMLElement>('board');
 const intersecting = ref(false);
 const documentVisible = ref(!document.hidden);
-const reducedMotion = ref(false);
+const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+const reducedMotion = ref(mediaQuery.matches);
 const systemDark = ref(false);
 const previewTheme = computed(() => {
   if (props.appearance === 'system') return systemDark.value ? 'dark' : 'light';
   return props.appearance;
 });
-const active = computed(() => intersecting.value && documentVisible.value);
+const active = computed(() => intersecting.value && documentVisible.value && !reducedMotion.value);
 const effectLabel = computed(() => slickEffectOptions.find(option => option.value === props.mode)!.label);
 const layoutVersion = ref(0);
 const floatingCards = new Map<number, HTMLElement>();
@@ -93,7 +95,6 @@ const bridgeScrollStops = [
   { time: 8200, position: 0.5 }
 ];
 let observer: IntersectionObserver | null = null;
-let mediaQuery: MediaQueryList | null = null;
 let colourSchemeQuery: MediaQueryList | null = null;
 
 function makeCard(id: number, boardColumnId: number, title: string, slicked = true): BoardCard {
@@ -128,7 +129,7 @@ function scrollPosition(time: number) {
 function startMotion() {
   stopMotion();
   const column = scrollColumn;
-  if (!active.value || reducedMotion.value || !column) return;
+  if (!active.value || !column) return;
   const distance = Math.min(432, column.scrollHeight - column.clientHeight);
   let previousTime: number | null = null;
   function scroll(timestamp: number) {
@@ -151,9 +152,9 @@ function startMotion() {
 }
 
 function visibilityChanged() { documentVisible.value = !document.hidden; }
-function motionPreferenceChanged() { reducedMotion.value = mediaQuery?.matches ?? false; }
+function motionPreferenceChanged() { reducedMotion.value = mediaQuery.matches; }
 function systemThemeChanged() { systemDark.value = colourSchemeQuery?.matches ?? false; }
-watch([active, reducedMotion], startMotion, { flush: 'post' });
+watch(active, startMotion, { flush: 'post' });
 watch(() => props.mode, () => {
   elapsed = 0;
   if (scrollColumn) scrollTransition = { from: scrollColumn.scrollTop, elapsed: 0 };
@@ -165,7 +166,6 @@ onMounted(() => {
   clipping.setBoardRef(board.value);
   scrollColumn = board.value!.querySelector<HTMLElement>('[data-column-id="2"]');
   scrollColumn!.scrollTop = Math.min(432, scrollColumn!.scrollHeight - scrollColumn!.clientHeight) / 2;
-  mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   motionPreferenceChanged();
   mediaQuery.addEventListener('change', motionPreferenceChanged);
   colourSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -178,7 +178,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopMotion();
   observer?.disconnect();
-  mediaQuery?.removeEventListener('change', motionPreferenceChanged);
+  mediaQuery.removeEventListener('change', motionPreferenceChanged);
   colourSchemeQuery?.removeEventListener('change', systemThemeChanged);
   document.removeEventListener('visibilitychange', visibilityChanged);
 });
@@ -187,6 +187,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .slick-effect-preview { margin: 0; min-width: 0; }
 .preview-caption { margin-bottom: 0.7rem; color: var(--bo-ink-strong); font-size: 1.1rem; font-weight: 750; }
+.preview-disabled { margin: 0; }
 .preview-viewport { position: relative; max-width: 100%; padding: 16px; overflow-x: auto; overflow-y: hidden; border: 1px solid var(--bo-border-soft); border-radius: 10px; background: var(--bo-surface-muted); }
 .preview-scene { position: relative; width: 572px; height: 320px; margin-inline: auto; }
 .preview-board { display: grid; grid-template-columns: repeat(2, 280px); gap: 12px; height: 100%; }

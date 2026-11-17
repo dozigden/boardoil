@@ -36,7 +36,6 @@ let board: HTMLElement | null = null;
 let context: CanvasRenderingContext2D | null = null;
 let geometry: BoardGooGeometry | null = null;
 let themeObserver: MutationObserver | null = null;
-let reducedMotion: MediaQueryList | null = null;
 let frameId: number | null = null, last = 0, needsMeasurement = true, renders = 0;
 let disposed = false;
 let appearances: SlickAppearance[] = [];
@@ -50,7 +49,7 @@ function onBoardScroll(event: Event) {
     const viewport = geometry.viewport;
     if (props.mode === 'liquid') scene.update(geometry.cards, appearances, viewport, 'scroll');
   }
-  if (props.mode === 'liquid' && !reducedMotion?.matches) {
+  if (props.mode === 'liquid') {
     scheduleFrame();
     return;
   }
@@ -85,7 +84,7 @@ function measure() {
   canvas.value.style.width = `${width}px`; canvas.value.style.height = `${height}px`;
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   if (props.mode !== 'none') scene.update(cards, appearances, viewport);
-  showNativeOutlines.value = props.mode !== 'liquid' || (reducedMotion?.matches ?? false);
+  showNativeOutlines.value = props.mode !== 'liquid';
   if (showNativeOutlines.value) {
     nativeColumns.value = geometry.localColumns(props.floatingCards).map(column => ({
       index: column.index, element: column.element,
@@ -102,7 +101,7 @@ function frame(_timestamp: number) {
   const elapsed = last ? (now - last) / 1000 : 0;
   last = now;
   if (needsMeasurement) measure();
-  const simulate = props.mode === 'liquid' && !reducedMotion?.matches;
+  const simulate = props.mode === 'liquid';
   if (simulate) scene.step(elapsed);
   if (simulate) scene.draw(context);
   else if (geometry?.viewport) bridges.draw(context, geometry.cards, appearances, geometry.viewport, props.floatingCards, props.mode !== 'none');
@@ -123,15 +122,12 @@ function visibilityChanged() {
     frameId = null;
   } else scheduleMeasurement();
 }
-function motionPreferenceChanged() { scene.pause(); scene.wake(); last = 0; scheduleMeasurement(); }
 watch(() => [props.columns, props.slicks, props.layoutVersion, [...props.floatingCards]], scheduleMeasurement, { deep: true, flush: 'post' });
 watch(() => props.mode, () => { scene.pause(); last = 0; scheduleMeasurement(); }, { flush: 'post' });
 onMounted(() => {
   board = props.board;
   context = canvas.value!.getContext('2d');
   if (board) geometry = new BoardGooGeometry(board, scheduleMeasurement);
-  reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  reducedMotion.addEventListener('change', motionPreferenceChanged);
   themeObserver = new MutationObserver(scheduleMeasurement);
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] });
   board?.addEventListener('scroll', onBoardScroll, { capture: true, passive: true });
@@ -147,7 +143,6 @@ onBeforeUnmount(() => {
   board?.removeEventListener('scroll', onBoardScroll, true);
   window.removeEventListener('resize', scheduleMeasurement);
   document.removeEventListener('visibilitychange', visibilityChanged);
-  reducedMotion?.removeEventListener('change', motionPreferenceChanged);
 });
 </script>
 

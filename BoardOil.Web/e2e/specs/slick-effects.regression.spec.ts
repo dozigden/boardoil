@@ -142,7 +142,7 @@ test('None, Bridges and Liquid follow the live board and stop when idle', async 
     await page.getByPlaceholder('Search', { exact: true }).fill('');
     await expect.poll(async () => JSON.parse((await canvas.getAttribute('data-slicks'))!).length).toBe(1);
   });
-  await test.step('follow horizontal scrolling and respect reduced motion', async () => {
+  await test.step('follow horizontal scrolling and honour Liquid with reduced motion', async () => {
     await page.setViewportSize({ width: 700, height: 900 });
     const scrollLeft = await page.locator('section.board').evaluate(el => { el.scrollLeft = 180; return el.scrollLeft; });
     expect(scrollLeft).toBeGreaterThan(0);
@@ -163,7 +163,11 @@ test('None, Bridges and Liquid follow the live board and stop when idle', async 
     await setSlickEffect(page, 'bridges');
     await setSlickEffect(page, 'liquid');
     await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
-    await expect(page.locator('.bridge-column-outline').first()).toBeAttached();
+    await expect(page.locator('.bridge-column-outline')).toHaveCount(0);
+    const steps = JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].steps;
+    await boardPage.column('Todo').locator('.column-content').evaluate(el => { el.scrollTop = 120; });
+    await expect.poll(async () => JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].steps).toBeGreaterThan(steps);
+    await expect(canvas).toHaveAttribute('data-simulation', 'worker');
     await page.screenshot({ path: test.info().outputPath('board-reduced-motion.png') });
     await page.setViewportSize({ width: 375, height: 800 });
     await expect(header.getByRole('button', { name: 'User menu', exact: true })).toBeVisible();

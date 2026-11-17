@@ -1,6 +1,40 @@
 import { authenticatePage, expect, getBaseUrl, test } from '../fixtures/boardOilTest';
 import { BoardPage } from '../ui/BoardPage';
 
+test('reduced motion hides the preview without preventing a saved Liquid choice', async ({ authenticatedPage: page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/user-admin/theme');
+  const preview = page.getByRole('figure', { name: 'Slick effect preview', exact: true });
+  const canvas = preview.locator('canvas.slick-goo-layer');
+  const scroller = preview.locator('[data-column-id="2"]');
+  const message = preview.getByRole('status');
+  await expect(message).toHaveText('Preview is disabled as device settings are requesting reduced motion. Liquid mode is not recommended.');
+  await expect(preview.getByRole('img')).toHaveCount(0);
+  await expect(canvas).toHaveCount(0);
+  await page.getByRole('button', { name: 'Liquid', exact: true }).click();
+  await expect(canvas).toHaveCount(0);
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await save.click();
+  await expect(save).toBeDisabled();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Liquid', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(message).toBeVisible();
+  await expect(canvas).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect(message).toHaveCount(0);
+  await expect(preview.getByRole('img')).toBeVisible();
+  await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
+  await expect(preview.locator('.bridge-column-outline')).toHaveCount(0);
+  await expect.poll(async () => JSON.parse((await canvas.getAttribute('data-slicks'))!)[0].steps).toBeGreaterThan(0);
+  const scroll = await scroller.evaluate(element => element.scrollTop);
+  await expect.poll(() => scroller.evaluate(element => element.scrollTop)).not.toBe(scroll);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(message).toBeVisible();
+  await expect(preview.getByRole('img')).toHaveCount(0);
+  await expect(canvas).toHaveCount(0);
+  await expect.poll(() => page.workers().filter(worker => worker.url().includes('liquid.worker')).length).toBe(0);
+});
+
 test('slick effect saves in this browser and uses Bridges in a fresh browser context', async ({ authenticatedPage: page, browser }) => {
   await page.goto('/user-admin/theme');
   const save = page.getByRole('button', { name: 'Save', exact: true });
