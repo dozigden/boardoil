@@ -1,3 +1,4 @@
+using System.Data;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Board;
@@ -19,12 +20,35 @@ public sealed class SystemBoardService(
         using var scope = scopeFactory.CreateReadOnly();
 
         var boards = await boardRepository.GetBoardsOrderedAsync();
-        return boards.Select(x => new SystemBoardSummaryDto(
-            x.Id,
-            x.Name,
-            x.CreatedAtUtc,
-            x.UpdatedAtUtc))
+        return boards.Select(ToSummary).ToList();
+    }
+
+    public async Task<ApiResult<IReadOnlyList<DeletedBoardSummaryDto>>> GetDeletedBoardsAsync()
+    {
+        using var scope = scopeFactory.CreateReadOnly();
+
+        var boards = await boardRepository.GetDeletedBoardsOrderedAsync();
+        return boards.Select(board => new DeletedBoardSummaryDto(board.Id, board.Name, board.DeletedAtUtc!.Value))
             .ToList();
+    }
+
+    public async Task<ApiResult<SystemBoardSummaryDto>> RestoreBoardAsync(int boardId)
+    {
+        using var scope = scopeFactory.CreateWithTransaction(IsolationLevel.Serializable);
+
+        var board = await boardRepository.GetIncludingDeletedAsync(boardId);
+        if (board is null)
+        {
+            return ApiErrors.NotFound("Board not found.");
+        }
+
+        if (board.DeletedAtUtc.HasValue)
+        {
+            board.DeletedAtUtc = null;
+            await scope.SaveChangesAsync();
+        }
+
+        return ToSummary(board);
     }
 
     public async Task<ApiResult<IReadOnlyList<BoardMemberDto>>> GetMembersAsync(int boardId)
@@ -151,6 +175,9 @@ public sealed class SystemBoardService(
         await scope.SaveChangesAsync();
         return ApiResults.Ok();
     }
+
+    private static SystemBoardSummaryDto ToSummary(EntityBoard board) =>
+        new(board.Id, board.Name, board.CreatedAtUtc, board.UpdatedAtUtc);
 
     private static bool TryParseBoardMemberRole(string value, out BoardMemberRole role)
     {

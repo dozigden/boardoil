@@ -81,6 +81,18 @@ public sealed class SystemBoardServiceTests : TestBaseDb
     }
 
     [Fact]
+    public async Task RestoreBoardAsync_WhenAlreadyActive_ShouldReturnBoardWithoutChangingTimestamps()
+    {
+        var board = CreateBoard().Build();
+        var original = DbContextForArrange.Boards.Single(x => x.Id == board.BoardId);
+
+        var result = await CreateService().RestoreBoardAsync(board.BoardId);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(original.UpdatedAtUtc, result.Data!.UpdatedAtUtc);
+    }
+
+    [Fact]
     public async Task AddMemberAsync_WhenActorIsNotBoardMember_ShouldStillAddMembership()
     {
         // Arrange

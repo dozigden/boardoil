@@ -230,6 +230,12 @@ export type SystemBoardSummary = {
   updatedAtUtc: string;
 };
 
+export type DeletedBoardSummary = {
+  id: number;
+  name: string;
+  deletedAtUtc: string;
+};
+
 export type BoardMember = {
   userId: number;
   userName: string;

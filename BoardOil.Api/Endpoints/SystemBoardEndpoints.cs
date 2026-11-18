@@ -19,6 +19,12 @@ public static class SystemBoardEndpoints
         systemBoardEndpoints.MapGet(string.Empty, async (ISystemBoardService systemBoardService) =>
             (await systemBoardService.GetBoardsAsync()).ToHttpResult());
 
+        systemBoardEndpoints.MapGet("/deleted", async (ISystemBoardService systemBoardService) =>
+            (await systemBoardService.GetDeletedBoardsAsync()).ToHttpResult());
+
+        systemBoardEndpoints.MapPost("/{boardId:int}/restore", async (int boardId, ISystemBoardService systemBoardService) =>
+            (await systemBoardService.RestoreBoardAsync(boardId)).ToHttpResult());
+
         systemBoardEndpoints.MapGet("/{boardId:int}/members", async (int boardId, ISystemBoardService systemBoardService) =>
             (await systemBoardService.GetMembersAsync(boardId)).ToHttpResult());
 

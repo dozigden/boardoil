@@ -13,7 +13,7 @@ const navItems = [
   {
     label: 'Boards',
     to: { name: 'system-admin-boards' },
-    activeRouteNames: ['system-admin-boards', 'system-admin-board-members']
+    activeRouteNames: ['system-admin-boards', 'system-admin-deleted-boards', 'system-admin-board-members']
   },
   {
     label: 'Users',

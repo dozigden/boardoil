@@ -249,6 +249,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('./system/views/SystemBoardsView.vue')
       },
       {
+        path: 'boards/deleted',
+        name: 'system-admin-deleted-boards',
+        component: () => import('./system/views/SystemBoardsView.vue'),
+        props: { showDeleted: true }
+      },
+      {
         path: 'boards/:boardId(\\d+)/members',
         name: 'system-admin-board-members',
         component: () => import('./system/views/SystemBoardMembersView.vue')

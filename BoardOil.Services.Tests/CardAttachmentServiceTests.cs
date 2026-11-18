@@ -3,6 +3,7 @@ using BoardOil.Abstractions.Attachment;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
+using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Card;
 using BoardOil.Services.Attachment;
 using BoardOil.Services.Card;
@@ -445,6 +446,56 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(archived, attachment.ArchivedCardId.HasValue);
         Assert.All(originalFiles, file => Assert.Equal(file.Value, File.ReadAllBytes(file.Key)));
         Assert.Equal(403, (await attachments.DownloadAsync(board.BoardId, attachment.Id, ActorUserId)).StatusCode);
+    }
+
+    [Fact]
+    public async Task RestoreBoard_ShouldRecoverCardNumbersRolesAndArchivedAttachmentBytes()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Live").AddCard("Archived").Build();
+        var liveCard = board.GetCard("Live");
+        var archivedCard = board.GetCard("Archived");
+        var contributor = new EntityUser
+        {
+            UserName = "contributor",
+            Email = "contributor@example.test",
+            PasswordHash = "test-hash",
+            Role = UserRole.Standard,
+            IsActive = true
+        };
+        DbContextForArrange.Users.Add(contributor);
+        await DbContextForArrange.SaveChangesAsync();
+        var systemBoards = ResolveService<ISystemBoardService>();
+        Assert.True((await systemBoards.AddMemberAsync(board.BoardId, new AddBoardMemberRequest(contributor.Id, "Contributor"))).Success);
+
+        byte[] bytes = [0, 255, 42];
+        var attachments = ResolveService<ICardAttachmentService>();
+        var uploaded = await attachments.UploadAsync(
+            board.BoardId, archivedCard.BoardCardId, ActorUserId, "notes.bin", null, new MemoryStream(bytes));
+        Assert.True(uploaded.Success, uploaded.Message);
+        var archive = ResolveService<ICardArchiveService>();
+        Assert.True((await archive.ArchiveCardAsync(board.BoardId, archivedCard.BoardCardId, ActorUserId)).Success);
+        var boards = ResolveService<IBoardService>();
+        Assert.True((await boards.DeleteBoardAsync(board.BoardId, ActorUserId)).Success);
+
+        var restored = await systemBoards.RestoreBoardAsync(board.BoardId);
+
+        Assert.True(restored.Success, restored.Message);
+        Assert.Equal(board.BoardId, restored.Data!.Id);
+        Assert.Empty((await systemBoards.GetDeletedBoardsAsync()).Data!);
+        Assert.Equal("Owner", (await boards.GetBoardAsync(board.BoardId, ActorUserId)).Data!.CurrentUserRole);
+        Assert.Equal("Contributor", (await boards.GetBoardAsync(board.BoardId, contributor.Id)).Data!.CurrentUserRole);
+        var cards = ResolveService<ICardService>();
+        Assert.Equal("Live", (await cards.GetCardAsync(board.BoardId, liveCard.BoardCardId, contributor.Id)).Data!.Title);
+        Assert.Equal("Archived", (await archive.GetArchivedCardAsync(board.BoardId, archivedCard.BoardCardId, contributor.Id)).Data!.Title);
+        var added = await cards.CreateCardAsync(board.BoardId, new CreateCardRequest(null, "After restore", "", []), contributor.Id);
+        Assert.True(added.Success, added.Message);
+        Assert.Equal(archivedCard.BoardCardId + 1, added.Data!.Id);
+        var download = await attachments.DownloadAsync(board.BoardId, uploaded.Data!.Id, contributor.Id);
+        Assert.True(download.Success, download.Message);
+        await using var content = download.Data!.Content;
+        using var restoredBytes = new MemoryStream();
+        await content.CopyToAsync(restoredBytes);
+        Assert.Equal(bytes, restoredBytes.ToArray());
     }
 
     [Theory]

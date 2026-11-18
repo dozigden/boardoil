@@ -1,7 +1,7 @@
 import type { SystemTimeZoneOptions } from '../types/scheduledJobTypes';
 import type { AppError } from '../types/appError';
 import type { Result } from '../types/result';
-import type { BoardMember, BoardMemberEditModel, BoardMemberRole, SystemBoardSummary } from '../types/boardTypes';
+import type { BoardMember, BoardMemberEditModel, BoardMemberRole, DeletedBoardSummary, SystemBoardSummary } from '../types/boardTypes';
 import type {
   AccessToken,
   ClientAccount,
@@ -69,6 +69,16 @@ export function createSystemApi() {
     }
 
     return ok(envelopeResult.data.data ?? []);
+  }
+
+  async function getDeletedBoards(): Promise<Result<DeletedBoardSummary[], AppError>> {
+    const result = await getEnvelope<DeletedBoardSummary[]>('/api/system/boards/deleted');
+    if (!result.ok) return result;
+    return ok(result.data.data ?? []);
+  }
+
+  async function restoreBoard(boardId: number): Promise<Result<SystemBoardSummary, AppError>> {
+    return postData<SystemBoardSummary>(`/api/system/boards/${boardId}/restore`, {});
   }
 
   async function getBoardMembers(boardId: number): Promise<Result<BoardMember[], AppError>> {
@@ -178,6 +188,8 @@ export function createSystemApi() {
     getSystemInfoMessage,
     updateSystemInfoMessage,
     getBoards,
+    getDeletedBoards,
+    restoreBoard,
     getBoardMembers,
     addBoardMember,
     updateBoardMemberRole,

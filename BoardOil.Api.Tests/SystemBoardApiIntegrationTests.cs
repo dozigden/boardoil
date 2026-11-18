@@ -28,6 +28,37 @@ public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBa
     }
 
     [Fact]
+    public async Task DeletedBoardEndpoints_ShouldRequireSystemAdminEvenForBoardOwner()
+    {
+        var admin = CreateClient();
+        var owner = CreateClient();
+        await RegisterInitialAdminAsync(admin);
+        await CreateUserAsAdminAsync(admin, "owner", "Password1234!", "Standard");
+        await LoginAsAsync(owner, "owner", "Password1234!");
+        using var created = await owner.PostAsJsonAsync("/api/boards", new CreateBoardRequest("Recoverable board"));
+        created.EnsureSuccessStatusCode();
+        var board = (await created.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>())!.Data!;
+        using var deleted = await owner.DeleteAsync($"/api/boards/{board.Id}");
+        deleted.EnsureSuccessStatusCode();
+        var restorePath = $"/api/system/boards/{board.Id}/restore";
+
+        using var ownerList = await owner.GetAsync("/api/system/boards/deleted");
+        using var ownerRestore = await owner.PostAsync(restorePath, null);
+        var adminList = await admin.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<DeletedBoardSummaryDto>>>("/api/system/boards/deleted");
+        using var adminRestore = await admin.PostAsync(restorePath, null);
+
+        Assert.Equal(HttpStatusCode.Forbidden, ownerList.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, ownerRestore.StatusCode);
+        var recoverable = Assert.Single(adminList!.Data!);
+        Assert.Equal(board.Id, recoverable.Id);
+        Assert.Equal(board.Name, recoverable.Name);
+        Assert.Equal(DateTimeKind.Utc, recoverable.DeletedAtUtc.Kind);
+        Assert.Equal(HttpStatusCode.OK, adminRestore.StatusCode);
+        var restored = (await adminRestore.Content.ReadFromJsonAsync<ApiEnvelope<SystemBoardSummaryDto>>())!.Data!;
+        Assert.Equal(board.Id, restored.Id);
+    }
+
+    [Fact]
     public async Task Admin_SystemMembershipEndpoints_ShouldAddAndListMembersWithoutAdminBoardMembership()
     {
         // Arrange

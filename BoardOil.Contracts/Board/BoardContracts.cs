@@ -18,6 +18,11 @@ public sealed record SystemBoardSummaryDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
+public sealed record DeletedBoardSummaryDto(
+    int Id,
+    string Name,
+    DateTime DeletedAtUtc);
+
 public sealed record BoardDto(
     int Id,
     string Name,
