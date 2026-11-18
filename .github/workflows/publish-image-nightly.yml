@@ -81,6 +81,8 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/npm-publication-gate.yml
+    with:
+      allow_temporary_picomatch_exception: true
 
   build-platform:
     name: Build Nightly (${{ matrix.platform }})
