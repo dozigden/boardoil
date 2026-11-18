@@ -62,8 +62,12 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
 
   async function deleteBoard(boardId: number) {
     const result = await runApiOperation(() => api.deleteBoard(boardId), { suppressError: true });
-    if (result.ok) REMOVE_BOARD(boardId);
+    if (result.ok) removeBoard(boardId);
     return result;
+  }
+
+  function removeBoard(boardId: number) {
+    REMOVE_BOARD(boardId);
   }
 
   function dispose() {
@@ -100,6 +104,7 @@ export const useBoardCatalogueStore = defineStore('boardCatalogue', () => {
     importBoardPackage,
     saveBoard,
     deleteBoard,
+    removeBoard,
     dispose
   };
 });

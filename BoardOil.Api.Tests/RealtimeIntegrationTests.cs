@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using BoardOil.Contracts.Card;
 using BoardOil.Contracts.CardType;
 using BoardOil.Contracts.Column;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Xunit;
 
@@ -22,6 +23,19 @@ public sealed class RealtimeIntegrationTests : BoardApiIntegrationTestBase
         Assert.True(
             statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden || messageHasAuthCode,
             $"Expected unauthorized/forbidden negotiate failure but got: {ex.GetType().Name} - {ex.Message}");
+    }
+
+    [Fact]
+    public async Task HubConnection_ShouldRejectSubscriptionToDeletedBoard()
+    {
+        await using var connection = CreateHubConnection();
+        await connection.StartAsync();
+        using var response = await Client.DeleteAsync("/api/boards/1");
+        response.EnsureSuccessStatusCode();
+
+        var error = await Assert.ThrowsAsync<HubException>(() => connection.InvokeAsync("SubscribeBoard", 1));
+
+        Assert.Contains("You do not have access to this board.", error.Message);
     }
 
     [Fact]

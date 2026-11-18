@@ -2,6 +2,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Contracts.Board;
 using BoardOil.Services.Board;
@@ -167,6 +168,8 @@ public sealed class BoardServiceTests : TestBaseDb
         Assert.Contains(DbContextForAssert.Cards, x => x.Id == cardId);
         Assert.Contains(DbContextForAssert.BoardMembers, x => x.BoardId == board.BoardId && x.UserId == ActorUserId);
         Assert.Contains(DbContextForAssert.BoardCardIdSequences, x => x.BoardId == board.BoardId);
+        var events = Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>());
+        Assert.Equal(board.BoardId, Assert.Single(events.ResyncRequestedBoardIds));
     }
 
     [Fact]
@@ -194,6 +197,7 @@ public sealed class BoardServiceTests : TestBaseDb
 
         Assert.Equal(200, result.StatusCode);
         Assert.Equal(deletedAt, DbContextForAssert.Boards.Single(x => x.Id == board.BoardId).DeletedAtUtc);
+        Assert.Empty(Assert.IsType<TestBoardEvents>(ResolveService<IBoardEvents>()).ResyncRequestedBoardIds);
     }
 
     [Fact]

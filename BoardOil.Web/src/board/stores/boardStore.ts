@@ -36,6 +36,7 @@ export const useBoardStore = defineStore('board', () => {
   const busy = ref(false);
   const isLoadingBoard = ref(false);
   const currentBoardId = ref<number | null>(null);
+  const unavailableBoardId = ref<number | null>(null);
   const feedback = useUiFeedbackStore();
   const boardCatalogueStore = useBoardCatalogueStore();
   const cardStore = useCardStore();
@@ -277,6 +278,18 @@ export const useBoardStore = defineStore('board', () => {
     }
 
     if (!result.ok) {
+      if (result.error.statusCode === 403 || result.error.statusCode === 404) {
+        boardCatalogueStore.removeBoard(boardId);
+        const disposal = dispose();
+        if (options.backgroundRefresh) {
+          unavailableBoardId.value = boardId;
+        } else {
+          reportError(result.error);
+        }
+        await disposal;
+        return false;
+      }
+
       if (options.backgroundRefresh) {
         void clientErrorReporter.reportRealtimeDiagnostic('realtime-board-refresh-failed', result.error, { boardId });
       }
@@ -397,6 +410,7 @@ export const useBoardStore = defineStore('board', () => {
   function clearBoardContext() {
     feedback.resetError();
     currentBoardId.value = null;
+    unavailableBoardId.value = null;
     isLoadingBoard.value = false;
     clearResyncRetry();
     resyncPending = false;
@@ -448,6 +462,7 @@ export const useBoardStore = defineStore('board', () => {
     busy,
     isLoadingBoard,
     currentBoardId,
+    unavailableBoardId,
     initialize,
     dispose,
     createColumn,

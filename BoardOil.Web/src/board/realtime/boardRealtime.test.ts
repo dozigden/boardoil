@@ -189,6 +189,20 @@ describe('boardRealtime', () => {
     expect(onResync).toHaveBeenCalledWith(42);
   });
 
+  it('checks the board snapshot when resubscription is rejected after reconnect', async () => {
+    const handlers = createHandlers();
+    const { createBoardRealtime } = await import('./boardRealtime');
+    const realtime = createBoardRealtime(handlers);
+    await realtime.connect(42);
+    connection.invoke.mockRejectedValueOnce(new Error('You do not have access to this board.'));
+    handlers.onConnectionRecovered.mockClear();
+
+    await connection.reconnectHandler?.();
+
+    expect(handlers.onResync).toHaveBeenCalledExactlyOnceWith(42);
+    expect(handlers.onConnectionRecovered).not.toHaveBeenCalled();
+  });
+
   it('resyncs when explicit resync event is received', async () => {
     const onResync = vi.fn(async () => undefined);
     const { createBoardRealtime } = await import('./boardRealtime');

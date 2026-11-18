@@ -1,4 +1,5 @@
 import { authenticatePage, expect, getBaseUrl, test } from '../fixtures/boardOilTest';
+import { interceptBoardConnection } from '../support/boardRealtimeConnection';
 import { BoardPage } from '../ui/BoardPage';
 
 test('a card edit appears in a second browser context', async ({ api, browser, page }) => {
@@ -30,3 +31,35 @@ test('a card edit appears in a second browser context', async ({ api, browser, p
     await secondContext.close();
   }
 });
+
+for (const reconnect of [false, true]) {
+  test(`a deleted board closes in another session ${reconnect ? 'after reconnect' : 'over realtime'}`, async ({
+    api, browser, authenticatedPage: owner
+  }) => {
+    const board = await api.createBoard(reconnect ? 'Smoke missed board deletion' : 'Smoke realtime board deletion');
+    const viewerContext = await browser.newContext({ baseURL: getBaseUrl() });
+
+    try {
+      const viewer = await viewerContext.newPage();
+      await authenticatePage(viewer);
+      const connection = await interceptBoardConnection(viewer);
+      await new BoardPage(viewer).open(board.id);
+      await owner.goto(`/boards/${board.id}/admin/delete`);
+      await owner.getByRole('textbox', { name: 'Confirm board name' }).fill(board.name);
+
+      if (reconnect) connection.pauseEvents();
+      await owner.getByRole('button', { name: 'Delete board', exact: true }).click();
+      await expect(owner).toHaveURL('/');
+      if (reconnect) await connection.disconnect();
+
+      await expect(viewer).toHaveURL('/');
+      await expect(viewer.getByRole('heading', { name: 'Boards', exact: true })).toBeVisible();
+      await expect(viewer.getByRole('button', { name: `Configure board ${board.name}`, exact: true })).toHaveCount(0);
+
+      await viewer.goto(`/boards/${board.id}`);
+      await expect(viewer).toHaveURL('/');
+    } finally {
+      await viewerContext.close();
+    }
+  });
+}

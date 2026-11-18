@@ -22,6 +22,7 @@ public sealed class BoardService(
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory,
+    IBoardEvents boardEvents,
     BoardReorderService reorderService) : IBoardService
 {
     private const int MaxBoardNameLength = 120;
@@ -244,22 +245,25 @@ public sealed class BoardService(
 
     public async Task<ApiResult> DeleteBoardAsync(int boardId, int actorUserId)
     {
-        using var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
-
-        var board = boardRepository.Get(boardId);
-        if (board is null)
+        using (var scope = scopeFactory.CreateWithTransaction(System.Data.IsolationLevel.Serializable))
         {
-            return ApiResults.Ok();
+            var board = boardRepository.Get(boardId);
+            if (board is null)
+            {
+                return ApiResults.Ok();
+            }
+
+            var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
+            if (!hasPermission)
+            {
+                return ApiErrors.Forbidden("You do not have permission for this action.");
+            }
+
+            board.DeletedAtUtc = DateTime.UtcNow;
+            await scope.SaveChangesAsync();
         }
 
-        var hasPermission = await boardAuthorisationService.HasPermissionAsync(boardId, actorUserId, BoardPermission.BoardManageSettings);
-        if (!hasPermission)
-        {
-            return ApiErrors.Forbidden("You do not have permission for this action.");
-        }
-
-        board.DeletedAtUtc = DateTime.UtcNow;
-        await scope.SaveChangesAsync();
+        await boardEvents.ResyncRequestedAsync(boardId);
         return ApiResults.Ok();
     }
 

@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { RouterView, useRoute } from 'vue-router';
+import { RouterView, useRoute, useRouter } from 'vue-router';
 import ConfirmDialogHost from './shared/components/ConfirmDialogHost.vue';
 import UiFeedbackToast from './shared/components/UiFeedbackToast.vue';
 import { useBoardCatalogueStore } from './shared/stores/boardCatalogueStore';
@@ -44,8 +44,9 @@ const themeStore = useThemeStore();
 const slickEffectStore = useSlickEffectStore();
 const appUpdateStore = useAppUpdateStore();
 const route = useRoute();
+const router = useRouter();
 const { boards } = storeToRefs(boardCatalogueStore);
-const { board, currentBoardId } = storeToRefs(boardStore);
+const { board, currentBoardId, unavailableBoardId } = storeToRefs(boardStore);
 const pageTransitionName = ref('route-none');
 const previousRouteSnapshot = ref<RouteSnapshot | null>(null);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
@@ -96,6 +97,15 @@ watch(
     await boardStore.dispose();
     boardCatalogueStore.dispose();
     userProfileImageStore.reset();
+  }
+);
+
+watch(
+  unavailableBoardId,
+  async boardId => {
+    if (boardId !== null && route.meta.requiresBoardContext && routeBoardId.value === boardId) {
+      await router.replace({ name: 'boards' });
+    }
   }
 );
 

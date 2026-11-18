@@ -117,7 +117,7 @@ function createSignalRBoardRealtime(
 
     await lifecycle.start();
     activeBoardId = boardId;
-    await subscribeBoard(boardId);
+    await subscribeBoardOrResync(boardId);
     await handlers.onConnectionRecovered?.();
   }
 
@@ -168,9 +168,18 @@ function createSignalRBoardRealtime(
       return;
     }
 
-    await subscribeBoard(boardId);
+    await subscribeBoardOrResync(boardId);
     logRealtime('Re-subscribed after reconnect.', { boardId });
     await handlers.onResync(boardId);
+  }
+
+  async function subscribeBoardOrResync(boardId: number) {
+    try {
+      await subscribeBoard(boardId);
+    } catch (error) {
+      await handlers.onResync(boardId);
+      throw error;
+    }
   }
 
   async function subscribeBoard(boardId: number) {

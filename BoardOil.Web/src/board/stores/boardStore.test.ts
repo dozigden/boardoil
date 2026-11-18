@@ -1140,9 +1140,17 @@ describe('boardStore', () => {
     expect(api.getBoard).toHaveBeenCalledTimes(3);
   });
 
-  it.each([401, 403, 404])('clears the board without retrying when resync returns %s', async statusCode => {
+  it.each([
+    { statusCode: 401, unavailableBoardId: null, remainingBoardIds: [1, 2], disconnects: 0 },
+    { statusCode: 403, unavailableBoardId: 1, remainingBoardIds: [2], disconnects: 1 },
+    { statusCode: 404, unavailableBoardId: 1, remainingBoardIds: [2], disconnects: 1 }
+  ])('clears the board without retrying when resync returns $statusCode', async ({
+    statusCode, unavailableBoardId, remainingBoardIds, disconnects
+  }) => {
     vi.useFakeTimers();
     const store = useBoardStore();
+    const catalogue = useBoardCatalogueStore();
+    await catalogue.loadBoards();
     await store.initialize(1);
     api.getBoard.mockResolvedValueOnce(err({ kind: 'http', statusCode, message: 'Board unavailable.' }));
 
@@ -1150,7 +1158,27 @@ describe('boardStore', () => {
     await vi.advanceTimersByTimeAsync(10_000);
 
     expect(store.board).toBeNull();
+    expect(store.unavailableBoardId).toBe(unavailableBoardId);
+    expect(catalogue.boards.map(board => board.id)).toEqual(remainingBoardIds);
+    expect(realtime.disconnect).toHaveBeenCalledTimes(disconnects);
     expect(api.getBoard).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the current board open when a previous board resync returns not found', async () => {
+    const store = useBoardStore();
+    await store.initialize(1);
+    const oldSnapshot = deferred<Result<Board, AppError>>();
+    api.getBoard.mockReturnValueOnce(oldSnapshot.promise);
+    const resync = realtimeHandlers!.onResync(1);
+    api.getBoard.mockResolvedValueOnce(ok(makeBoard(2)));
+    await store.initialize(2);
+
+    oldSnapshot.resolve(err({ kind: 'http', statusCode: 404, message: 'Board not found.' }));
+    await resync;
+
+    expect(store.board?.id).toBe(2);
+    expect(store.unavailableBoardId).toBeNull();
+    expect(realtime.disconnect).not.toHaveBeenCalled();
   });
 
   it.each(['dispose', 'board change'])('cancels a pending resync retry after %s', async trigger => {
