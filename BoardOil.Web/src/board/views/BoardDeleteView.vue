@@ -1,10 +1,6 @@
 <template>
   <section class="board-delete-page">
     <h2>Delete Board</h2>
-    <p class="board-delete-warning">
-      This will permanently delete the board, including all columns and cards.
-    </p>
-
     <form class="board-delete-panel" @submit.prevent="submit">
       <p class="board-delete-confirm-copy">
         Type <strong>{{ boardName }}</strong> to confirm deletion.
@@ -82,12 +78,6 @@ async function submit() {
 
 .board-delete-page h2 {
   margin: 0;
-}
-
-.board-delete-warning {
-  margin: 0;
-  color: var(--bo-colour-danger-ink);
-  font-weight: 600;
 }
 
 .board-delete-panel {

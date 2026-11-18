@@ -18,7 +18,7 @@ public sealed class BoardBootstrapService(
     public async Task EnsureDefaultBoardAsync()
     {
         using var scope = scopeFactory.Create();
-        if (await boardRepository.AnyBoardAsync())
+        if (await boardRepository.AnyBoardIncludingDeletedAsync())
         {
             return;
         }

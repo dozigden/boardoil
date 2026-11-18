@@ -9,6 +9,7 @@ public sealed class EntityBoard : ISupportCreatedAt, ISupportUpdatedAt
     public bool CardAttachmentThumbnailsEnabled { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }
+    public DateTime? DeletedAtUtc { get; set; }
 
     public ICollection<EntityBoardColumn> Columns { get; set; } = new List<EntityBoardColumn>();
     public ICollection<EntityCardType> CardTypes { get; set; } = new List<EntityCardType>();

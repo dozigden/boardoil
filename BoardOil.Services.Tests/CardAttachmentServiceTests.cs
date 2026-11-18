@@ -394,8 +394,6 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     [InlineData("card")]
     [InlineData("bulk")]
     [InlineData("bulk-mixed")]
-    [InlineData("board")]
-    [InlineData("archived-board")]
     public async Task ParentDeletion_ShouldQueueAndRemoveOwnedFiles(string operation)
     {
         var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
@@ -405,23 +403,48 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
             boardId, cardId, ActorUserId, "image.png", "image/png",
             new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
         Assert.True(uploaded.Success, uploaded.Message);
-        if (operation == "archived-board")
-        {
-            Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(boardId, cardId, ActorUserId)).Success);
-        }
-
         var result = operation switch
         {
             "card" => await ResolveService<ICardService>().DeleteCardAsync(boardId, cardId, ActorUserId),
             "bulk" => await ResolveService<BulkDeleteCardsService>().ExecuteAsync(boardId, new([cardId]), ActorUserId),
-            "bulk-mixed" => await ResolveService<BulkDeleteCardsService>().ExecuteAsync(boardId, new([cardId, 999_999]), ActorUserId),
-            _ => await ResolveService<IBoardService>().DeleteBoardAsync(boardId, ActorUserId)
+            _ => await ResolveService<BulkDeleteCardsService>().ExecuteAsync(boardId, new([cardId, 999_999]), ActorUserId)
         };
 
         Assert.True(result.Success, result.Message);
         Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Empty(await DbContextForAssert.TemporaryBoardPackages.ToListAsync());
         Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteBoard_ShouldRetainLiveAndArchivedAttachments(bool archived)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var cardId = board.GetCard("Card").BoardCardId;
+        var attachments = ResolveService<ICardAttachmentService>();
+        var uploaded = await attachments.UploadAsync(
+            board.BoardId, cardId, ActorUserId, "image.png", "image/png",
+            new MemoryStream(Png(3, 2)), new MemoryStream(Png(3, 2)), "image/png");
+        Assert.True(uploaded.Success, uploaded.Message);
+        if (archived)
+        {
+            Assert.True((await ResolveService<ICardArchiveService>().ArchiveCardAsync(board.BoardId, cardId, ActorUserId)).Success);
+        }
+        var originalFiles = Directory.GetFiles(_root, "*", SearchOption.AllDirectories)
+            .ToDictionary(path => path, File.ReadAllBytes);
+        Assert.Equal(2, originalFiles.Count);
+
+        var result = await ResolveService<IBoardService>().DeleteBoardAsync(board.BoardId, ActorUserId);
+
+        Assert.True(result.Success, result.Message);
+        var attachment = await DbContextForAssert.CardAttachments.SingleAsync();
+        Assert.Equal(uploaded.Data!.Id, attachment.Id);
+        Assert.Equal(AttachmentState.Ready, attachment.State);
+        Assert.Equal(archived, attachment.ArchivedCardId.HasValue);
+        Assert.All(originalFiles, file => Assert.Equal(file.Value, File.ReadAllBytes(file.Key)));
+        Assert.Equal(403, (await attachments.DownloadAsync(board.BoardId, attachment.Id, ActorUserId)).StatusCode);
     }
 
     [Theory]

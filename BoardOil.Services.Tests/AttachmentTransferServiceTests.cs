@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using BoardOil.Abstractions.Attachment;
+using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Contracts.Auth;
@@ -92,6 +93,20 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         Assert.Equal(401, result.StatusCode);
         Assert.Empty(await DbContextForAssert.AttachmentDownloadTickets.ToListAsync());
         Assert.Empty(await DbContextForAssert.AttachmentTransferAudits.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Download_WhenBoardWasDeletedAfterIssue_ShouldDenyAccess()
+    {
+        var (boardId, _, attachmentId) = await ArrangeAttachment();
+        var ticket = await Issue(boardId, attachmentId);
+        Assert.True((await ResolveService<IBoardService>().DeleteBoardAsync(boardId, ActorUserId)).Success);
+
+        var result = await ResolveService<IAttachmentTransferService>().DownloadAsync(ticket.Id, ticket.Secret);
+
+        Assert.Equal(403, result.StatusCode);
+        Assert.Contains(await DbContextForAssert.AttachmentTransferAudits.ToListAsync(),
+            x => x.TicketId == ticket.Id && x.Outcome == AttachmentTransferAuditOutcome.AccessDenied);
     }
 
     [Theory]

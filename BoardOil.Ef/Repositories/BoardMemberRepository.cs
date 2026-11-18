@@ -10,7 +10,7 @@ public sealed class BoardMemberRepository(IAmbientDbContextLocator ambientDbCont
 {
     public async Task<IReadOnlyList<EntityBoardMember>> GetMembershipsForUserOrderedAsync(int userId) =>
         await DbSet
-            .Where(x => x.UserId == userId)
+            .Where(x => x.UserId == userId && x.Board.DeletedAtUtc == null)
             .Include(x => x.Board)
             .OrderBy(x => x.BoardId)
             .ToListAsync();

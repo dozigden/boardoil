@@ -21,7 +21,7 @@ public sealed class ResaveAllBoardsScheduledJobDefinition(
         DateTime dueAtUtc, CancellationToken cancellationToken = default)
     {
         using var scope = scopes.CreateReadOnly(DbContextScopeOption.ForceCreateNew);
-        var ids = await boards.GetBoardIdsAsync(cancellationToken);
+        var ids = await boards.GetBoardIdsIncludingDeletedAsync(cancellationToken);
         return ids.Select(id => new ScheduledJobOccurrence(
             ResaveBoardJobHandler.JobType, JsonSerializer.Serialize(new ResaveBoardJobPayload(id)),
             id.ToString(CultureInfo.InvariantCulture))).ToArray();

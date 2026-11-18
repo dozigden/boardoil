@@ -8,7 +8,10 @@ namespace BoardOil.Ef.Repositories;
 public sealed class BoardRepository(IAmbientDbContextLocator ambientDbContextLocator)
     : RepositoryBase<EntityBoard>(ambientDbContextLocator), IBoardRepository
 {
-    public async Task<IReadOnlyList<int>> GetBoardIdsAsync(CancellationToken cancellationToken = default) =>
+    public override EntityBoard? Get(int id) =>
+        DbSet.SingleOrDefault(x => x.Id == id && x.DeletedAtUtc == null);
+
+    public async Task<IReadOnlyList<int>> GetBoardIdsIncludingDeletedAsync(CancellationToken cancellationToken = default) =>
         await DbSet.OrderBy(x => x.Id).Select(x => x.Id).ToListAsync(cancellationToken);
 
     public Task<EntityBoard?> GetForResaveAsync(int boardId, CancellationToken cancellationToken = default) =>
@@ -21,29 +24,10 @@ public sealed class BoardRepository(IAmbientDbContextLocator ambientDbContextLoc
 
     public async Task<IReadOnlyList<EntityBoard>> GetBoardsOrderedAsync() =>
         await DbSet
+            .Where(x => x.DeletedAtUtc == null)
             .OrderBy(x => x.Id)
             .ToListAsync();
 
-    public async Task<IReadOnlyList<EntityBoard>> GetBoardsForUserOrderedAsync(int userId) =>
-        await DbContext.BoardMembers
-            .Where(x => x.UserId == userId)
-            .Select(x => x.Board)
-            .OrderBy(x => x.Id)
-            .ToListAsync();
-
-    public async Task<IReadOnlyList<EntityBoard>> GetBoardsByIdsOrderedAsync(IReadOnlyList<int> boardIds)
-    {
-        if (boardIds.Count == 0)
-        {
-            return Array.Empty<EntityBoard>();
-        }
-
-        return await DbSet
-            .Where(x => boardIds.Contains(x.Id))
-            .OrderBy(x => x.Id)
-            .ToListAsync();
-    }
-
-    public Task<bool> AnyBoardAsync() =>
+    public Task<bool> AnyBoardIncludingDeletedAsync() =>
         DbSet.AnyAsync();
 }

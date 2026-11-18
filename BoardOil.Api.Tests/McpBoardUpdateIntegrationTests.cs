@@ -108,6 +108,24 @@ public sealed class McpBoardUpdateIntegrationTests : McpIntegrationTestBase, ICl
             summary.EnumerateObject().Select(property => property.Name));
     }
 
+    [Fact]
+    public async Task DeletedBoard_ShouldDisappearFromMcpAndRejectDirectRequests()
+    {
+        var client = CreateClient();
+        await RegisterInitialAdminAsync(client);
+        var token = await CreateMachinePatAsync(client);
+
+        using var deletion = await client.DeleteAsync("/api/boards/1");
+        using var list = await CallAsync(client, token, ToolNames.BoardList, new { });
+        using var get = await CallAsync(client, token, ToolNames.BoardGet, new { id = 1 });
+        using var update = await CallAsync(client, token, ToolNames.BoardUpdate, Arguments());
+
+        Assert.Equal(HttpStatusCode.OK, deletion.StatusCode);
+        Assert.Empty(AssertSuccess(list).GetProperty("boards").EnumerateArray());
+        AssertError(get, "not_found", 404);
+        AssertError(update, "not_found", 404);
+    }
+
     [Theory]
     [InlineData("readScope")]
     [InlineData("contributor")]

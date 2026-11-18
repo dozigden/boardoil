@@ -34,7 +34,7 @@ public sealed class DbContextScopeTests : IAsyncLifetime
     {
         var repository = new BoardRepository(_locator);
 
-        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => repository.AnyBoardAsync());
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => repository.AnyBoardIncludingDeletedAsync());
         Assert.Contains("No ambient DbContext", exception.Message);
     }
 

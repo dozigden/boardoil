@@ -225,7 +225,11 @@ public sealed class SingleUserEmailMigrationIntegrationTests
                 VALUES ({id},{$"user-{id}"},{$"User {id}"},{emails[i]},{$"legacy-{id}"},{$"hash-{id}"},0,0,1,'2026-01-01','2026-01-01');
                 """);
         }
-        db.Boards.Add(new EntityBoard { Id = 1, Name = "Board" });
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO Boards (Id,Name,Description,CreatedAtUtc,UpdatedAtUtc)
+            VALUES (1,'Board','','2026-01-01','2026-01-01');
+            """);
         db.Columns.Add(new EntityBoardColumn { Id = 1, BoardId = 1, Title = "Todo", SortKey = "A" });
         db.CardTypes.Add(new EntityCardType { Id = 1, BoardId = 1, Name = "Default", IsSystem = true, StyleName = "auto", StylePropertiesJson = "{}" });
         db.Cards.Add(new EntityBoardCard { Id = 1, BoardId = 1, BoardCardId = 1, BoardColumnId = 1, CardTypeId = 1, Title = "Card", SortKey = "A", AssignedUserId = 2 });

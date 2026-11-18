@@ -145,7 +145,11 @@ public sealed class TagNameRepairMigrationIntegrationTests
     {
         await using var db = CreateContext(connection);
         await db.Database.MigrateAsync(PreviousMigration);
-        db.Boards.AddRange(new EntityBoard { Id = 1, Name = "First" }, new EntityBoard { Id = 2, Name = "Second" });
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO Boards (Id,Name,Description,CreatedAtUtc,UpdatedAtUtc)
+            VALUES (1,'First','','2026-01-01','2026-01-01'),(2,'Second','','2026-01-01','2026-01-01');
+            """);
         db.Columns.AddRange(
             new EntityBoardColumn { Id = 1, BoardId = 1, Title = "Todo", SortKey = "A" },
             new EntityBoardColumn { Id = 2, BoardId = 2, Title = "Todo", SortKey = "A" });

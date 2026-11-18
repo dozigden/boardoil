@@ -22,7 +22,6 @@ public sealed class BoardService(
     IImageRepository imageRepository,
     IBoardAuthorisationService boardAuthorisationService,
     IDbContextScopeFactory scopeFactory,
-    BoardOil.Services.Attachment.CardAttachmentService attachments,
     BoardReorderService reorderService) : IBoardService
 {
     private const int MaxBoardNameLength = 120;
@@ -259,10 +258,8 @@ public sealed class BoardService(
             return ApiErrors.Forbidden("You do not have permission for this action.");
         }
 
-        var deletedAttachmentKeys = await attachments.DeleteForBoardAsync(boardId);
-        boardRepository.Remove(board);
+        board.DeletedAtUtc = DateTime.UtcNow;
         await scope.SaveChangesAsync();
-        await attachments.DeleteFilesAsync(deletedAttachmentKeys);
         return ApiResults.Ok();
     }
 

@@ -6,9 +6,7 @@ namespace BoardOil.Data.Abstractions.Board;
 public interface IBoardRepository : IRepositoryBase<EntityBoard>
 {
     Task<IReadOnlyList<EntityBoard>> GetBoardsOrderedAsync();
-    Task<IReadOnlyList<EntityBoard>> GetBoardsForUserOrderedAsync(int userId);
-    Task<IReadOnlyList<EntityBoard>> GetBoardsByIdsOrderedAsync(IReadOnlyList<int> boardIds);
-    Task<bool> AnyBoardAsync();
-    Task<IReadOnlyList<int>> GetBoardIdsAsync(CancellationToken cancellationToken = default);
+    Task<bool> AnyBoardIncludingDeletedAsync();
+    Task<IReadOnlyList<int>> GetBoardIdsIncludingDeletedAsync(CancellationToken cancellationToken = default);
     Task<EntityBoard?> GetForResaveAsync(int boardId, CancellationToken cancellationToken = default);
 }

@@ -1,7 +1,8 @@
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Card;
 using BoardOil.Abstractions.Column;
-using BoardOil.Ef.Repositories;
+using BoardOil.Abstractions.DataAccess;
+using BoardOil.Data.Abstractions.Board;
 using BoardOil.Contracts.Board;
 using BoardOil.Services.Board;
 using BoardOil.Services.Card;
@@ -141,7 +142,7 @@ public sealed class BoardServiceTests : TestBaseDb
     }
 
     [Fact]
-    public async Task DeleteBoardAsync_ShouldRemoveBoardColumnsAndCards()
+    public async Task DeleteBoardAsync_ShouldRetainBoardAndItsContents()
     {
         // Arrange
         var board = CreateBoard("BoardOil")
@@ -157,9 +158,75 @@ public sealed class BoardServiceTests : TestBaseDb
 
         // Assert
         Assert.True(result.Success);
-        Assert.Null(DbContextForAssert.Boards.SingleOrDefault(x => x.Id == board.BoardId));
-        Assert.Null(DbContextForAssert.Columns.SingleOrDefault(x => x.Id == columnId));
-        Assert.Null(DbContextForAssert.Cards.SingleOrDefault(x => x.Id == cardId));
+        using (ResolveService<IDbContextScopeFactory>().CreateReadOnly())
+        {
+            Assert.Null(ResolveService<IBoardRepository>().Get(board.BoardId));
+        }
+        Assert.NotNull(DbContextForAssert.Boards.Single(x => x.Id == board.BoardId).DeletedAtUtc);
+        Assert.Contains(DbContextForAssert.Columns, x => x.Id == columnId);
+        Assert.Contains(DbContextForAssert.Cards, x => x.Id == cardId);
+        Assert.Contains(DbContextForAssert.BoardMembers, x => x.BoardId == board.BoardId && x.UserId == ActorUserId);
+        Assert.Contains(DbContextForAssert.BoardCardIdSequences, x => x.BoardId == board.BoardId);
+    }
+
+    [Fact]
+    public async Task DeleteBoardAsync_WhenContributor_ShouldLeaveBoardActive()
+    {
+        var board = CreateBoard().Build();
+        DbContextForArrange.BoardMembers.Single(x => x.BoardId == board.BoardId).Role = BoardMemberRole.Contributor;
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await CreateService().DeleteBoardAsync(board.BoardId, ActorUserId);
+
+        Assert.Equal(403, result.StatusCode);
+        Assert.Null(DbContextForAssert.Boards.Single(x => x.Id == board.BoardId).DeletedAtUtc);
+    }
+
+    [Fact]
+    public async Task DeleteBoardAsync_WhenAlreadyDeleted_ShouldKeepDeletionTime()
+    {
+        var board = CreateBoard().Build();
+        var deletedAt = new DateTime(2026, 3, 15, 12, 0, 0, DateTimeKind.Utc);
+        DbContextForArrange.Boards.Single(x => x.Id == board.BoardId).DeletedAtUtc = deletedAt;
+        await DbContextForArrange.SaveChangesAsync();
+
+        var result = await CreateService().DeleteBoardAsync(board.BoardId, ActorUserId);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(deletedAt, DbContextForAssert.Boards.Single(x => x.Id == board.BoardId).DeletedAtUtc);
+    }
+
+    [Fact]
+    public async Task EnsureDefaultBoardAsync_WhenOnlyBoardIsDeleted_ShouldNotSeedReplacement()
+    {
+        var board = CreateBoard().Build();
+        Assert.True((await CreateService().DeleteBoardAsync(board.BoardId, ActorUserId)).Success);
+
+        await ResolveService<IBoardBootstrapService>().EnsureDefaultBoardAsync();
+
+        Assert.Equal(board.BoardId, Assert.Single(DbContextForAssert.Boards).Id);
+    }
+
+    [Fact]
+    public async Task DeletedBoard_ShouldBeUnavailableToOwnerAndSystemBoardManagement()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var cardNumber = board.GetCard("Card").BoardCardId;
+        var service = CreateService();
+        Assert.True((await service.DeleteBoardAsync(board.BoardId, ActorUserId)).Success);
+
+        var boards = await service.GetBoardsAsync(ActorUserId);
+        var loaded = await service.GetBoardAsync(board.BoardId, ActorUserId);
+        var card = await ResolveService<ICardService>().GetCardAsync(board.BoardId, cardNumber, ActorUserId);
+        var systemBoards = ResolveService<ISystemBoardService>();
+        var systemList = await systemBoards.GetBoardsAsync();
+        var memberChange = await systemBoards.RemoveMemberAsync(board.BoardId, ActorUserId);
+
+        Assert.Empty(boards.Data!);
+        Assert.Equal(404, loaded.StatusCode);
+        Assert.Equal(403, card.StatusCode);
+        Assert.Empty(systemList.Data!);
+        Assert.Equal(404, memberChange.StatusCode);
     }
 
     [Fact]

@@ -6,6 +6,7 @@ using BoardOil.Data.Abstractions.Entities;
 namespace BoardOil.Services.Board;
 
 public sealed class BoardAuthorisationService(
+    IBoardRepository boardRepository,
     IBoardMemberRepository boardMemberRepository,
     IDbContextScopeFactory scopeFactory) : IBoardAuthorisationService
 {
@@ -22,6 +23,11 @@ public sealed class BoardAuthorisationService(
     public async Task<bool> HasPermissionAsync(int boardId, int actorUserId, BoardPermission permission)
     {
         using var scope = scopeFactory.CreateReadOnly();
+
+        if (boardRepository.Get(boardId) is null)
+        {
+            return false;
+        }
 
         var membership = await boardMemberRepository.GetByBoardAndUserAsync(boardId, actorUserId);
         if (membership is null || !membership.User.IsActive)
