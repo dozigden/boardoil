@@ -4,10 +4,12 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.Jobs;
 using BoardOil.Contracts.Card;
 using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Ef.Migrations;
 using BoardOil.Services.Card;
 using BoardOil.Services.Jobs;
 using BoardOil.Services.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -182,7 +184,49 @@ public sealed class BoardResaveTests : TestBaseDb
     }
 
     [Fact]
-    public async Task DeletedBoardJob_ShouldCompleteAsSkipped()
+    public async Task MigrationRequestedResave_ShouldUpdateSoftDeletedBoardsBeforeRestore()
+    {
+        var active = CreateBoard("Active").AddColumn("Todo").AddCard("Checklist", Description).Build();
+        var deleted = CreateBoard("Recoverable").AddColumn("Todo").AddCard("Checklist", Description).Build();
+        var deletedCardNumber = deleted.GetCard("Checklist").BoardCardId;
+        Assert.Equal(0, active.GetCard("Checklist").TotalChecklistItemCount);
+        Assert.Equal(0, deleted.GetCard("Checklist").TotalChecklistItemCount);
+        var boards = ResolveService<IBoardService>();
+        Assert.True((await boards.DeleteBoardAsync(deleted.BoardId, ActorUserId)).Success);
+        var request = Assert.IsType<SqlOperation>(Assert.Single(new RequestInitialBoardResave().UpOperations));
+        await DbContextForArrange.Database.ExecuteSqlRawAsync(request.Sql);
+        var scheduler = ResolveService<IScheduledJobService>();
+        var runner = ResolveService<IJobRunner>();
+
+        var queued = await scheduler.EnqueueDueJobsAsync();
+        Assert.Equal(2, queued.Count(job => job.ScheduleName == ResaveAllBoardsScheduledJobDefinition.ScheduleName));
+        foreach (var job in queued)
+        {
+            Assert.True(await runner.RunNextDueAsync(), $"No due job for {job.ScheduleName}.");
+        }
+
+        var cards = await DbContextForAssert.Cards.AsNoTracking().ToListAsync();
+        Assert.Equal(2, cards.Count);
+        Assert.All(cards, card =>
+        {
+            Assert.Equal(1, card.CompletedChecklistItemCount);
+            Assert.Equal(2, card.TotalChecklistItemCount);
+        });
+        Assert.Equal(active.BoardId, Assert.Single((await boards.GetBoardsAsync(ActorUserId)).Data!).Id);
+
+        var restored = await ResolveService<ISystemBoardService>().RestoreBoardAsync(deleted.BoardId);
+
+        Assert.True(restored.Success, restored.Message);
+        var restoredBoard = await boards.GetBoardAsync(deleted.BoardId, ActorUserId);
+        Assert.True(restoredBoard.Success, restoredBoard.Message);
+        var restoredCard = Assert.Single(Assert.Single(restoredBoard.Data!.Columns).Cards);
+        Assert.Equal(deletedCardNumber, restoredCard.Id);
+        Assert.Equal(1, restoredCard.CompletedChecklistItemCount);
+        Assert.Equal(2, restoredCard.TotalChecklistItemCount);
+    }
+
+    [Fact]
+    public async Task PermanentlyRemovedBoardJob_ShouldCompleteAsSkipped()
     {
         var board = CreateBoard().AddColumn("Todo").Build();
         var queued = await ResolveService<IScheduledJobService>().RunNowAsync(ResaveAllBoardsScheduledJobDefinition.ScheduleName);
