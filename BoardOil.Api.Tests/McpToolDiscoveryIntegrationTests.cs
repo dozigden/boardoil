@@ -233,7 +233,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(33, GetToolNames(payload).Length);
+        Assert.Equal(34, GetToolNames(payload).Length);
     }
 
     [Fact]
@@ -287,6 +287,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
                 ToolNames.BoardCreate,
                 ToolNames.BoardUpdate,
                 ToolNames.BoardReorder,
+                ToolNames.BoardDelete,
                 ToolNames.CardSearch,
                 ToolNames.CardGet,
                 ToolNames.CardOptionsGet,
@@ -326,6 +327,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
             (ToolNames.BoardCreate, "created"),
             (ToolNames.BoardUpdate, "updated"),
             (ToolNames.BoardReorder, "reordered"),
+            (ToolNames.BoardDelete, "deleted"),
             (ToolNames.CardCreate, "created"),
             (ToolNames.CardUpdate, "updated"),
             (ToolNames.CardMove, "moved"),
@@ -355,6 +357,7 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardCreate, readOnly: false, destructive: false, idempotent: false);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardUpdate, readOnly: false, destructive: true, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.BoardReorder, readOnly: false, destructive: false, idempotent: true);
+        AssertToolAnnotations(toolsListPayload, ToolNames.BoardDelete, readOnly: false, destructive: true, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardSearch, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardGet, readOnly: true, destructive: false, idempotent: true);
         AssertToolAnnotations(toolsListPayload, ToolNames.CardOptionsGet, readOnly: true, destructive: false, idempotent: true);
@@ -473,6 +476,14 @@ public sealed class McpToolDiscoveryIntegrationTests : McpIntegrationTestBase
         var boardGetProperties = boardGetTool.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(boardGetProperties.TryGetProperty("id", out _));
         Assert.False(boardGetProperties.TryGetProperty("boardId", out _));
+
+        var boardDeleteInput = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.BoardDelete).GetProperty("inputSchema");
+        Assert.False(boardDeleteInput.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(["boardId"], boardDeleteInput.GetProperty("required").EnumerateArray().Select(field => field.GetString()));
+        var boardDeleteField = Assert.Single(boardDeleteInput.GetProperty("properties").EnumerateObject());
+        Assert.Equal("boardId", boardDeleteField.Name);
+        Assert.Equal("integer", boardDeleteField.Value.GetProperty("type").GetString());
+        Assert.Equal(1, boardDeleteField.Value.GetProperty("minimum").GetInt32());
 
         var cardMoveTool = McpJsonRpcClient.GetToolByName(toolsListPayload, ToolNames.CardMove);
         var cardMoveProperties = cardMoveTool.GetProperty("inputSchema").GetProperty("properties");

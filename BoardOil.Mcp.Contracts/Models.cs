@@ -193,6 +193,11 @@ public sealed record BoardReorderInput
     public IReadOnlyList<BoardCardOrder?>? Columns { get; init; }
 }
 
+public sealed record BoardDeleteInput
+{
+    public int? BoardId { get; init; }
+}
+
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record BoardUpdateSettingsInput
 {

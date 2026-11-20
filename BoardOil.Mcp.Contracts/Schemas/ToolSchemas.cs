@@ -391,6 +391,19 @@ public static partial class ToolSchemas
 
     public static readonly string BoardUpdateOutput = CreateMutationReceiptSchema("updated", "ID of the updated board.");
 
+    public const string BoardDeleteInput = """
+    {
+      "type": "object",
+      "properties": {
+        "boardId": { "type": "integer", "minimum": 1, "description": "The board ID from board_list." }
+      },
+      "required": ["boardId"],
+      "additionalProperties": false
+    }
+    """;
+
+    public static readonly string BoardDeleteOutput = CreateMutationReceiptSchema("deleted", "Board ID from the request.");
+
     public const string BoardCreateInput = """
     {
       "type": "object",

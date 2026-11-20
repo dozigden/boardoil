@@ -1115,7 +1115,7 @@ public sealed class OAuthAuthorizationFlowIntegrationTests : AuthAuthorisationIn
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, toolsResponse.StatusCode);
-        Assert.Equal(33, toolsPayload.RootElement
+        Assert.Equal(34, toolsPayload.RootElement
             .GetProperty("result")
             .GetProperty("tools")
             .GetArrayLength());
