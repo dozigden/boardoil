@@ -108,21 +108,18 @@ public sealed class DeletedBoardPurgeJobTests : TestBaseDb, IAsyncLifetime
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Purge_WhenBoardChangesAfterDispatch_ShouldRecheckDeletionTime(bool deleteAgain)
+    public async Task Purge_WhenBoardChangesAfterDispatch_ShouldCheckCurrentSoftDeleteState(bool deleteAgain)
     {
         var board = CreateBoard().Build();
         SetDeletionTime(board.BoardId, Cutoff);
         Assert.True((await DispatchAsync()).Success);
         Assert.True((await ResolveService<ISystemBoardService>().RestoreBoardAsync(board.BoardId)).Success);
-        DateTime? currentDeletionTime = deleteAgain ? Now : null;
-        if (deleteAgain) { SetDeletionTime(board.BoardId, currentDeletionTime); }
+        if (deleteAgain) { SetDeletionTime(board.BoardId, Now); }
 
         Assert.True(await ResolveService<IJobRunner>().RunNextDueAsync());
 
         Assert.Equal(JobStatus.Completed, await DbContextForAssert.Jobs.Select(x => x.Status).SingleAsync());
-        var retained = await DbContextForAssert.Boards.SingleAsync();
-        Assert.Equal(board.BoardId, retained.Id);
-        Assert.Equal(currentDeletionTime, retained.DeletedAtUtc);
+        Assert.Equal(!deleteAgain, await DbContextForAssert.Boards.AnyAsync(x => x.Id == board.BoardId));
     }
 
     [Fact]

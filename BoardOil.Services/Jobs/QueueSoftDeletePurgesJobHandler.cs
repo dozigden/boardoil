@@ -13,12 +13,14 @@ public sealed class QueueSoftDeletePurgesJobHandler(
     IDbContextScopeFactory scopes,
     TimeProvider timeProvider) : JobHandlerBase<MaintenanceJobPayload>
 {
+    private const int RetentionDays = 10;
+
     public override string Type => MaintenanceJobTypes.DeletedBoardPurge;
 
     protected override async Task<JobHandlerResult> HandleTypedAsync(
         JobContext context, MaintenanceJobPayload payload, CancellationToken cancellationToken)
     {
-        var cutoffUtc = timeProvider.GetUtcNow().UtcDateTime.AddDays(-PurgeBoardJobHandler.RetentionDays);
+        var cutoffUtc = timeProvider.GetUtcNow().UtcDateTime.AddDays(-RetentionDays);
         IReadOnlyList<int> candidates;
         using (scopes.CreateReadOnly())
         {
@@ -47,7 +49,7 @@ public sealed class QueueSoftDeletePurgesJobHandler(
 
         return JobHandlerResult.Succeeded(JsonSerializer.Serialize(new
         {
-            retentionDays = PurgeBoardJobHandler.RetentionDays,
+            retentionDays = RetentionDays,
             cutoffUtc,
             queuedCount
         }));

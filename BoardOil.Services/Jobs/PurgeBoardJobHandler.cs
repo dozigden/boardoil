@@ -11,11 +11,9 @@ public sealed record PurgeBoardJobPayload(int BoardId);
 public sealed class PurgeBoardJobHandler(
     IBoardRepository boards,
     CardAttachmentService attachments,
-    IDbContextScopeFactory scopes,
-    TimeProvider timeProvider) : JobHandlerBase<PurgeBoardJobPayload>
+    IDbContextScopeFactory scopes) : JobHandlerBase<PurgeBoardJobPayload>
 {
     public const string JobType = "purge-board";
-    internal const int RetentionDays = 10;
 
     public override string Type => JobType;
 
@@ -25,14 +23,13 @@ public sealed class PurgeBoardJobHandler(
         var boardId = payload.BoardId;
         if (boardId <= 0) { return JobHandlerResult.Failed("A positive board ID is required."); }
 
-        var cutoffUtc = timeProvider.GetUtcNow().UtcDateTime.AddDays(-RetentionDays);
         IReadOnlyList<string>? attachmentKeys = null;
         using (var scope = scopes.Create())
         {
             await scope.Transaction(async (transactionScope, transaction) =>
             {
                 var board = await boards.GetIncludingDeletedAsync(boardId, cancellationToken);
-                if (board?.DeletedAtUtc is not DateTime deletedAtUtc || deletedAtUtc > cutoffUtc)
+                if (board is null || board.DeletedAtUtc is null)
                 {
                     return;
                 }
