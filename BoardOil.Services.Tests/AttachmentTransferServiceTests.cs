@@ -382,7 +382,63 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
         Assert.NotNull(failed.FailedAtUtc);
         Assert.Equal(AttachmentState.PendingDeletion,
             await DbContextForAssert.CardAttachments.Where(x => x.Id == failed.AttachmentId).Select(x => x.State).SingleAsync());
+        Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
         Assert.NotEqual(ticket.Id, replacement.Id);
+    }
+
+    [Fact]
+    public async Task Upload_WhenCancelledDuringStaging_ShouldDeleteStagedFileAndReleaseName()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var ticket = await IssueUpload(board.BoardId, card.BoardCardId, "cancelled.bin", 3);
+        var storageKey = await DbContextForAssert.CardAttachments.Select(x => x.StorageKey).SingleAsync();
+        var path = Path.Combine(_root, storageKey[..2], storageKey);
+        using var cancellation = new CancellationTokenSource();
+        using var content = new ActionAfterFirstReadStream([1, 2, 3], cancellation.Cancel);
+        var service = ResolveService<IAttachmentTransferService>();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.UploadAsync(ticket.Id, ticket.Secret,
+            ticket.ContentType, ticket.ByteLength, content, cancellation.Token));
+
+        Assert.False(File.Exists(path));
+        var failed = await DbContextForAssert.AttachmentUploadTickets.Include(x => x.Attachment)
+            .SingleAsync(x => x.Id == ticket.Id);
+        Assert.Equal(AttachmentUploadTicketState.Failed, failed.State);
+        Assert.Equal(AttachmentState.PendingDeletion, failed.Attachment.State);
+        Assert.Null(failed.Attachment.CardId);
+        var repeated = await service.UploadAsync(ticket.Id, ticket.Secret,
+            ticket.ContentType, ticket.ByteLength, new ThrowOnReadStream());
+        Assert.Equal(409, repeated.StatusCode);
+        var replacement = await IssueUpload(board.BoardId, card.BoardCardId, "CANCELLED.BIN", 3);
+        Assert.NotEqual(ticket.Id, replacement.Id);
+    }
+
+    [Fact]
+    public async Task Upload_WhenCancelledDuringPublication_ShouldCompleteAndReturnAttachmentOnRetry()
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var card = board.GetCard("Card");
+        var ticket = await IssueUpload(board.BoardId, card.BoardCardId, "published.bin", 3);
+        var storageKey = await DbContextForAssert.CardAttachments.Select(x => x.StorageKey).SingleAsync();
+        var path = Path.Combine(_root, storageKey[..2], storageKey);
+        using var cancellation = new CancellationTokenSource();
+        _credentials.BeforeValidation = () =>
+        {
+            if (File.Exists(path)) { cancellation.Cancel(); }
+        };
+        var service = ResolveService<IAttachmentTransferService>();
+
+        var uploaded = await service.UploadAsync(ticket.Id, ticket.Secret, ticket.ContentType, ticket.ByteLength,
+            new MemoryStream([1, 2, 3]), cancellation.Token);
+
+        Assert.True(cancellation.IsCancellationRequested);
+        Assert.Equal(201, uploaded.StatusCode);
+        Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(path));
+        var repeated = await service.UploadAsync(ticket.Id, ticket.Secret,
+            ticket.ContentType, ticket.ByteLength, new ThrowOnReadStream());
+        Assert.Equal(200, repeated.StatusCode);
+        Assert.Equal(uploaded.Data!.Id, repeated.Data!.Id);
     }
 
     [Fact]
@@ -540,6 +596,7 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
             ticket.ContentType, ticket.ByteLength, stream);
 
         Assert.Equal(401, result.StatusCode);
+        Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
         Assert.Empty(await DbContextForAssert.CardAttachments.Where(x => x.State == AttachmentState.Ready).ToListAsync());
         Assert.Equal(AttachmentUploadTicketState.Failed,
             await DbContextForAssert.AttachmentUploadTickets.Where(x => x.Id == ticket.Id).Select(x => x.State).SingleAsync());
@@ -619,11 +676,14 @@ public sealed class AttachmentTransferServiceTests : TestBaseDb, IAsyncLifetime
     {
         public bool Valid { get; set; } = true;
         public DateTime? Expires { get; set; }
+        public Action? BeforeValidation { get; set; }
         public List<string> RequiredScopes { get; } = [];
         public Task<ApiResult<DateTime?>> ValidateAsync(int actorUserId, AttachmentTransferCredential credential,
             string requiredScope, CancellationToken cancellationToken = default)
         {
             RequiredScopes.Add(requiredScope);
+            BeforeValidation?.Invoke();
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Valid ? ApiResults.Ok(Expires) : ApiResults.Unauthorized<DateTime?>("Revoked"));
         }
     }

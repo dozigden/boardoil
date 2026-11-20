@@ -54,24 +54,24 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
-    public async Task Prepare_WhenTooLarge_ShouldKeepQueryableDeletionRecordForStartup()
+    public async Task Prepare_WhenPartialWriteFails_ShouldDeleteStagedFile()
     {
-        await Assert.ThrowsAsync<AttachmentSizeException>(() => Prepare(new byte[1025]));
+        Assert.IsType<TestStorage>(ResolveService<IAttachmentStorageService>()).FailNextWrite = true;
 
-        Assert.Equal(AttachmentState.PendingDeletion, (await DbContextForAssert.CardAttachments.SingleAsync()).State);
-        Assert.Equal(1, await ResolveService<CardAttachmentService>().CleanupAtStartupAsync());
+        await Assert.ThrowsAsync<IOException>(() => Prepare([1, 2]));
+
+        Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
         Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
     }
 
     [Fact]
-    public async Task Prepare_WhenFileCreationFails_ShouldLeaveDeletionRecordWithoutFile()
+    public async Task Prepare_WhenFileCreationFails_ShouldRemoveReservation()
     {
         Assert.IsType<TestStorage>(ResolveService<IAttachmentStorageService>()).FailCreate = true;
 
         await Assert.ThrowsAsync<IOException>(() => Prepare([1]));
 
-        Assert.Equal(AttachmentState.PendingDeletion, (await DbContextForAssert.CardAttachments.SingleAsync()).State);
-        Assert.Equal(1, await ResolveService<CardAttachmentService>().CleanupAtStartupAsync());
+        Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
     }
 
     [Fact]
@@ -154,9 +154,42 @@ public sealed class AttachmentStorageTests : TestBaseDb, IAsyncLifetime
         var retried = await service.UploadAsync(board.BoardId, cardId, ActorUserId, "FILE.BIN", null, new MemoryStream([1]));
 
         Assert.True(retried.Success, retried.Message);
-        var records = await DbContextForAssert.CardAttachments.ToListAsync();
-        Assert.Single(records, x => x.State == AttachmentState.Ready);
-        Assert.Null(Assert.Single(records, x => x.State == AttachmentState.PendingDeletion).CardId);
+        Assert.Equal(AttachmentState.Ready, (await DbContextForAssert.CardAttachments.SingleAsync()).State);
+        Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Upload_WhenPublicationFails_ShouldCleanUpOriginalAndThumbnail(bool failDeletion)
+    {
+        var board = CreateBoard().AddColumn("Todo").AddCard("Card").Build();
+        var cardId = board.GetCard("Card").BoardCardId;
+        var service = ResolveService<ICardAttachmentService>();
+        var storage = Assert.IsType<TestStorage>(ResolveService<IAttachmentStorageService>());
+        storage.FailDelete = failDeletion;
+        await DbContextForArrange.Database.ExecuteSqlRawAsync("""
+            CREATE TRIGGER reject_attachment_publication BEFORE UPDATE ON CardAttachments WHEN NEW.State = 1
+            BEGIN SELECT RAISE(ABORT, 'Simulated publication failure'); END;
+            """);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => service.UploadAsync(board.BoardId, cardId, ActorUserId,
+            "image.png", "image/png", new MemoryStream(Png(2, 2)), new MemoryStream(Png(1, 1)), "image/png"));
+
+        if (failDeletion)
+        {
+            var retained = await DbContextForAssert.CardAttachments.SingleAsync();
+            Assert.Equal(AttachmentState.PendingDeletion, retained.State);
+            Assert.Null(retained.CardId);
+            Assert.NotNull(retained.ThumbnailStorageKey);
+            Assert.Contains("Simulated", retained.LastError);
+            Assert.Equal(2, Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories).Count());
+            storage.FailDelete = false;
+            Assert.Equal(1, await ResolveService<CardAttachmentService>().CleanupAtStartupAsync());
+        }
+
+        Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
+        Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
     }
 
     [Fact]

@@ -837,7 +837,8 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
 
         Assert.Equal(409, result.StatusCode);
         Assert.Single(await DbContextForAssert.CardAttachments.Where(x => x.State == AttachmentState.Ready).ToListAsync());
-        Assert.Single(await DbContextForAssert.CardAttachments.Where(x => x.State == AttachmentState.PendingDeletion).ToListAsync());
+        Assert.Empty(await DbContextForAssert.CardAttachments.Where(x => x.State == AttachmentState.PendingDeletion).ToListAsync());
+        Assert.Single(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -879,7 +880,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
     }
 
     [Fact]
-    public async Task ParentDeletion_DuringUpload_ShouldLeaveTrackedFileForStartupAndRejectPublication()
+    public async Task ParentDeletion_DuringUpload_ShouldRejectPublicationAndDeleteStagedFile()
     {
         var (boardId, cardId, _) = await ArrangeAttachment();
         await using var input = new BeforeReadStream(async () =>
@@ -890,8 +891,7 @@ public sealed class CardAttachmentServiceTests : TestBaseDb, IAsyncLifetime
         var result = await ResolveService<ICardAttachmentService>().UploadAsync(boardId, cardId, ActorUserId, "late.bin", null, input);
 
         Assert.Equal(409, result.StatusCode);
-        Assert.Equal(AttachmentState.PendingDeletion, (await DbContextForAssert.CardAttachments.SingleAsync()).State);
-        Assert.Equal(1, await ResolveService<CardAttachmentService>().CleanupAtStartupAsync());
+        Assert.Empty(await DbContextForAssert.CardAttachments.ToListAsync());
         Assert.Empty(Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories));
     }
 

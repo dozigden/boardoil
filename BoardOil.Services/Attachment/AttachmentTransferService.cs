@@ -184,30 +184,36 @@ public sealed class AttachmentTransferService(
             return UploadAlreadyClaimed();
         }
 
-        PreparedAttachmentFile prepared;
+        UploadCompletion completion;
         try
         {
-            prepared = await attachmentService.WritePreparedAsync(
+            var prepared = await attachmentService.WritePreparedAsync(
                 new PreparedAttachmentFile(ticket.AttachmentId, ticket.Attachment.StorageKey), content,
                 options.MaxUploadByteLength, ticket.DeclaredByteLength, cancellationToken);
+            // Once publication starts, finish it even if the client disconnects.
+            cancellationToken.ThrowIfCancellationRequested();
+            completion = await CompleteUploadAsync(ticket, prepared);
         }
         catch (AttachmentLengthException exception)
         {
-            await FailUploadAsync(ticket.Id, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
+            await FailClaimedUploadAsync(ticket.Id);
             return ApiErrors.ValidationFailed([new("content", exception.Message)]);
         }
         catch (AttachmentSizeException exception)
         {
-            await FailUploadAsync(ticket.Id, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
+            await FailClaimedUploadAsync(ticket.Id);
             return new ApiError(413, exception.Message);
         }
         catch
         {
-            await FailUploadAsync(ticket.Id, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
+            await FailClaimedUploadAsync(ticket.Id);
             throw;
         }
 
-        var completion = await CompleteUploadAsync(ticket, prepared, cancellationToken);
+        if (!completion.Result.Success)
+        {
+            await DeleteFailedUploadFileAsync(ticket);
+        }
         await TryRecordUploadAuditAsync(
             ticket, completion.Outcome, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
         if (!completion.Result.Success) { return completion.Result; }
@@ -337,22 +343,22 @@ public sealed class AttachmentTransferService(
     }
 
     private async Task<UploadCompletion> CompleteUploadAsync(EntityAttachmentUploadTicket inspectedTicket,
-        PreparedAttachmentFile prepared, CancellationToken cancellationToken)
+        PreparedAttachmentFile prepared)
     {
         using var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable);
         var ticket = await uploadTickets.Query().Include(x => x.Attachment)
-            .SingleOrDefaultAsync(x => x.Id == inspectedTicket.Id, cancellationToken);
+            .SingleOrDefaultAsync(x => x.Id == inspectedTicket.Id);
         if (ticket is null || ticket.State != AttachmentUploadTicketState.Uploading)
         {
             return new(UploadAlreadyClaimed(), AttachmentTransferAuditOutcome.UploadAlreadyClaimed);
         }
         var validity = await credentials.ValidateAsync(ticket.ActorUserId,
             Credential(ticket.PersonalAccessTokenId, ticket.OAuthTokenId, ticket.OAuthAuthorizationId),
-            MachinePatScopes.McpWrite, cancellationToken);
+            MachinePatScopes.McpWrite);
         if (!validity.Success)
         {
             MarkUploadFailed(ticket);
-            await scope.SaveChangesAsync(cancellationToken);
+            await scope.SaveChangesAsync();
             return new(InvalidTicket<CardAttachmentDto>(), AttachmentTransferAuditOutcome.CredentialInvalid);
         }
         if (!UploadOwnerMatches(ticket, AttachmentState.Pending) ||
@@ -360,32 +366,37 @@ public sealed class AttachmentTransferService(
                 ticket.BoardId, ticket.CardNumber, ticket.CardId, ticket.ActorUserId))
         {
             MarkUploadFailed(ticket);
-            await scope.SaveChangesAsync(cancellationToken);
+            await scope.SaveChangesAsync();
             return new(new ApiError(409, "The card or its permissions changed. Request a new upload ticket."),
                 AttachmentTransferAuditOutcome.OwnerChanged);
         }
         var attachment = attachmentService.Publish(prepared);
         ticket.State = AttachmentUploadTicketState.Completed;
         ticket.CompletedAtUtc = clock.GetUtcNow().UtcDateTime;
-        await scope.SaveChangesAsync(cancellationToken);
+        await scope.SaveChangesAsync();
         return new(ApiResults.Created(CardAttachmentService.ToDto(attachment)), AttachmentTransferAuditOutcome.UploadCompleted);
     }
 
-    private async Task FailUploadAsync(int ticketId, DateTime occurredAtUtc, CancellationToken cancellationToken)
+    private async Task FailClaimedUploadAsync(int ticketId)
     {
         EntityAttachmentUploadTicket? ticket;
         using (scopes.SuppressAmbientContext())
         using (var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable))
         {
             ticket = await uploadTickets.Query().Include(x => x.Attachment)
-                .SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
-            if (ticket is null || ticket.State == AttachmentUploadTicketState.Completed) { return; }
+                .SingleOrDefaultAsync(x => x.Id == ticketId);
+            if (ticket is null || ticket.State != AttachmentUploadTicketState.Uploading) { return; }
             MarkUploadFailed(ticket);
-            await scope.SaveChangesAsync(cancellationToken);
+            await scope.SaveChangesAsync();
         }
+        await DeleteFailedUploadFileAsync(ticket);
         await TryRecordUploadAuditAsync(
-            ticket, AttachmentTransferAuditOutcome.UploadFailed, occurredAtUtc, CancellationToken.None);
+            ticket, AttachmentTransferAuditOutcome.UploadFailed, clock.GetUtcNow().UtcDateTime, CancellationToken.None);
     }
+
+    // Deleting the attachment row would cascade to the ticket and change its failed-retry response.
+    private Task DeleteFailedUploadFileAsync(EntityAttachmentUploadTicket ticket) =>
+        attachmentService.DeleteFilesAsync([ticket.Attachment.StorageKey], retainRecords: true);
 
     private void MarkUploadFailed(EntityAttachmentUploadTicket ticket)
     {

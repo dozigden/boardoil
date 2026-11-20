@@ -88,6 +88,8 @@ public sealed class CardAttachmentService(
             {
                 await TryStoreUploadThumbnailAsync(prepared.Id, thumbnail, thumbnailContentType, cancellationToken);
             }
+            // Once publication starts, finish it even if the client disconnects.
+            cancellationToken.ThrowIfCancellationRequested();
             using var scope = scopes.Create();
             EntityCardAttachment? attachment = null;
             CardDto? updatedCard = null;
@@ -102,7 +104,7 @@ public sealed class CardAttachmentService(
                 attachment = Publish(prepared);
                 attachment.Card = card;
                 card.CardUpdatedUtc = DateTime.UtcNow;
-                await transactionScope.SaveChangesAsync(cancellationToken);
+                await transactionScope.SaveChangesAsync();
                 updatedCard = await CardDtoEnrichment.EnrichAssignedUserImageAsync(card.ToCardDto(), images);
                 await transaction.CommitAsync();
             });
@@ -427,7 +429,6 @@ public sealed class CardAttachmentService(
         }
         catch
         {
-            // Release the name after the writer closes; retain the record/file for startup.
             await AbandonAsync(record.Id);
             throw;
         }
@@ -486,11 +487,16 @@ public sealed class CardAttachmentService(
     public async Task AbandonAsync(int id)
     {
         using var suppressed = scopes.SuppressAmbientContext();
-        using var scope = scopes.Create();
-        var record = attachments.Get(id);
-        if (record is null || record.State == AttachmentState.Ready) { return; }
-        MarkForDeletion(record);
-        await scope.SaveChangesAsync();
+        string key;
+        using (var scope = scopes.CreateWithTransaction(System.Data.IsolationLevel.Serializable))
+        {
+            var record = attachments.Get(id);
+            if (record is null || record.State == AttachmentState.Ready) { return; }
+            MarkForDeletion(record);
+            await scope.SaveChangesAsync();
+            key = record.StorageKey;
+        }
+        await DeleteFilesAsync([key]);
     }
 
     // Only call before serving requests. No other instance may be using this storage.
@@ -510,7 +516,8 @@ public sealed class CardAttachmentService(
 
     // Normal deletion targets only records committed by that operation.
     // Pending writers are excluded by the caller; startup reclaims those paths.
-    public async Task<int> DeleteFilesAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken = default)
+    public async Task<int> DeleteFilesAsync(IReadOnlyList<string> keys, CancellationToken cancellationToken = default,
+        bool retainRecords = false)
     {
         using var suppressed = scopes.SuppressAmbientContext();
         var deleted = 0;
@@ -534,8 +541,11 @@ public sealed class CardAttachmentService(
                 logger?.LogError(exception, "Could not delete attachment {AttachmentId}; retained for next startup.", record.Id);
                 continue;
             }
-            attachments.Remove(record);
-            await scope.SaveChangesAsync(cancellationToken);
+            if (!retainRecords)
+            {
+                attachments.Remove(record);
+                await scope.SaveChangesAsync(cancellationToken);
+            }
             deleted++;
         }
         return deleted;
