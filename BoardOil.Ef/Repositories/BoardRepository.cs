@@ -38,13 +38,6 @@ public sealed class BoardRepository(IAmbientDbContextLocator ambientDbContextLoc
     public Task<EntityBoard?> GetIncludingDeletedAsync(int boardId, CancellationToken cancellationToken = default) =>
         DbSet.SingleOrDefaultAsync(x => x.Id == boardId, cancellationToken);
 
-    public async Task<IReadOnlyList<int>> GetBoardIdsDeletedByAsync(DateTime cutoffUtc, CancellationToken cancellationToken) =>
-        await DbSet
-            .Where(x => x.DeletedAtUtc <= cutoffUtc)
-            .OrderBy(x => x.Id)
-            .Select(x => x.Id)
-            .ToListAsync(cancellationToken);
-
     public Task<bool> AnyBoardIncludingDeletedAsync() =>
         DbSet.AnyAsync();
 }

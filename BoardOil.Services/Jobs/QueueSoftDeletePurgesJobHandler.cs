@@ -3,6 +3,7 @@ using BoardOil.Abstractions.DataAccess;
 using BoardOil.Abstractions.Jobs;
 using BoardOil.Contracts.Jobs;
 using BoardOil.Data.Abstractions.Board;
+using Microsoft.EntityFrameworkCore;
 
 namespace BoardOil.Services.Jobs;
 
@@ -21,7 +22,11 @@ public sealed class QueueSoftDeletePurgesJobHandler(
         IReadOnlyList<int> candidates;
         using (scopes.CreateReadOnly())
         {
-            candidates = await boards.GetBoardIdsDeletedByAsync(cutoffUtc, cancellationToken);
+            candidates = await boards.Query()
+                .Where(board => board.DeletedAtUtc <= cutoffUtc)
+                .OrderBy(board => board.Id)
+                .Select(board => board.Id)
+                .ToListAsync(cancellationToken);
         }
 
         var queuedCount = 0;
