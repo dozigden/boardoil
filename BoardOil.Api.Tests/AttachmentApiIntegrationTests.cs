@@ -1,8 +1,16 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
+using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Jobs;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Card;
+using BoardOil.Contracts.Jobs;
+using BoardOil.Data.Abstractions.Entities;
+using BoardOil.Ef;
+using BoardOil.Services.Jobs;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -55,6 +63,46 @@ public sealed class AttachmentApiIntegrationTests : TestBaseIntegration
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await Client.GetAsync($"/api/boards/1/attachments/{attachment.Id}/download")).StatusCode);
+    }
+
+    [Fact]
+    public async Task DeletedBoardPurge_ShouldRunFromScheduleAndPermanentlyRemoveAnArchivedAttachment()
+    {
+        var card = await CreateCard();
+        using var form = Upload(Png(640, 480), "archived.png", Png(160, 120));
+        var upload = await Client.PostAsync($"/api/boards/1/cards/{card.Id}/attachments", form);
+        Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await Client.PostAsJsonAsync($"/api/boards/1/cards/{card.Id}/archive", new { })).StatusCode);
+
+        using var scope = Factory.Services.CreateScope();
+        var services = scope.ServiceProvider;
+        await using var db = services.GetRequiredService<IDbContextFactory>().CreateDbContext<BoardOilDbContext>();
+        var board = await db.Boards.SingleAsync();
+        board.DeletedAtUtc = DateTime.UtcNow.AddDays(-11);
+        await db.SaveChangesAsync();
+        var attachmentRoot = DatabasePath + ".attachments";
+        Assert.Equal(2, Directory.EnumerateFiles(attachmentRoot, "*", SearchOption.AllDirectories).Count());
+
+        var run = await Client.PostAsync("/api/system/scheduled-jobs/deleted-board-purge/runs", null);
+        Assert.Equal(HttpStatusCode.OK, run.StatusCode);
+        var queued = await run.Content.ReadFromJsonAsync<Envelope<RunScheduledJobNowResultDto>>();
+        var runner = services.GetRequiredService<IJobRunner>();
+        Assert.True(await runner.RunNextDueAsync());
+
+        var job = await db.Jobs.SingleAsync(x => x.Id == queued!.Data!.JobIds.Single());
+        Assert.Equal(JobStatus.Completed, job.Status);
+        var child = await db.Jobs.AsNoTracking().SingleAsync(x => x.Type == PurgeBoardJobHandler.JobType);
+        Assert.Equal(JobStatus.Pending, child.Status);
+        Assert.Equal(1, await db.Boards.CountAsync());
+
+        Assert.True(await runner.RunNextDueAsync());
+
+        Assert.Equal(JobStatus.Completed, await db.Jobs.Where(x => x.Id == child.Id).Select(x => x.Status).SingleAsync());
+        Assert.Empty(await db.Boards.ToListAsync());
+        Assert.Empty(await db.ArchivedCards.ToListAsync());
+        Assert.Empty(await db.CardAttachments.ToListAsync());
+        Assert.Empty(Directory.EnumerateFiles(attachmentRoot, "*", SearchOption.AllDirectories));
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public sealed class MaintenanceJobTests : TestBaseDb
     }
 
     [Fact]
-    public async Task Definitions_ShouldCreateFourInitialJobsWithStableNamesAndCadence()
+    public async Task Definitions_ShouldCreateInitialJobsWithStableNamesAndCadence()
     {
         var definitions = ResolveService<IEnumerable<IScheduledJobDefinition>>().ToArray();
         var expected = new[]
@@ -39,7 +39,8 @@ public sealed class MaintenanceJobTests : TestBaseDb
             ("oauth-client-registration-purge", MaintenanceJobTypes.OAuthClientRegistrationPurge, new TimeOnly(3, 0)),
             ("error-log-purge", MaintenanceJobTypes.ErrorLogPurge, new TimeOnly(3, 0)),
             ("oauth-token-audit-purge", MaintenanceJobTypes.OAuthTokenAuditPurge, new TimeOnly(3, 0)),
-            ("history-purge", MaintenanceJobTypes.HistoryPurge, new TimeOnly(3, 0))
+            ("history-purge", MaintenanceJobTypes.HistoryPurge, new TimeOnly(3, 0)),
+            ("deleted-board-purge", MaintenanceJobTypes.DeletedBoardPurge, new TimeOnly(3, 0))
         };
 
         Assert.Equal(expected.Length + 1, definitions.Length);
@@ -62,7 +63,7 @@ public sealed class MaintenanceJobTests : TestBaseDb
 
         var first = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
         var second = await ResolveService<IScheduledJobService>().EnqueueDueJobsAsync();
-        Assert.Equal(4, first.Count);
+        Assert.Equal(expected.Length, first.Count);
         Assert.Empty(second);
         Assert.Equal(expected.Select(item => item.Item2).Order(),
             (await DbContextForAssert.Jobs.AsNoTracking().ToListAsync()).Select(job => job.Type).Order());

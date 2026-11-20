@@ -367,13 +367,14 @@ public sealed class CardAttachmentService(
     public Task<IReadOnlyList<string>> DeleteForCardsAsync(IReadOnlyList<int> databaseCardIds) =>
         MarkForDeletionAsync(attachments.Query().Where(x => x.CardId.HasValue && databaseCardIds.Contains(x.CardId.Value)));
 
-    public Task<IReadOnlyList<string>> DeleteForBoardAsync(int boardId) =>
+    public Task<IReadOnlyList<string>> DeleteForBoardAsync(int boardId, CancellationToken cancellationToken) =>
         MarkForDeletionAsync(attachments.Query().Where(x => (x.Card != null && x.Card.BoardId == boardId)
-            || (x.ArchivedCard != null && x.ArchivedCard.BoardId == boardId)));
+            || (x.ArchivedCard != null && x.ArchivedCard.BoardId == boardId)), cancellationToken);
 
-    private async Task<IReadOnlyList<string>> MarkForDeletionAsync(IQueryable<EntityCardAttachment> query)
+    private async Task<IReadOnlyList<string>> MarkForDeletionAsync(
+        IQueryable<EntityCardAttachment> query, CancellationToken cancellationToken = default)
     {
-        var items = await query.ToListAsync();
+        var items = await query.ToListAsync(cancellationToken);
         // Capture Ready paths before changing state. Pending writers are reclaimed at startup.
         var keys = items.Where(x => x.State == AttachmentState.Ready).Select(x => x.StorageKey).ToList();
         foreach (var item in items) { MarkForDeletion(item); }

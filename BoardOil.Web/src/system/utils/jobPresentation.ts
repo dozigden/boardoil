@@ -3,6 +3,8 @@ const labels: Record<string, string> = {
   'error-log.purge': 'Error log purge',
   'oauth-token-audit.purge': 'OAuth token audit purge',
   'history.purge': 'History purge',
+  'deleted-board.purge': 'Queue purges for deleted items',
+  'purge-board': 'Permanently delete board',
   'resave-board': 'Resave board'
 };
 

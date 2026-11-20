@@ -577,9 +577,13 @@ public sealed class JobExecutionTests : TestBaseDb
         services.AddSingleton<BoardOil.Abstractions.IBoardEvents, TestBoardEvents>();
         BoardOil.Ef.DependencyInjection.ServiceCollectionExtensions.AddBoardOilEfInfrastructure(
             services, "DataSource=:memory:");
-        Assert.Equal(4, services.Count(x => x.ServiceType == typeof(IJobHandler)));
+        Assert.Equal(6, services.Count(x => x.ServiceType == typeof(IJobHandler)));
         Assert.Contains(services, x => x.ServiceType == typeof(IJobHandler)
             && x.ImplementationType == typeof(ResaveBoardJobHandler));
+        Assert.Contains(services, x => x.ServiceType == typeof(IJobHandler)
+            && x.ImplementationType == typeof(QueueSoftDeletePurgesJobHandler));
+        Assert.Contains(services, x => x.ServiceType == typeof(IJobHandler)
+            && x.ImplementationType == typeof(PurgeBoardJobHandler));
         Assert.DoesNotContain(services, x => x.ServiceType.FullName == "Microsoft.Extensions.Hosting.IHostedService");
         Assert.Contains(services, x => x.ServiceType == typeof(IJobRunner));
         Assert.Contains(services, x => x.ServiceType == typeof(IJobService));

@@ -90,11 +90,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJobHandler, ErrorLogPurgeJobHandler>();
         services.AddScoped<IJobHandler, OAuthTokenAuditPurgeJobHandler>();
         services.AddScoped<IJobHandler, HistoryPurgeJobHandler>();
+        services.AddScoped<IJobHandler, QueueSoftDeletePurgesJobHandler>();
+        services.AddScoped<IJobHandler, PurgeBoardJobHandler>();
         services.AddScoped<IJobHandler, ResaveBoardJobHandler>();
         services.AddSingleton<IScheduledJobDefinition, OAuthClientRegistrationPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, ErrorLogPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, OAuthTokenAuditPurgeScheduledJobDefinition>();
         services.AddSingleton<IScheduledJobDefinition, HistoryPurgeScheduledJobDefinition>();
+        services.AddSingleton<IScheduledJobDefinition, DeletedBoardPurgeScheduledJobDefinition>();
         services.AddScoped<IScheduledJobDefinition, ResaveAllBoardsScheduledJobDefinition>();
         services.AddSingleton<IDailyOccurrenceCalculator, DailyOccurrenceCalculator>();
         services.AddScoped<ISystemTimeZoneService, SystemTimeZoneService>();

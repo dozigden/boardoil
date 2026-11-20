@@ -34,3 +34,7 @@ public sealed class OAuthTokenAuditPurgeScheduledJobDefinition()
 public sealed class HistoryPurgeScheduledJobDefinition()
     : MaintenanceScheduledJobDefinition("history-purge", "Job history purge",
         MaintenanceJobTypes.HistoryPurge, new TimeOnly(3, 0));
+
+public sealed class DeletedBoardPurgeScheduledJobDefinition()
+    : MaintenanceScheduledJobDefinition("deleted-board-purge", "Queue purges for deleted items",
+        MaintenanceJobTypes.DeletedBoardPurge, new TimeOnly(3, 0));

@@ -33,7 +33,8 @@ public sealed class ScheduledJobApiIntegrationTests : TestBaseIntegration
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<ApiResult<ScheduledJobDto[]>>();
-        Assert.Equal(5, result!.Data!.Length);
+        Assert.Equal(6, result!.Data!.Length);
+        Assert.Contains(result.Data, item => item.Name == "deleted-board-purge" && item.Kind == "daily");
         var once = Assert.Single(result.Data, item => item.Kind == "once");
         Assert.Equal("resave-all-boards", once.Name);
         Assert.Null(once.DailyTime);

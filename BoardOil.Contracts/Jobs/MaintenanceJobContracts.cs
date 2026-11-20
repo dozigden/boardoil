@@ -6,6 +6,7 @@ public static class MaintenanceJobTypes
     public const string ErrorLogPurge = "error-log.purge";
     public const string OAuthTokenAuditPurge = "oauth-token-audit.purge";
     public const string HistoryPurge = "history.purge";
+    public const string DeletedBoardPurge = "deleted-board.purge";
 }
 
 public sealed record MaintenanceJobPayload;

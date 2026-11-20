@@ -2,6 +2,7 @@ using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Column;
+using BoardOil.Data.Abstractions.Configuration;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Services.Card;
 using BoardOil.Data.Abstractions.Users;
@@ -13,13 +14,23 @@ public sealed class BoardBootstrapService(
     IBoardRepository boardRepository,
     IUserRepository userRepository,
     IColumnRepository columnRepository,
+    IAppSettingRepository settings,
     IDbContextScopeFactory scopeFactory) : IBoardBootstrapService
 {
+    private const string InitialisedKey = "default_board_initialised";
+
     public async Task EnsureDefaultBoardAsync()
     {
         using var scope = scopeFactory.Create();
+        if (await settings.GetByKeyAsync(InitialisedKey) is not null)
+        {
+            return;
+        }
+
+        settings.Add(new EntityAppSetting { Key = InitialisedKey, Value = "true" });
         if (await boardRepository.AnyBoardIncludingDeletedAsync())
         {
+            await scope.SaveChangesAsync();
             return;
         }
 

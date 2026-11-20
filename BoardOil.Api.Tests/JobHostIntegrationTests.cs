@@ -112,7 +112,7 @@ public sealed class JobHostIntegrationTests
                     .Count(service => service is JobSchedulerService));
                 var definitions = scope.ServiceProvider.GetServices<IScheduledJobDefinition>().ToArray();
                 var handlers = scope.ServiceProvider.GetServices<IJobHandler>().ToArray();
-                Assert.Equal(5, definitions.Length);
+                Assert.Equal(6, definitions.Length);
                 foreach (var definition in definitions)
                 {
                     var configuration = await definition.GetConfigurationAsync();
@@ -128,7 +128,7 @@ public sealed class JobHostIntegrationTests
                     Assert.Contains(handlers, handler => handler.Type == occurrence.JobType);
                 }
                 await using var db = CreateDb(factory.Services);
-                Assert.Equal(5, await db.ScheduledJobSchedulerStates.AsNoTracking().CountAsync());
+                Assert.Equal(6, await db.ScheduledJobSchedulerStates.AsNoTracking().CountAsync());
                 Assert.NotEmpty(await db.Database.GetAppliedMigrationsAsync());
             }
         }
