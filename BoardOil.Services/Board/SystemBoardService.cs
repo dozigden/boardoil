@@ -1,11 +1,15 @@
 using System.Data;
+using System.Text.Json;
 using BoardOil.Abstractions.Board;
 using BoardOil.Abstractions.DataAccess;
+using BoardOil.Abstractions.Jobs;
 using BoardOil.Contracts.Board;
 using BoardOil.Contracts.Common;
+using BoardOil.Contracts.Jobs;
 using BoardOil.Data.Abstractions.Board;
 using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Data.Abstractions.Users;
+using BoardOil.Services.Jobs;
 
 namespace BoardOil.Services.Board;
 
@@ -13,6 +17,7 @@ public sealed class SystemBoardService(
     IBoardRepository boardRepository,
     IBoardMemberRepository boardMemberRepository,
     IUserRepository userRepository,
+    IJobService jobs,
     IDbContextScopeFactory scopeFactory) : ISystemBoardService
 {
     public async Task<ApiResult<IReadOnlyList<SystemBoardSummaryDto>>> GetBoardsAsync()
@@ -49,6 +54,28 @@ public sealed class SystemBoardService(
         }
 
         return ToSummary(board);
+    }
+
+    public async Task<ApiResult<JobDto>> QueueBoardPurgeAsync(int boardId, int actorUserId, CancellationToken cancellationToken)
+    {
+        using (scopeFactory.CreateReadOnly())
+        {
+            var board = await boardRepository.GetIncludingDeletedAsync(boardId, cancellationToken);
+            if (board is null)
+            {
+                return ApiErrors.NotFound("Board not found.");
+            }
+
+            if (board.DeletedAtUtc is null)
+            {
+                return new ApiError(409, "Only deleted boards can be purged.");
+            }
+        }
+
+        return await jobs.EnqueueAsync(new CreateJobRequest(
+            PurgeBoardJobHandler.JobType,
+            JsonSerializer.Serialize(new PurgeBoardJobPayload(boardId)),
+            UserId: actorUserId), cancellationToken);
     }
 
     public async Task<ApiResult<IReadOnlyList<BoardMemberDto>>> GetMembersAsync(int boardId)

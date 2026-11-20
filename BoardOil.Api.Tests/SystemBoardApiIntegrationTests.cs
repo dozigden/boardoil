@@ -1,8 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using BoardOil.Abstractions.Jobs;
 using BoardOil.Api.Tests.Infrastructure;
 using BoardOil.Contracts.Board;
+using BoardOil.Contracts.Jobs;
 using BoardOil.Contracts.Users;
+using BoardOil.Services.Jobs;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
@@ -41,14 +46,21 @@ public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBa
         using var deleted = await owner.DeleteAsync($"/api/boards/{board.Id}");
         deleted.EnsureSuccessStatusCode();
         var restorePath = $"/api/system/boards/{board.Id}/restore";
+        var purgePath = $"/api/system/boards/{board.Id}/purge";
 
         using var ownerList = await owner.GetAsync("/api/system/boards/deleted");
         using var ownerRestore = await owner.PostAsync(restorePath, null);
+        using var ownerPurge = await owner.PostAsync(purgePath, null);
+        admin.DefaultRequestHeaders.Remove("X-BoardOil-CSRF");
+        using var purgeWithoutCsrf = await admin.PostAsync(purgePath, null);
+        await AdminAuthenticationHelper.SetCsrfHeaderAsync(admin);
         var adminList = await admin.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<DeletedBoardSummaryDto>>>("/api/system/boards/deleted");
         using var adminRestore = await admin.PostAsync(restorePath, null);
 
         Assert.Equal(HttpStatusCode.Forbidden, ownerList.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, ownerRestore.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, ownerPurge.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, purgeWithoutCsrf.StatusCode);
         var recoverable = Assert.Single(adminList!.Data!);
         Assert.Equal(board.Id, recoverable.Id);
         Assert.Equal(board.Name, recoverable.Name);
@@ -56,6 +68,33 @@ public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBa
         Assert.Equal(HttpStatusCode.OK, adminRestore.StatusCode);
         var restored = (await adminRestore.Content.ReadFromJsonAsync<ApiEnvelope<SystemBoardSummaryDto>>())!.Data!;
         Assert.Equal(board.Id, restored.Id);
+    }
+
+    [Fact]
+    public async Task Purge_ShouldEnqueueOnlyTheSelectedBoardBeforeItsRetentionPeriodEnds()
+    {
+        var admin = CreateClient();
+        await RegisterInitialAdminAsync(admin);
+        var selected = await CreateDeletedBoardAsync(admin, "Purge early");
+        var other = await CreateDeletedBoardAsync(admin, "Keep recoverable");
+
+        using var response = await admin.PostAsync($"/api/system/boards/{selected}/purge", null);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var job = (await response.Content.ReadFromJsonAsync<ApiEnvelope<JobDto>>())!.Data!;
+        Assert.Equal(PurgeBoardJobHandler.JobType, job.Type);
+        Assert.Equal(JobStatuses.Pending, job.Status);
+        Assert.True(job.UserId > 0);
+        Assert.Equal(selected, JsonSerializer.Deserialize<PurgeBoardJobPayload>(job.PayloadJson)!.BoardId);
+        var beforeRun = await admin.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<DeletedBoardSummaryDto>>>("/api/system/boards/deleted");
+        Assert.Equal(new[] { selected, other }, beforeRun!.Data!.Select(board => board.Id).Order());
+
+        using var scope = Factory.Services.CreateScope();
+        var runner = scope.ServiceProvider.GetRequiredService<IJobRunner>();
+        Assert.True(await runner.RunNextDueAsync());
+        Assert.False(await runner.RunNextDueAsync());
+        var afterRun = await admin.GetFromJsonAsync<ApiEnvelope<IReadOnlyList<DeletedBoardSummaryDto>>>("/api/system/boards/deleted");
+        Assert.Equal(other, Assert.Single(afterRun!.Data!).Id);
     }
 
     [Fact]
@@ -99,6 +138,16 @@ public sealed class SystemBoardApiIntegrationTests : ApiFactoryIntegrationTestBa
     private async Task RegisterInitialAdminAsync(HttpClient client)
     {
         _ = await AuthenticateAsInitialAdminAsync(client);
+    }
+
+    private static async Task<int> CreateDeletedBoardAsync(HttpClient client, string name)
+    {
+        using var created = await client.PostAsJsonAsync("/api/boards", new CreateBoardRequest(name));
+        created.EnsureSuccessStatusCode();
+        var boardId = (await created.Content.ReadFromJsonAsync<ApiEnvelope<BoardDto>>())!.Data!.Id;
+        using var deleted = await client.DeleteAsync($"/api/boards/{boardId}");
+        deleted.EnsureSuccessStatusCode();
+        return boardId;
     }
 
     private static async Task<int> CreateUserAsAdminAsync(HttpClient adminClient, string userName, string password, string role)

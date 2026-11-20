@@ -16,6 +16,7 @@ import type {
   UpdateManagedUserRequest
 } from '../types/authTypes';
 import type { ConfigurationDto, SystemInfoMessageDto, UpdateConfigurationRequest } from '../types/configurationTypes';
+import type { Job } from '../types/jobTypes';
 import { err, ok } from '../types/result';
 import { deleteJson, getEnvelope, patchData, postData, postFormData, putData, putJson } from './http';
 
@@ -79,6 +80,10 @@ export function createSystemApi() {
 
   async function restoreBoard(boardId: number): Promise<Result<SystemBoardSummary, AppError>> {
     return postData<SystemBoardSummary>(`/api/system/boards/${boardId}/restore`, {});
+  }
+
+  async function queueBoardPurge(boardId: number): Promise<Result<Job, AppError>> {
+    return postData<Job>(`/api/system/boards/${boardId}/purge`, {});
   }
 
   async function getBoardMembers(boardId: number): Promise<Result<BoardMember[], AppError>> {
@@ -190,6 +195,7 @@ export function createSystemApi() {
     getBoards,
     getDeletedBoards,
     restoreBoard,
+    queueBoardPurge,
     getBoardMembers,
     addBoardMember,
     updateBoardMemberRole,

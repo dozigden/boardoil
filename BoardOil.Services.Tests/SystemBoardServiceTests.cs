@@ -92,6 +92,19 @@ public sealed class SystemBoardServiceTests : TestBaseDb
         Assert.Equal(original.UpdatedAtUtc, result.Data!.UpdatedAtUtc);
     }
 
+    [Theory]
+    [InlineData(true, 409)]
+    [InlineData(false, 404)]
+    public async Task QueueBoardPurgeAsync_WhenBoardIsActiveOrMissing_ShouldRejectIt(bool exists, int statusCode)
+    {
+        var boardId = exists ? CreateBoard().Build().BoardId : int.MaxValue;
+
+        var result = await CreateService().QueueBoardPurgeAsync(boardId, ActorUserId, TestContext.Current.CancellationToken);
+
+        Assert.Equal(statusCode, result.StatusCode);
+        Assert.Empty(DbContextForAssert.Jobs);
+    }
+
     [Fact]
     public async Task AddMemberAsync_WhenActorIsNotBoardMember_ShouldStillAddMembership()
     {

@@ -51,15 +51,26 @@
               {{ new Date(board.deletedAtUtc).toLocaleString() }}
             </time>
           </div>
-          <button
-            type="button"
-            class="btn btn--secondary"
-            :disabled="busy"
-            :aria-label="`Restore board ${board.name}`"
-            @click="systemBoardStore.restoreBoard(board.id)"
-          >
-            Restore
-          </button>
+          <div class="entity-row-actions">
+            <button
+              type="button"
+              class="btn btn--secondary"
+              :disabled="busy"
+              :aria-label="`Restore board ${board.name}`"
+              @click="systemBoardStore.restoreBoard(board.id)"
+            >
+              Restore
+            </button>
+            <button
+              type="button"
+              class="btn btn--danger"
+              :disabled="busy || purgingBoardIds.includes(board.id)"
+              :aria-label="`Purge board ${board.name}`"
+              @click="purgeBoard(board)"
+            >
+              Purge
+            </button>
+          </div>
         </li>
       </ul>
     </template>
@@ -69,13 +80,17 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { useConfirm } from '../../shared/composables/useConfirm';
+import type { DeletedBoardSummary } from '../../shared/types/boardTypes';
 import { useSystemBoardStore } from '../stores/systemBoardStore';
 
 const props = defineProps<{ showDeleted?: boolean }>();
+const route = useRoute();
 const router = useRouter();
+const { confirm } = useConfirm();
 const systemBoardStore = useSystemBoardStore();
-const { boards, deletedBoards, busy } = storeToRefs(systemBoardStore);
+const { boards, deletedBoards, busy, purgingBoardIds } = storeToRefs(systemBoardStore);
 
 onMounted(async () => {
   await systemBoardStore.loadBoards();
@@ -87,6 +102,18 @@ onUnmounted(() => {
 
 async function openMembers(boardId: number) {
   await router.push({ name: 'system-admin-board-members', params: { boardId } });
+}
+
+async function purgeBoard(board: DeletedBoardSummary) {
+  const accepted = await confirm({
+    title: 'Permanently delete board',
+    message: `Permanently delete "${board.name}" and its contents? This cannot be undone.`,
+    confirmLabel: 'Purge board',
+    danger: true
+  });
+  if (!accepted || route.name !== 'system-admin-deleted-boards') return;
+
+  await systemBoardStore.queueBoardPurge(board.id);
 }
 </script>
 

@@ -25,6 +25,10 @@ public static class SystemBoardEndpoints
         systemBoardEndpoints.MapPost("/{boardId:int}/restore", async (int boardId, ISystemBoardService systemBoardService) =>
             (await systemBoardService.RestoreBoardAsync(boardId)).ToHttpResult());
 
+        systemBoardEndpoints.MapPost("/{boardId:int}/purge", async (
+            int boardId, HttpContext context, ISystemBoardService systemBoardService, CancellationToken cancellationToken) =>
+            (await systemBoardService.QueueBoardPurgeAsync(boardId, context.GetActorUserId(), cancellationToken)).ToHttpResult());
+
         systemBoardEndpoints.MapGet("/{boardId:int}/members", async (int boardId, ISystemBoardService systemBoardService) =>
             (await systemBoardService.GetMembersAsync(boardId)).ToHttpResult());
 
