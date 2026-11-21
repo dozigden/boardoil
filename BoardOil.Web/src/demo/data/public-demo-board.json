@@ -187,6 +187,16 @@
           "cardCreatedUtc": "2026-09-28T07:30:00.000Z",
           "cardUpdatedUtc": "2026-09-28T07:30:00.000Z",
           "image": "chart"
+        },
+        {
+          "id": 736,
+          "title": "Non docker based install instructions",
+          "description": "## Goal\n\nProvide a normal, portable Linux installation using downloadable release archives. The installation must not require Docker, Node.js, the .NET SDK, or a source checkout.\n\nImplementation is deferred; this story remains in Todo.\n\n## Supported release artifacts\n\nPublish framework-dependent archives for mainstream glibc-based Linux distributions:\n\n- `boardoil-<version>-linux-x64.tar.gz`\n- `boardoil-<version>-linux-arm64.tar.gz`\n- SHA-256 checksums for each archive\n\nThe host must have the .NET 10 ASP.NET Core Runtime installed. Alpine/musl support is out of scope initially and must be stated explicitly.\n\nEach archive must contain the published API and the compiled Vue frontend under `wwwroot`, so it can run without build tooling.\n\n## Installation layout\n\nUse conventional, separated locations:\n\n- `/opt/boardoil/<version>/` — immutable versioned application files\n- `/opt/boardoil/current` — symlink to the active version\n- `/etc/boardoil/` — administrator-managed configuration\n- `/var/lib/boardoil/` — SQLite database, images, generated signing key, and migration backups\n\nRun BoardOil as a dedicated, unprivileged `boardoil` user. Only the persistent data directory should be writable by that user.\n\n## Portable runtime contract\n\nDocument direct foreground execution as the primary, service-manager-neutral method. It must configure:\n\n- `ConnectionStrings__BoardOil=Data Source=/var/lib/boardoil/boardoil.db`\n- `BoardOil__ImageRootPath=/var/lib/boardoil/images`\n- `ASPNETCORE_URLS=http://127.0.0.1:5000`\n- `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`\n\nThe executable command is `/opt/boardoil/current/BoardOil.Api`.\n\nAny supervisor may run this contract. Provide systemd as one worked example, while making clear that systemd is optional and OpenRC, runit, s6, and other supervisors can supply the same user, environment, working directory, and command.\n\n## Release pipeline\n\nFor a tagged release:\n\n1. Build the Vue frontend with release version metadata.\n2. Publish the API for `linux-x64` and `linux-arm64` as framework-dependent deployments.\n3. Copy the compiled frontend into each published application's `wwwroot`.\n4. Package each target as a versioned `.tar.gz` archive.\n5. Smoke-test the extracted x64 archive, including the SPA and `/api/health`.\n6. Generate SHA-256 checksums.\n7. Attach the archives and checksums to the tagged GitHub release.\n\n## Documentation\n\nDocument:\n\n- supported distributions and architectures\n- installation of the .NET 10 ASP.NET Core Runtime\n- creating the service user and directories with appropriate permissions\n- downloading and verifying an archive\n- configuration and foreground startup\n- optional systemd integration\n- reverse proxy, forwarded headers, HTTPS, and secure cookies\n- health verification through `/api/health`\n- initial administrator setup\n- backups, upgrades, rollback, and uninstall\n- preserving `/var/lib/boardoil` across upgrades\n\nUpgrade instructions must account for automatic database migrations and their pre-migration backups.\n\n## Out of scope\n\n- Windows or macOS packaging\n- an APT, RPM, or other package repository\n- Alpine/musl release archives\n- dedicated integrations for every Linux init system\n- self-contained .NET runtime bundles\n",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": "Agent Auth",
+          "cardCreatedUtc": "2026-08-08T12:59:17.8200189Z",
+          "cardUpdatedUtc": "2026-09-03T19:33:16.7234494Z"
         }
       ]
     },
@@ -251,30 +261,6 @@
           "cardUpdatedUtc": "2026-09-25T18:17:46.4762985Z"
         },
         {
-          "id": 755,
-          "title": "Support Home Assistant OAuth for MCP",
-          "description": "## Context\n\nHome Assistant's MCP integration requires a pre-registered confidential OAuth client with a client ID and client secret. BoardOil currently supports dynamically registered public PKCE clients, so this connection needs an additional client type.\n\n## Outcome\n\nAllow a BoardOil system administrator to register and manage confidential OAuth clients so Home Assistant can connect securely to `/mcp/oauth`.\n\n## Acceptance criteria\n\n- System administrators can create a confidential OAuth client with a display name and one or more exact HTTPS redirect URIs.\n- BoardOil generates a client ID and client secret, displaying the complete secret only when the client is created.\n- Registered confidential clients can use authorization-code and refresh-token flows for `mcp:read` and `mcp:write`.\n- OAuth discovery advertises the client-secret authentication method used by Home Assistant.\n- PKCE remains required for dynamically registered public clients but is not globally required for confidential clients that do not support it.\n- System administrators can list and revoke confidential client registrations.\n- Redirect URI validation prevents unsafe or unintended callback destinations.\n- Revoking a client invalidates its active authorizations, tokens, and BoardOil OAuth connections.\n- Home Assistant can connect to `/mcp/oauth`, complete consent, refresh its token, and call MCP tools.\n- Automated coverage exercises discovery, client creation, authorization, token exchange, refresh, revocation, permissions, and redirect validation.\n- MCP installation documentation includes Home Assistant setup using the generated client ID and secret.",
-          "cardTypeName": "Story",
-          "tagNames": [
-            "Auth",
-            "Feature",
-            "MCP"
-          ],
-          "slickName": "Agent Auth",
-          "cardCreatedUtc": "2026-08-15T09:44:26.6123047Z",
-          "cardUpdatedUtc": "2026-09-28T07:27:14.0146304Z"
-        },
-        {
-          "id": 736,
-          "title": "Non docker based install instructions",
-          "description": "## Goal\n\nProvide a normal, portable Linux installation using downloadable release archives. The installation must not require Docker, Node.js, the .NET SDK, or a source checkout.\n\nImplementation is deferred; this story remains in Todo.\n\n## Supported release artifacts\n\nPublish framework-dependent archives for mainstream glibc-based Linux distributions:\n\n- `boardoil-<version>-linux-x64.tar.gz`\n- `boardoil-<version>-linux-arm64.tar.gz`\n- SHA-256 checksums for each archive\n\nThe host must have the .NET 10 ASP.NET Core Runtime installed. Alpine/musl support is out of scope initially and must be stated explicitly.\n\nEach archive must contain the published API and the compiled Vue frontend under `wwwroot`, so it can run without build tooling.\n\n## Installation layout\n\nUse conventional, separated locations:\n\n- `/opt/boardoil/<version>/` — immutable versioned application files\n- `/opt/boardoil/current` — symlink to the active version\n- `/etc/boardoil/` — administrator-managed configuration\n- `/var/lib/boardoil/` — SQLite database, images, generated signing key, and migration backups\n\nRun BoardOil as a dedicated, unprivileged `boardoil` user. Only the persistent data directory should be writable by that user.\n\n## Portable runtime contract\n\nDocument direct foreground execution as the primary, service-manager-neutral method. It must configure:\n\n- `ConnectionStrings__BoardOil=Data Source=/var/lib/boardoil/boardoil.db`\n- `BoardOil__ImageRootPath=/var/lib/boardoil/images`\n- `ASPNETCORE_URLS=http://127.0.0.1:5000`\n- `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`\n\nThe executable command is `/opt/boardoil/current/BoardOil.Api`.\n\nAny supervisor may run this contract. Provide systemd as one worked example, while making clear that systemd is optional and OpenRC, runit, s6, and other supervisors can supply the same user, environment, working directory, and command.\n\n## Release pipeline\n\nFor a tagged release:\n\n1. Build the Vue frontend with release version metadata.\n2. Publish the API for `linux-x64` and `linux-arm64` as framework-dependent deployments.\n3. Copy the compiled frontend into each published application's `wwwroot`.\n4. Package each target as a versioned `.tar.gz` archive.\n5. Smoke-test the extracted x64 archive, including the SPA and `/api/health`.\n6. Generate SHA-256 checksums.\n7. Attach the archives and checksums to the tagged GitHub release.\n\n## Documentation\n\nDocument:\n\n- supported distributions and architectures\n- installation of the .NET 10 ASP.NET Core Runtime\n- creating the service user and directories with appropriate permissions\n- downloading and verifying an archive\n- configuration and foreground startup\n- optional systemd integration\n- reverse proxy, forwarded headers, HTTPS, and secure cookies\n- health verification through `/api/health`\n- initial administrator setup\n- backups, upgrades, rollback, and uninstall\n- preserving `/var/lib/boardoil` across upgrades\n\nUpgrade instructions must account for automatic database migrations and their pre-migration backups.\n\n## Out of scope\n\n- Windows or macOS packaging\n- an APT, RPM, or other package repository\n- Alpine/musl release archives\n- dedicated integrations for every Linux init system\n- self-contained .NET runtime bundles\n",
-          "cardTypeName": "Story",
-          "tagNames": [],
-          "slickName": null,
-          "cardCreatedUtc": "2026-08-08T12:59:17.8200189Z",
-          "cardUpdatedUtc": "2026-09-03T19:33:16.7234494Z"
-        },
-        {
           "id": 101,
           "title": "Restyle buttons",
           "description": "## Design goal\n\nBring the main button states into one consistent visual system.\n\n- **Primary:** make the main action easy to find.\n- **Secondary:** stay visible without competing with the main action.\n- **Danger:** make destructive actions recognizable before confirmation.\n\nCheck the styles in light and dark themes, then compare them with the sketch below.",
@@ -304,16 +290,6 @@
           "cardUpdatedUtc": "2026-09-27T19:42:56.3013358Z"
         },
         {
-          "id": 892,
-          "title": "Review all frontend stores against the Pinia guidance",
-          "description": "Review each store against AGENTS/frontend-pinia.md and agree any cleanup with the user. Tick a store once its review and agreed changes are complete. Board and card stores were reviewed in #889; supporting changes in other stores do not count as a full review. Mutation naming is tracked separately in #890.\n\n## Board stores\n\n- [ ] attachmentStore\n- [ ] boardAttachmentInventoryStore\n- [ ] boardMembersStore\n- [x] boardStore\n- [ ] cardAttachmentThumbnailStore\n- [x] cardStore\n- [ ] cardTypeStore\n- [ ] commentStore\n- [ ] slickStore\n- [ ] tagStore\n\n## Shared stores\n\n- [ ] authStore\n- [ ] boardCatalogueStore\n- [ ] systemInfoMessageStore\n- [ ] themeStore\n- [ ] uiFeedbackStore\n- [ ] userProfileImageStore\n- [ ] userProfileStore\n\n## System stores\n\n- [ ] systemBoardMembersStore\n- [ ] systemBoardStore\n- [ ] systemClientAccountsStore\n- [ ] systemErrorLogsStore\n- [ ] systemOAuthTokenAuditsStore\n- [ ] systemUsersManagerStore",
-          "cardTypeName": "Story",
-          "tagNames": [],
-          "slickName": null,
-          "cardCreatedUtc": "2026-09-26T13:39:09.6230381Z",
-          "cardUpdatedUtc": "2026-09-28T07:23:26.3181105Z"
-        },
-        {
           "id": 899,
           "title": "Job porting 7/7: Add schedule administration and verify the complete port",
           "description": "## Goal\n\nGive administrators a clear way to review and run scheduled jobs.\n\n## Demo checklist\n\n- [x] Show schedules alongside job history.\n- [x] Display the configured system timezone.\n- [ ] Review the run-now feedback and history link.\n- [ ] Verify the complete journey in the browser.\n\nA schedule change should have an understandable result before the administrator leaves the page.",
@@ -326,6 +302,43 @@
           "slickName": "Job porting",
           "cardCreatedUtc": "2026-09-26T16:24:45.6691468Z",
           "cardUpdatedUtc": "2026-09-28T07:24:47.5532705Z"
+        },
+        {
+          "id": 897,
+          "title": "Job porting 5/7: Activate independent scheduling and execution loops",
+          "description": "## Outcome\n\nScheduling and execution run independently so a long job does not delay the next schedule check.\n\n- Recover incomplete work when the application starts.\n- Execute queued jobs one at a time.\n- Give cleanup one owner to avoid duplicate runs.\n\nThe job history shows each transition as work moves through the queue.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Tech Debt"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:22:52.0826274Z",
+          "cardUpdatedUtc": "2026-09-28T07:24:58.8149729Z"
+        },
+        {
+          "id": 892,
+          "title": "Review all frontend stores against the Pinia guidance",
+          "description": "Review each store against AGENTS/frontend-pinia.md and agree any cleanup with the user. Tick a store once its review and agreed changes are complete. Board and card stores were reviewed in #889; supporting changes in other stores do not count as a full review. Mutation naming is tracked separately in #890.\n\n## Board stores\n\n- [ ] attachmentStore\n- [ ] boardAttachmentInventoryStore\n- [ ] boardMembersStore\n- [x] boardStore\n- [ ] cardAttachmentThumbnailStore\n- [x] cardStore\n- [ ] cardTypeStore\n- [ ] commentStore\n- [ ] slickStore\n- [ ] tagStore\n\n## Shared stores\n\n- [ ] authStore\n- [ ] boardCatalogueStore\n- [ ] systemInfoMessageStore\n- [ ] themeStore\n- [ ] uiFeedbackStore\n- [ ] userProfileImageStore\n- [ ] userProfileStore\n\n## System stores\n\n- [ ] systemBoardMembersStore\n- [ ] systemBoardStore\n- [ ] systemClientAccountsStore\n- [ ] systemErrorLogsStore\n- [ ] systemOAuthTokenAuditsStore\n- [ ] systemUsersManagerStore",
+          "cardTypeName": "Story",
+          "tagNames": [],
+          "slickName": null,
+          "cardCreatedUtc": "2026-09-26T13:39:09.6230381Z",
+          "cardUpdatedUtc": "2026-09-28T07:23:26.3181105Z"
+        },
+        {
+          "id": 755,
+          "title": "Support Home Assistant OAuth for MCP",
+          "description": "## Context\n\nHome Assistant's MCP integration requires a pre-registered confidential OAuth client with a client ID and client secret. BoardOil currently supports dynamically registered public PKCE clients, so this connection needs an additional client type.\n\n## Outcome\n\nAllow a BoardOil system administrator to register and manage confidential OAuth clients so Home Assistant can connect securely to `/mcp/oauth`.\n\n## Acceptance criteria\n\n- System administrators can create a confidential OAuth client with a display name and one or more exact HTTPS redirect URIs.\n- BoardOil generates a client ID and client secret, displaying the complete secret only when the client is created.\n- Registered confidential clients can use authorization-code and refresh-token flows for `mcp:read` and `mcp:write`.\n- OAuth discovery advertises the client-secret authentication method used by Home Assistant.\n- PKCE remains required for dynamically registered public clients but is not globally required for confidential clients that do not support it.\n- System administrators can list and revoke confidential client registrations.\n- Redirect URI validation prevents unsafe or unintended callback destinations.\n- Revoking a client invalidates its active authorizations, tokens, and BoardOil OAuth connections.\n- Home Assistant can connect to `/mcp/oauth`, complete consent, refresh its token, and call MCP tools.\n- Automated coverage exercises discovery, client creation, authorization, token exchange, refresh, revocation, permissions, and redirect validation.\n- MCP installation documentation includes Home Assistant setup using the generated client ID and secret.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "Auth",
+            "Feature",
+            "MCP"
+          ],
+          "slickName": "Agent Auth",
+          "cardCreatedUtc": "2026-08-15T09:44:26.6123047Z",
+          "cardUpdatedUtc": "2026-09-28T07:27:14.0146304Z"
         }
       ]
     },
@@ -343,6 +356,19 @@
           "cardUpdatedUtc": "2026-09-27T19:01:00.4018708Z"
         },
         {
+          "id": 894,
+          "title": "Job porting 2/7: Port job execution and reliable finalisation",
+          "description": "## Outcome\n\nA queued job records its progress and final result so it can survive an application restart.\n\n- Claim one pending job for execution.\n- Record logs in order as the handler runs.\n- Save success or failure as a terminal state.\n- Recover jobs left running by an interrupted process.\n\nHandler changes and job state must be committed consistently.",
+          "cardTypeName": "Story",
+          "tagNames": [
+            "API",
+            "Tech Debt"
+          ],
+          "slickName": "Job porting",
+          "cardCreatedUtc": "2026-09-26T16:21:01.9608186Z",
+          "cardUpdatedUtc": "2026-09-27T19:01:26.2122404Z"
+        },
+        {
           "id": 898,
           "title": "Job porting 6/7: Add admin job history, details and live updates",
           "description": "## Outcome\n\nAdministrators can follow a job from start to completion without manually reloading the page.\n\n- Browse recent jobs and open a detail view.\n- Read ordered logs and a clear failure reason.\n- Follow live status changes and refresh after reconnecting.\n\nDiagnostic payloads are displayed as text so their contents cannot render as page markup.",
@@ -355,19 +381,6 @@
           "slickName": "Job porting",
           "cardCreatedUtc": "2026-09-26T16:24:42.8951826Z",
           "cardUpdatedUtc": "2026-09-28T07:24:54.9169054Z"
-        },
-        {
-          "id": 897,
-          "title": "Job porting 5/7: Activate independent scheduling and execution loops",
-          "description": "## Outcome\n\nScheduling and execution run independently so a long job does not delay the next schedule check.\n\n- Recover incomplete work when the application starts.\n- Execute queued jobs one at a time.\n- Give cleanup one owner to avoid duplicate runs.\n\nThe job history shows each transition as work moves through the queue.",
-          "cardTypeName": "Story",
-          "tagNames": [
-            "API",
-            "Tech Debt"
-          ],
-          "slickName": "Job porting",
-          "cardCreatedUtc": "2026-09-26T16:22:52.0826274Z",
-          "cardUpdatedUtc": "2026-09-28T07:24:58.8149729Z"
         },
         {
           "id": 896,
@@ -394,19 +407,6 @@
           "slickName": "Job porting",
           "cardCreatedUtc": "2026-09-26T16:21:05.7868673Z",
           "cardUpdatedUtc": "2026-09-28T07:25:05.0209991Z"
-        },
-        {
-          "id": 894,
-          "title": "Job porting 2/7: Port job execution and reliable finalisation",
-          "description": "## Outcome\n\nA queued job records its progress and final result so it can survive an application restart.\n\n- Claim one pending job for execution.\n- Record logs in order as the handler runs.\n- Save success or failure as a terminal state.\n- Recover jobs left running by an interrupted process.\n\nHandler changes and job state must be committed consistently.",
-          "cardTypeName": "Story",
-          "tagNames": [
-            "API",
-            "Tech Debt"
-          ],
-          "slickName": "Job porting",
-          "cardCreatedUtc": "2026-09-26T16:21:01.9608186Z",
-          "cardUpdatedUtc": "2026-09-27T19:01:26.2122404Z"
         },
         {
           "id": 893,

@@ -1,119 +1,66 @@
 <template>
-  <header class="demo-header">
+  <header class="demo-header" role="banner">
     <div class="demo-brand">
       <BoardOilLogo class="demo-logo" />
       <span class="demo-wordmark">BoardOil</span>
-      <span class="demo-board-name">{{ board?.name ?? 'Interactive preview' }}</span>
     </div>
-    <div class="demo-actions">
-      <select class="demo-slick-effect" aria-label="Slick effect" :value="slickEffect" @change="changeSlickEffect">
-        <option v-for="option in slickEffectOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-      </select>
-      <span class="demo-local-label">Refresh to reset</span>
-      <button
-        type="button"
-        class="btn btn--secondary"
-        aria-label="View third-party licences"
-        title="Licences"
-        @click="licencesOpen = true"
-      >
-        <Scale :size="16" aria-hidden="true" />
-        <span class="demo-action-label">Licences</span>
-      </button>
-      <button
-        type="button"
-        class="btn btn--secondary demo-theme-button"
-        :aria-label="themeButtonLabel"
-        :title="themeButtonLabel"
-        @click="toggleDemoTheme"
-      >
-        <span aria-hidden="true">{{ activeDemoTheme === 'dark' ? '☀️' : '🌙' }}</span>
-        <span class="demo-theme-label">{{ activeDemoTheme === 'dark' ? 'Light mode' : 'Dark mode' }}</span>
-      </button>
-      <button
-        type="button"
-        class="btn btn--secondary"
-        aria-label="Reset preview"
-        title="Reset preview"
-        :disabled="isResetting"
-        @click="resetPreview"
-      >
-        <RotateCcw :size="16" aria-hidden="true" />
-        <span class="demo-action-label">Reset preview</span>
-      </button>
-      <a
-        class="btn"
-        href="https://boardoil.dozigden.com/installation/"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Get BoardOil"
-        title="Get BoardOil"
-      >
-        <Download :size="16" aria-hidden="true" />
-        <span class="demo-action-label">Get BoardOil</span>
-      </a>
+    <div class="demo-preference">
+      <span class="demo-preference-label" aria-hidden="true">Theme</span>
+      <div class="btn-tab-list" role="group" aria-label="Theme">
+        <button
+          v-for="option in themeOptions"
+          :key="option.value"
+          type="button"
+          class="btn btn--tab"
+          :class="{ 'is-active': activeDemoTheme === option.value }"
+          :aria-pressed="activeDemoTheme === option.value"
+          @click="setDemoTheme(option.value)"
+        >{{ option.label }}</button>
+      </div>
     </div>
-    <DemoLicencesDialog :open="licencesOpen" @close="licencesOpen = false" />
+    <div class="demo-preference demo-slick-effects">
+      <span class="demo-preference-label" aria-hidden="true">Slick effect</span>
+      <SlickEffectPicker />
+    </div>
+    <a
+      class="btn demo-install-link"
+      href="https://boardoil.dozigden.com/installation/"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Get BoardOil"
+      title="Get BoardOil"
+    >
+      <Download :size="16" aria-hidden="true" />
+      <span class="demo-action-label">Get BoardOil</span>
+    </a>
   </header>
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
-import { Download, RotateCcw, Scale } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Download } from '@lucide/vue';
 import BoardOilLogo from '../site/components/BoardOilLogo.vue';
-import { useBoardStore } from '../board/stores/boardStore';
-import { resetDemoData } from './demoBoardApi';
-import DemoLicencesDialog from './DemoLicencesDialog.vue';
-import { demoResetVersion } from './demoReset';
-import { activeDemoTheme, toggleDemoTheme } from './demoTheme';
-import { useSlickEffectStore } from '../shared/stores/slickEffectStore';
-import { slickEffectOptions, type SlickEffect } from '../shared/types/slickEffect';
+import SlickEffectPicker from '../site/components/SlickEffectPicker.vue';
+import { activeDemoTheme, setDemoTheme } from './demoTheme';
 
-const boardStore = useBoardStore();
-const slickEffectStore = useSlickEffectStore();
-const { effect: slickEffect } = storeToRefs(slickEffectStore);
-const { board } = storeToRefs(boardStore);
-const licencesOpen = ref(false);
-const isResetting = ref(false);
-const themeButtonLabel = computed(() => activeDemoTheme.value === 'dark' ? 'Use light mode' : 'Use dark mode');
-
-function changeSlickEffect(event: Event) {
-  slickEffectStore.setEffect((event.target as HTMLSelectElement).value as SlickEffect);
-}
-
-async function resetPreview() {
-  if (isResetting.value) {
-    return;
-  }
-
-  isResetting.value = true;
-  try {
-    const boardId = board.value?.id ?? 1;
-    resetDemoData();
-    await boardStore.dispose();
-    await boardStore.initialize(boardId);
-    demoResetVersion.value += 1;
-  } finally {
-    isResetting.value = false;
-  }
-}
+const themeOptions = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' }
+] as const;
 </script>
 
 <style scoped>
 .demo-header {
   min-height: 4.2rem;
   padding: 0.75rem 1.5rem;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   background: var(--bo-surface-panel-strong);
   border-bottom: 1px solid var(--bo-border-brand);
 }
 
-.demo-brand,
-.demo-actions {
+.demo-brand {
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -132,56 +79,67 @@ async function resetPreview() {
   font-weight: 800;
 }
 
-.demo-board-name {
-  min-width: 0;
-  max-width: 28rem;
-  overflow: hidden;
-  color: var(--bo-ink-muted);
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.demo-preference {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
 }
 
-.demo-local-label {
-  color: var(--bo-ink-muted);
-  font-size: 0.82rem;
-  white-space: nowrap;
+.demo-slick-effects {
+  padding-inline-start: 1rem;
+  border-inline-start: 1px solid var(--bo-border-brand);
 }
 
-.demo-theme-button {
-  gap: 0.35rem;
-}
-
-.demo-slick-effect {
-  min-height: 2.25rem;
-  padding: 0.35rem;
+.demo-preference-label {
   color: var(--bo-ink-default);
-  background: var(--bo-surface-base);
-  border: 1px solid var(--bo-border-default);
-  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.demo-preference :deep(.btn--tab) {
+  --bo-btn-ink: var(--bo-ink-default);
+  --bo-btn-ink-hover: var(--bo-ink-default);
+}
+
+.demo-preference :deep(.btn--tab.is-active) {
+  --bo-btn-ink: var(--bo-mix-dark);
+  --bo-btn-ink-hover: var(--bo-mix-dark);
+}
+
+@media (max-width: 960px) {
+  .demo-header {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 0.55rem;
+  }
+
+  .demo-slick-effects {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    padding: 0.55rem 0 0;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--bo-border-soft);
+  }
+
+  .demo-install-link {
+    grid-column: 3;
+    grid-row: 1;
+  }
 }
 
 @media (max-width: 760px) {
   .demo-header {
     min-height: 3.5rem;
     padding: 0.5rem 0.75rem;
+    column-gap: 0.35rem;
   }
 
-  .demo-wordmark,
-  .demo-local-label,
-  .demo-theme-label {
+  .demo-wordmark {
     display: none;
   }
 
-  .demo-board-name {
-    max-width: 30vw;
-  }
-
-  .demo-actions {
-    gap: 0.35rem;
-  }
-
-  .demo-actions .btn {
+  .demo-install-link {
     padding-inline: 0.55rem;
   }
 }
@@ -191,15 +149,9 @@ async function resetPreview() {
     display: none;
   }
 
-  .demo-actions .btn {
+  .demo-install-link {
     min-width: 2.25rem;
     justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .demo-board-name {
-    display: none;
   }
 }
 </style>

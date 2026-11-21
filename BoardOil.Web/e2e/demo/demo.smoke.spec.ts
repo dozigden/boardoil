@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 type StorageAccess = {
   method: string;
@@ -12,12 +12,20 @@ type InstrumentedWindow = Window & {
 };
 
 const ExpectedInstallationUrl = 'https://boardoil.dozigden.com/installation/';
+const CardButtonName = /#\d+/;
+const CreatedCardTitle = 'Created at the top';
+const EditedCardTitle = 'Edited in the static demo';
+const DraggedCardTitle = 'Card to drag';
+const DropTargetTitle = 'Drop target card';
 
 test('built demo remains static, resettable, and safe', async ({ context, page }) => {
   const securityPolicy = await loadDemoSecurityPolicy();
   const forbiddenRequests: string[] = [];
   const failedRequests: string[] = [];
   const consoleErrors: string[] = [];
+  const columns = page.getByRole('article', { name: / column$/ });
+  const firstColumn = columns.first();
+  const secondColumn = columns.nth(1);
 
   await verifyDeploymentProvenance();
 
@@ -39,80 +47,64 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     }
   });
 
-  await test.step('load the seeded board', async () => {
+  await test.step('open the demo and its licences', async () => {
     await page.goto('/');
     const welcomeDialog = page.getByRole('dialog');
     await expect(welcomeDialog.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toBeVisible();
     await expect(welcomeDialog.getByText('Anything you enter here will disappear')).toBeVisible();
+
+    const licences = welcomeDialog.getByRole('button', { name: 'View third-party licences' });
+    await licences.click();
+    const licencesDialog = page.getByRole('dialog', { name: 'Third-Party Licences' });
+    await expect(licencesDialog.getByText('Montserrat Font', { exact: true })).toBeVisible();
+    await licencesDialog.getByRole('button', { name: 'Close licences' }).click();
+    await expect(licencesDialog).not.toBeVisible();
+    await expect(licences).toBeFocused();
+
     await welcomeDialog.getByRole('button', { name: 'Explore the demo' }).click();
     await expect(welcomeDialog).not.toBeVisible();
-    await expect(page.getByText('BoardOil Development', { exact: true })).toBeVisible();
+    const header = page.getByRole('banner');
+    await expect(header.getByText('BoardOil', { exact: true })).toBeVisible();
+    await expect(firstColumn).toBeVisible();
+  });
 
-    const seededImages = [
-      { column: 'Todo', title: 'Restyle buttons', alt: 'Three vertically stacked application buttons in BoardOil colours' },
-      { column: 'Ideation', title: 'Include pie chart of web traffic', alt: 'Rough hand-drawn pie chart of web traffic' },
-      { column: 'Done', title: 'Pay the cat tax', alt: 'Black-and-white cat sitting on a chair' }
-    ];
-    for (const seededImage of seededImages) {
-      const column = page.getByRole('article', { name: `${seededImage.column} column` });
-      const card = column.locator('.card').filter({ hasText: seededImage.title });
-      await expect(card.getByTestId('card-attachment-thumbnail')).toBeVisible();
-      await card.click();
+  await test.step('open an attachment preview', async () => {
+    const thumbnail = page.getByTestId('card-attachment-thumbnail');
+    const card = columns.getByRole('button', { name: CardButtonName }).filter({ has: thumbnail }).first();
+    await expect(card.getByTestId('card-attachment-thumbnail')).toBeVisible();
+    await card.click();
 
-      const cardDialog = page.getByRole('dialog');
-      const image = cardDialog.getByRole('button', { name: `Enlarge image: ${seededImage.alt}` });
-      await expect(image).toBeVisible();
-      await image.click();
-
-      const imageDialog = page.getByRole('dialog', { name: 'Image preview' });
-      await expect(imageDialog.getByRole('img', { name: seededImage.alt })).toBeVisible();
-      await imageDialog.getByRole('button', { name: 'Close', exact: true }).click();
-      await cardDialog.getByTitle('Cancel', { exact: true }).click();
-    }
-
-    const doneColumn = page.getByRole('article', { name: 'Done column' });
-    await expect(doneColumn.getByRole('button').filter({ hasText: /#\d+/ })).toHaveCount(11);
+    const cardDialog = page.getByRole('dialog');
+    await cardDialog.getByRole('button', { name: /^Enlarge image:/ }).first().click();
+    const imageDialog = page.getByRole('dialog', { name: 'Image preview' });
+    await expect(imageDialog.getByRole('img')).toBeVisible();
+    await imageDialog.getByRole('button', { name: 'Close', exact: true }).click();
+    await cardDialog.getByTitle('Cancel', { exact: true }).click();
   });
 
   await test.step('create new cards at the top of a column', async () => {
-    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
-    await ideationColumn.getByRole('button', { name: 'Add default card' }).click();
-    await ideationColumn.getByPlaceholder('Title').fill('Created at the top');
-    await ideationColumn.getByRole('button', { name: 'Save new card' }).click();
-
-    const firstCard = ideationColumn.getByRole('button').filter({ hasText: /#\d+/ }).first();
-    await expect(firstCard).toContainText('Created at the top');
+    await createInlineCard(firstColumn, CreatedCardTitle);
+    await expect(firstColumn.getByRole('button', { name: CardButtonName }).first()).toContainText(CreatedCardTitle);
   });
 
   await test.step('edit and move a card in memory', async () => {
-    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
-    await ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' }).click();
+    const destination = (await secondColumn.getAttribute('aria-label'))!.replace(/ column$/, '');
+    await firstColumn.getByRole('button', { name: CardButtonName }).filter({ hasText: CreatedCardTitle }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: /^#869 / }).click();
+    await dialog.getByRole('button', { name: /^#\d+ / }).click();
     const titleInput = dialog.getByRole('textbox', { name: 'Card title' });
-    await titleInput.fill('Edited in the static demo');
+    await titleInput.fill(EditedCardTitle);
     await titleInput.press('Enter');
     await dialog.getByTitle('Select column').click();
     await dialog
       .getByRole('menu', { name: 'Select column' })
-      .getByRole('menuitemradio', { name: 'Todo', exact: true })
+      .getByRole('menuitemradio', { name: destination, exact: true })
       .click();
     await dialog.getByRole('button', { name: 'Save card' }).click();
 
-    const todoColumn = page.getByRole('article', { name: 'Todo column' });
-    await expect(todoColumn.getByRole('button').filter({ hasText: 'Edited in the static demo' })).toBeVisible();
-  });
-
-  await test.step('reset the preview without reopening the welcome dialog', async () => {
-    await page.getByRole('button', { name: 'Reset preview' }).click();
-    await expect(page.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toHaveCount(0);
-
-    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
-    await expect(ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' })).toBeVisible();
-    await expect(page.getByText('Created at the top', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
+    await expect(secondColumn.getByRole('button', { name: CardButtonName }).filter({ hasText: EditedCardTitle })).toBeVisible();
   });
 
   await test.step('reload the original fixture', async () => {
@@ -120,27 +112,66 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     const welcomeDialog = page.getByRole('dialog');
     await expect(welcomeDialog.getByRole('heading', { name: 'Welcome to the BoardOil demo' })).toBeVisible();
     await welcomeDialog.getByRole('button', { name: 'Explore the demo' }).click();
-    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
-    await expect(ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' })).toBeVisible();
-    await expect(page.getByText('Edited in the static demo', { exact: true })).toHaveCount(0);
+    await expect(firstColumn).toBeVisible();
+    await expect(page.getByText(CreatedCardTitle, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(EditedCardTitle, { exact: true })).toHaveCount(0);
+  });
+
+  await test.step('try the slick effects at desktop and narrow widths', async () => {
+    const header = page.getByRole('banner');
+    const picker = header.getByRole('group', { name: 'Slick effect', exact: true });
+    const canvas = page.locator('canvas.slick-goo-layer');
+    await expect(header.getByText('Slick effect', { exact: true })).toBeVisible();
+    await expect(picker.getByRole('button', { name: 'Bridges', exact: true })).toHaveAttribute('aria-pressed', 'true');
+
+    const effects = [
+      { name: 'None', mode: 'none' },
+      { name: 'Liquid', mode: 'liquid' },
+      { name: 'Bridges', mode: 'bridges' }
+    ];
+    for (const effect of effects) {
+      const option = picker.getByRole('button', { name: effect.name, exact: true });
+      await option.click();
+      await expect(option).toHaveAttribute('aria-pressed', 'true');
+      await expect(canvas).toHaveAttribute('data-renderer', effect.mode);
+    }
+    await page.screenshot({ path: test.info().outputPath('demo-slick-effects-desktop.png') });
+
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 320, height: 720 });
+    const controls = header.getByRole('button').or(header.getByRole('link'));
+    for (const control of await controls.all()) {
+      const bounds = (await control.boundingBox())!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+    }
+
+    const liquid = picker.getByRole('button', { name: 'Liquid', exact: true });
+    await liquid.press('Enter');
+    await expect(liquid).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas).toHaveAttribute('data-renderer', 'liquid');
+    await page.screenshot({ path: test.info().outputPath('demo-slick-effects-mobile.png') });
+    await picker.getByRole('button', { name: 'Bridges', exact: true }).click();
+    await page.setViewportSize(viewport);
   });
 
   await test.step('drop a card at the exact indicated position', async () => {
-    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
-    const movedCard = ideationColumn.getByRole('button').filter({ hasText: 'Story history' });
-    const firstCard = ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await createInlineCard(firstColumn, DraggedCardTitle);
+    await createInlineCard(firstColumn, DropTargetTitle);
+    const cards = firstColumn.getByRole('button', { name: CardButtonName });
+    const movedCard = cards.filter({ hasText: DraggedCardTitle });
+    const targetCard = cards.filter({ hasText: DropTargetTitle });
 
-    await movedCard.dragTo(firstCard, { targetPosition: { x: 20, y: 1 } });
+    await expect(cards.first()).toContainText(DropTargetTitle);
+    await movedCard.dragTo(targetCard, { targetPosition: { x: 20, y: 5 } });
 
-    const cards = ideationColumn.getByRole('button').filter({ hasText: /#\d+/ });
-    await expect(cards.nth(0)).toContainText('Story history');
-    await expect(cards.nth(1)).toContainText('Allow linking between stories');
-    await expect(cards.nth(2)).toContainText('Mermaid diagrams');
+    await expect(cards.nth(0)).toContainText(DraggedCardTitle);
+    await expect(cards.nth(1)).toContainText(DropTargetTitle);
   });
 
   await test.step('select cards without reflowing their titles', async () => {
-    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
-    const card = ideationColumn.locator('.card').filter({ hasText: 'Allow linking between stories' });
+    const card = firstColumn.locator('.card').filter({ hasText: DropTargetTitle });
     const title = card.locator('.card-title-text');
     const titlePositionBeforeSelection = await title.boundingBox();
 
@@ -163,38 +194,25 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
   await test.step('exercise demo-only controls', async () => {
     const installationLink = page.getByRole('link', { name: 'Get BoardOil' });
     await expect(installationLink).toHaveAttribute('href', ExpectedInstallationUrl);
-    const effect = page.getByRole('combobox', { name: 'Slick effect', exact: true });
-    await expect(effect).toHaveValue('bridges');
-    for (const value of ['none', 'liquid', 'bridges']) {
-      await effect.selectOption(value);
-      await expect(page.locator('canvas.slick-goo-layer')).toHaveAttribute('data-renderer', value);
-    }
-    const viewport = page.viewportSize()!;
-    await page.setViewportSize({ width: 430, height: 850 });
-    const linkBounds = (await installationLink.boundingBox())!;
-    expect(linkBounds.x + linkBounds.width).toBeLessThanOrEqual(430);
-    await page.screenshot({ path: test.info().outputPath('demo-slick-effect-mobile.png') });
-    await page.setViewportSize(viewport);
 
-    await page.getByRole('button', { name: 'Use dark mode' }).click();
+    const theme = page.getByRole('group', { name: 'Theme', exact: true });
+    const light = theme.getByRole('button', { name: 'Light', exact: true });
+    const dark = theme.getByRole('button', { name: 'Dark', exact: true });
+    await expect(light).toHaveAttribute('aria-pressed', 'true');
+    await dark.click();
+    await expect(dark).toHaveAttribute('aria-pressed', 'true');
+    await expect(light).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('.board-selection-toggle-label')).toHaveCSS('color', 'rgb(202, 184, 239)');
     await expect(page.locator('.board-selection-toggle-count')).toHaveCSS('color', 'rgb(202, 184, 239)');
 
     await page.getByTitle('Done selecting cards').click();
-    const ideationColumn = page.getByRole('article', { name: 'Ideation column' });
-    await ideationColumn.getByRole('button').filter({ hasText: 'Allow linking between stories' }).click();
+    await firstColumn.getByRole('button', { name: CardButtonName }).filter({ hasText: DropTargetTitle }).click();
     const cardDialog = page.getByRole('dialog');
     await expect(cardDialog.locator('.fixed-chrome-dialog__surface')).toHaveCSS('color', 'rgb(233, 238, 246)');
     await expect(cardDialog.getByText('Column', { exact: true })).toHaveCSS('color', 'rgb(174, 186, 206)');
     await expect(cardDialog.getByLabel('Card description', { exact: true })).toHaveCSS('color', 'rgb(233, 238, 246)');
     await cardDialog.getByTitle('Cancel', { exact: true }).click();
-
-    await page.getByRole('button', { name: 'View third-party licences' }).click();
-    const licencesDialog = page.getByRole('dialog');
-    await expect(licencesDialog).toBeVisible();
-    await expect(licencesDialog.getByText('Montserrat Font', { exact: true })).toBeVisible();
-    await licencesDialog.getByRole('button', { name: 'Close licences' }).click();
   });
 
   await test.step('verify the static safety boundary', async () => {
@@ -215,6 +233,13 @@ test('built demo remains static, resettable, and safe', async ({ context, page }
     expect(consoleErrors).toEqual([]);
   });
 });
+
+async function createInlineCard(column: Locator, title: string) {
+  await column.getByRole('button', { name: 'Add default card' }).click();
+  await column.getByPlaceholder('Title').fill(title);
+  await column.getByRole('button', { name: 'Save new card' }).click();
+  await expect(column.getByRole('button', { name: CardButtonName }).filter({ hasText: title })).toBeVisible();
+}
 
 async function verifyDeploymentProvenance() {
   const deploymentPath = path.resolve(process.cwd(), 'dist-demo', 'deployment.json');

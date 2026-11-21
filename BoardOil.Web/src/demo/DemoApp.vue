@@ -1,7 +1,7 @@
 <template>
   <DemoBoardLayout>
     <RouterView v-slot="{ Component, route }">
-      <component :is="Component" :key="`${getRootRouteViewKey(route)}:${demoResetVersion}`" />
+      <component :is="Component" :key="getRootRouteViewKey(route)" />
     </RouterView>
   </DemoBoardLayout>
   <DemoWelcomeDialog :open="welcomeOpen" @close="welcomeOpen = false" />
@@ -17,7 +17,6 @@ import UiFeedbackToast from '../shared/components/UiFeedbackToast.vue';
 import { useBoardStore } from '../board/stores/boardStore';
 import DemoBoardLayout from './DemoBoardLayout.vue';
 import { getRootRouteViewKey } from '../site/layouts/rootRouteViewKey';
-import { demoResetVersion } from './demoReset';
 import DemoWelcomeDialog from './DemoWelcomeDialog.vue';
 
 const boardStore = useBoardStore();

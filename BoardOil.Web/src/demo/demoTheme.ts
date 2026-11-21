@@ -7,15 +7,10 @@ const activeTheme = ref<DemoTheme>('light');
 export const activeDemoTheme = readonly(activeTheme);
 
 export function installDemoTheme() {
-  applyTheme('light');
+  setDemoTheme('light');
 }
 
-export function toggleDemoTheme() {
-  const nextTheme = activeTheme.value === 'dark' ? 'light' : 'dark';
-  applyTheme(nextTheme);
-}
-
-function applyTheme(theme: DemoTheme) {
+export function setDemoTheme(theme: DemoTheme) {
   activeTheme.value = theme;
 
   const root = globalThis.document?.documentElement;

@@ -29,15 +29,29 @@
     </div>
 
     <template #actions>
-      <div class="fixed-chrome-dialog-actions fixed-chrome-dialog-actions--end">
+      <div class="fixed-chrome-dialog-actions">
+        <button
+          type="button"
+          class="btn btn--secondary"
+          aria-haspopup="dialog"
+          aria-label="View third-party licences"
+          @click="licencesOpen = true"
+        >
+          <Scale :size="16" aria-hidden="true" />
+          Licences
+        </button>
         <button type="button" class="btn" @click="emit('close')">Explore the demo</button>
       </div>
     </template>
   </FixedChromeDialog>
+  <DemoLicencesDialog :open="open && licencesOpen" @close="licencesOpen = false" />
 </template>
 
 <script setup lang="ts">
+import { Scale } from '@lucide/vue';
+import { ref } from 'vue';
 import FixedChromeDialog from '../shared/components/FixedChromeDialog.vue';
+import DemoLicencesDialog from './DemoLicencesDialog.vue';
 
 defineProps<{
   open: boolean;
@@ -46,6 +60,8 @@ defineProps<{
 const emit = defineEmits<{
   close: [];
 }>();
+
+const licencesOpen = ref(false);
 </script>
 
 <style scoped>

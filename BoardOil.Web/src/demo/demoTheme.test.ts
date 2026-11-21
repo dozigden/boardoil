@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { activeDemoTheme, installDemoTheme, toggleDemoTheme } from './demoTheme';
+import { activeDemoTheme, installDemoTheme, setDemoTheme } from './demoTheme';
 
 describe('demoTheme', () => {
   const originalDocument = globalThis.document;
@@ -30,7 +30,7 @@ describe('demoTheme', () => {
     expect(root.dataset).toEqual({ theme: 'light', themeMode: 'manual' });
   });
 
-  it('toggles the manual theme without browser storage', () => {
+  it('selects either manual theme without browser storage', () => {
     const root = { dataset: {} as Record<string, string> };
     const storageSet = vi.fn();
     Object.defineProperty(globalThis, 'document', {
@@ -43,10 +43,13 @@ describe('demoTheme', () => {
     });
 
     installDemoTheme();
-    toggleDemoTheme();
+    setDemoTheme('dark');
 
     expect(activeDemoTheme.value).toBe('dark');
     expect(root.dataset).toEqual({ theme: 'dark', themeMode: 'manual' });
+    setDemoTheme('light');
+    expect(activeDemoTheme.value).toBe('light');
+    expect(root.dataset).toEqual({ theme: 'light', themeMode: 'manual' });
     expect(storageSet).not.toHaveBeenCalled();
   });
 });
