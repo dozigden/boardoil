@@ -1,5 +1,6 @@
 <template>
-  <TransitionGroup tag="header" name="board-conveyor" class="board-conveyor" :class="{ 'board-conveyor--highlighted': highlighted }">
+  <TransitionGroup tag="header" :name="animate ? 'board-conveyor' : 'board-conveyor-static'" :css="animate"
+    class="board-conveyor" :class="{ 'board-conveyor--highlighted': highlighted }">
     <button
       v-if="hasLeftAction"
       key="left"
@@ -56,6 +57,7 @@ import { computed } from 'vue';
 import BoardConveyorTip from './BoardConveyorTip.vue';
 
 const props = withDefaults(defineProps<{
+  animate?: boolean;
   leftLabel?: string | null;
   leftAriaLabel?: string | null;
   rightLabel?: string | null;
@@ -64,6 +66,7 @@ const props = withDefaults(defineProps<{
   rightDisabled?: boolean;
   highlighted?: boolean;
 }>(), {
+  animate: true,
   leftLabel: null,
   leftAriaLabel: null,
   rightLabel: null,

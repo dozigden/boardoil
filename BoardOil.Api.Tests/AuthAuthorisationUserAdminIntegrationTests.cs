@@ -1,12 +1,39 @@
 using System.Net;
 using System.Net.Http.Json;
 using BoardOil.Contracts.Auth;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace BoardOil.Api.Tests;
 
 public sealed class AuthAuthorisationUserAdminIntegrationTests : AuthAuthorisationIntegrationTestBase
 {
+    [Fact]
+    public async Task MarkAnnouncementRead_ShouldPersistForOnlyTheSignedInUser()
+    {
+        var admin = CreateClient();
+        var member = CreateClient();
+        await RegisterInitialAdminAsync(admin);
+        await CreateUserAsAdminAsync(admin, "member", "Password1234!", "Standard");
+        await ArrangeAsync(async db =>
+        {
+            foreach (var user in await db.Users.ToListAsync()) user.HasUnreadAnnouncement = true;
+        });
+        await LoginAsAsync(member, "member", "Password1234!");
+        var before = await member.GetFromJsonAsync<ApiEnvelope<AuthUserDto>>("/api/auth/me");
+        Assert.True(before!.Data!.HasUnreadAnnouncement);
+
+        (await member.PostAsync("/api/users/me/announcement/read", null)).EnsureSuccessStatusCode();
+        (await member.PostAsync("/api/users/me/announcement/read", null)).EnsureSuccessStatusCode();
+
+        var freshSession = CreateClient();
+        await LoginAsAsync(freshSession, "member", "Password1234!");
+        var after = await freshSession.GetFromJsonAsync<ApiEnvelope<AuthUserDto>>("/api/auth/me");
+        var other = await admin.GetFromJsonAsync<ApiEnvelope<AuthUserDto>>("/api/auth/me");
+        Assert.False(after!.Data!.HasUnreadAnnouncement);
+        Assert.True(other!.Data!.HasUnreadAnnouncement);
+    }
+
     [Fact]
     public async Task StandardUser_GetUsers_ShouldIncludeClientAccounts()
     {

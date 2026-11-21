@@ -44,6 +44,7 @@ describe('userProfileStore', () => {
       userName: originalProfile.userName,
       displayName: originalProfile.displayName,
       role: originalProfile.role,
+      hasUnreadAnnouncement: false,
       experimentalFeaturesEnabled: originalProfile.experimentalFeaturesEnabled
     };
   });

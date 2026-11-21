@@ -29,6 +29,17 @@ public static class UserEndpoints
             })
             .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
             .WithTags("Users");
+        app.MapPost("/api/users/me/announcement/read", async (ClaimsPrincipal user, IUserService userService) =>
+            {
+                if (!user.TryGetUserId(out var actorUserId))
+                {
+                    return ApiErrors.Unauthorized("Invalid identity context.").ToHttpResult();
+                }
+
+                return (await userService.MarkAnnouncementReadAsync(actorUserId)).ToHttpResult();
+            })
+            .RequireAuthorization(BoardOilPolicies.AuthenticatedUser)
+            .WithTags("Users");
         app.MapPut("/api/users/me", async (UpdateOwnUserProfileRequest request, ClaimsPrincipal user, IUserService userService) =>
             {
                 if (!user.TryGetUserId(out var actorUserId))

@@ -1445,6 +1445,11 @@ namespace BoardOil.Ef.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("HasUnreadAnnouncement")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<int>("IdentityType")
                         .HasColumnType("INTEGER");
 

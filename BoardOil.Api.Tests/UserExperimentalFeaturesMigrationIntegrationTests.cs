@@ -27,7 +27,7 @@ public sealed class UserExperimentalFeaturesMigrationIntegrationTests
 
         await using (var db = new BoardOilDbContext(options))
         {
-            await db.Database.MigrateAsync("20261112114202_AddUserExperimentalFeaturesEnabled");
+            await db.Database.MigrateAsync();
         }
 
         await using var assertDb = new BoardOilDbContext(options);

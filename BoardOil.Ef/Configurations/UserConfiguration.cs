@@ -18,6 +18,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<EntityUser>
         user.Property(x => x.IdentityType).IsRequired();
         user.Property(x => x.IsActive).IsRequired();
         user.Property(x => x.ExperimentalFeaturesEnabled).IsRequired().HasDefaultValue(false);
+        user.Property(x => x.HasUnreadAnnouncement).IsRequired().HasDefaultValue(false);
         user.ToTable("Users");
         user.HasIndex(x => x.UserName).IsUnique();
         user.HasIndex(x => x.Email).IsUnique();

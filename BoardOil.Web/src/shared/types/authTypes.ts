@@ -4,6 +4,7 @@ export type AuthUser = {
   displayName: string;
   role: 'Admin' | 'Standard' | string;
   experimentalFeaturesEnabled: boolean;
+  hasUnreadAnnouncement: boolean;
 };
 
 export type AuthSession = {

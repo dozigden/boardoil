@@ -37,6 +37,25 @@ public sealed class UserService(
         return Task.FromResult<ApiResult<AuthUserDto>>(user.ToAuthUserDto());
     }
 
+    public async Task<ApiResult> MarkAnnouncementReadAsync(int actorUserId)
+    {
+        using var scope = scopeFactory.Create();
+        var user = userRepository.Get(actorUserId);
+        if (user is null || !user.IsActive)
+        {
+            return ApiErrors.Unauthorized("User is not active.");
+        }
+
+        if (user.IdentityType == UserIdentityType.Client)
+        {
+            return ApiErrors.Forbidden("Client accounts cannot use this endpoint.");
+        }
+
+        user.HasUnreadAnnouncement = false;
+        await scope.SaveChangesAsync();
+        return ApiResults.Ok();
+    }
+
     public async Task<ApiResult<OwnUserProfileDto>> GetOwnProfileAsync(int actorUserId)
     {
         using var scope = scopeFactory.CreateReadOnly();

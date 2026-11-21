@@ -179,6 +179,7 @@ async function runManagedTests(options) {
     '--strictPort'
   ], webRoot, {
     VITE_BO_API_PROXY_TARGET: apiUrl,
+    VITE_BO_PREVIEW_ANNOUNCEMENT: 'false',
     VITE_BO_VERSION: buildInfo.version,
     VITE_BO_CHANNEL: buildInfo.channel,
     VITE_BO_BUILD: buildInfo.build,

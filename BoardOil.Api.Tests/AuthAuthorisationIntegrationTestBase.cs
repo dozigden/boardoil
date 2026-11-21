@@ -244,7 +244,7 @@ public abstract class AuthAuthorisationIntegrationTestBase : ApiFactoryIntegrati
         return await action(dbContext);
     }
 
-    private async Task ArrangeAsync(Func<BoardOilDbContext, Task> arrange)
+    protected async Task ArrangeAsync(Func<BoardOilDbContext, Task> arrange)
     {
         await UseDbContextAsync(async dbContext =>
         {

@@ -1,10 +1,11 @@
 <template>
   <section class="app-layout app-layout--board-with-conveyor app-layout-with-header">
-    <AppHeader compact-mobile />
+    <AppHeader compact-mobile :page-ready="hasBoardContext" />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
 
     <section class="board-layout-conveyor-region">
       <BoardConveyor
+        :animate="animateConveyor"
         :highlighted="conveyorConfig.highlighted"
         :left-label="conveyorConfig.leftLabel"
         :left-aria-label="conveyorConfig.leftAriaLabel"
@@ -38,6 +39,8 @@ import BoardConveyor from '../../board/components/BoardConveyor.vue';
 import { useUiFeedbackStore } from '../../shared/stores/uiFeedbackStore';
 import { useBoardStore } from '../../board/stores/boardStore';
 import { provideBoardLayoutRegistry } from './boardLayoutRegistry';
+
+defineProps<{ animateConveyor: boolean }>();
 
 const feedbackStore = useUiFeedbackStore();
 const { errorMessage } = storeToRefs(feedbackStore);

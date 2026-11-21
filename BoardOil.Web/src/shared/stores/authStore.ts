@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
+import { createUsersApi } from '../api/usersApi';
 import { createAuthApi } from '../api/authApi';
 import { setCsrfToken, setUnauthorizedHandler } from '../api/http';
 import { err, ok } from '../types/result';
@@ -19,6 +20,7 @@ export function configureAuthNavigation(navigation: AuthNavigation | null) {
 
 export const useAuthStore = defineStore('auth', () => {
   const api = createAuthApi();
+  const usersApi = createUsersApi();
   const user = ref<AuthUser | null>(null);
   const busy = ref(false);
   const initialized = ref(false);
@@ -40,6 +42,10 @@ export const useAuthStore = defineStore('auth', () => {
   function CLEAR_SESSION() {
     user.value = null;
     setCsrfToken(null);
+  }
+
+  function MARK_ANNOUNCEMENT_READ(userId: number | undefined) {
+    if (user.value && user.value.id === userId) user.value.hasUnreadAnnouncement = false;
   }
 
   function UPDATE_OWN_PROFILE(displayName: string, userName: string, role: string, experimentalFeaturesEnabled: boolean) {
@@ -141,6 +147,13 @@ export const useAuthStore = defineStore('auth', () => {
     return ok(authenticatedUser);
   }
 
+  async function markAnnouncementRead() {
+    const userId = user.value?.id;
+    const result = await usersApi.markAnnouncementRead();
+    if (result.ok) MARK_ANNOUNCEMENT_READ(userId);
+    return result;
+  }
+
   async function changeOwnPassword(currentPassword: string, newPassword: string) {
     busy.value = true;
     errorMessage.value = null;
@@ -186,6 +199,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     registerInitialAdmin,
     changeOwnPassword,
+    markAnnouncementRead,
     logout,
     setOwnProfile,
     handleUnauthorized

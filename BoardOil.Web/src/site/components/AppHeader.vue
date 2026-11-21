@@ -32,8 +32,11 @@
         </button>
       </div>
       <div class="header-meta">
+        <ReleaseAnnouncement v-if="user && router.currentRoute.value !== START_LOCATION" :key="user.id" :page-ready="pageReady"
+          @focus-user-menu="userMenu?.focusTrigger()" />
         <BoDropdown
           v-if="isAuthenticated"
+          ref="userMenu"
           class="header-menu header-menu--user"
           align="right"
           icon-only
@@ -73,17 +76,7 @@
             </section>
             <section class="user-menu-preference" aria-label="Slick effect">
               <span class="user-menu-preference-label">Slick effect</span>
-              <div class="btn-tab-list" role="group" aria-label="Slick effect">
-                <button
-                  v-for="option in slickEffectOptions"
-                  :key="option.value"
-                  type="button"
-                  class="btn btn--tab"
-                  :class="{ 'is-active': slickEffectStore.effect === option.value }"
-                  :aria-pressed="slickEffectStore.effect === option.value"
-                  @click="slickEffectStore.setEffect(option.value)"
-                >{{ option.label }}</button>
-              </div>
+              <SlickEffectPicker />
             </section>
             <span class="bo-dropdown-divider" aria-hidden="true"></span>
             <button type="button" class="bo-dropdown-item" @click="handleLogout(close)">Logout</button>
@@ -150,8 +143,8 @@
 <script setup lang="ts">
 import { CircleUserRound, Monitor, Moon, Settings, Sun } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, ref, watch, type Component } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref, useTemplateRef, watch, type Component } from 'vue';
+import { START_LOCATION, useRouter } from 'vue-router';
 import AboutDialog from './AboutDialog.vue';
 import AppUpdateBanner from './AppUpdateBanner.vue';
 import BoardOilDrop from './BoardOilDrop.vue';
@@ -169,23 +162,24 @@ import { useBoardStore } from '../../board/stores/boardStore';
 import { useSystemInfoMessageStore } from '../../shared/stores/systemInfoMessageStore';
 import { useAppUpdateStore } from '../../shared/stores/appUpdateStore';
 import { useThemeStore, type ThemeMode } from '../../shared/stores/themeStore';
-import { useSlickEffectStore } from '../../shared/stores/slickEffectStore';
-import { slickEffectOptions } from '../../shared/types/slickEffect';
+import SlickEffectPicker from './SlickEffectPicker.vue';
+import ReleaseAnnouncement from './ReleaseAnnouncement.vue';
 import { getSemanticStyleClasses, getSurfaceStyle } from '../../shared/utils/styleRenderer';
 import type { StylePresentation } from '../../shared/utils/styleTypes';
 
 type AppHeaderProps = {
   compactMobile?: boolean;
+  pageReady?: boolean;
 };
 
-const { compactMobile = false } = defineProps<AppHeaderProps>();
+const { compactMobile = false, pageReady = true } = defineProps<AppHeaderProps>();
+const userMenu = useTemplateRef<InstanceType<typeof BoDropdown>>('userMenu');
 
 const aboutDialogOpen = ref(false);
 const systemInfoDialogOpen = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 const themeStore = useThemeStore();
-const slickEffectStore = useSlickEffectStore();
 const themeOptions: { value: ThemeMode; label: string; icon: Component }[] = [
   { value: 'system', label: 'System', icon: Monitor },
   { value: 'light', label: 'Light', icon: Sun },

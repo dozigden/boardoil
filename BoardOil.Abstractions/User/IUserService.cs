@@ -8,6 +8,7 @@ public interface IUserService
 {
     Task<ApiResult<IReadOnlyList<UserDirectoryEntryDto>>> GetUsersAsync();
     Task<ApiResult<AuthUserDto>> GetCurrentIdentityAsync(int actorUserId);
+    Task<ApiResult> MarkAnnouncementReadAsync(int actorUserId);
     Task<ApiResult<OwnUserProfileDto>> GetOwnProfileAsync(int actorUserId);
     Task<ApiResult<OwnUserProfileDto>> UpdateOwnProfileAsync(int actorUserId, UpdateOwnUserProfileRequest request);
 }

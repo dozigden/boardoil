@@ -1,6 +1,6 @@
 <template>
   <RouterView v-slot="{ Component, route: viewRoute }">
-    <component :is="layoutComponent" :key="layoutMode" class="app-layout-host">
+    <component :is="layoutComponent" :key="layoutMode" v-bind="layoutProps" class="app-layout-host">
       <Transition :name="pageTransitionName">
         <component :is="Component" :key="getRootRouteViewKey(viewRoute)" />
       </Transition>
@@ -50,6 +50,9 @@ const { board, currentBoardId, unavailableBoardId } = storeToRefs(boardStore);
 const pageTransitionName = ref('route-none');
 const previousRouteSnapshot = ref<RouteSnapshot | null>(null);
 const layoutMode = computed(() => resolveAppLayout(route.meta.layout));
+const layoutProps = computed(() => layoutMode.value === APP_LAYOUT_BOARD_WITH_CONVEYOR
+  ? { animateConveyor: pageTransitionName.value !== 'route-none' }
+  : {});
 const layoutComponent = computed(() => {
   if (layoutMode.value === APP_LAYOUT_BOARD_WITH_CONVEYOR) {
     return BoardWithConveyorLayout;

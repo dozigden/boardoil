@@ -7,7 +7,7 @@ import type {
   UserProfileImage
 } from '../types/authTypes';
 import { err, ok } from '../types/result';
-import { deleteJson, getEnvelope, postFormData, putData } from './http';
+import { deleteJson, getEnvelope, postFormData, postJson, putData } from './http';
 
 export type UsersApi = ReturnType<typeof createUsersApi>;
 
@@ -71,6 +71,7 @@ export function createUsersApi() {
   return {
     getAllUsers,
     getMyProfile,
+    markAnnouncementRead: () => postJson('/api/users/me/announcement/read', {}),
     getMyProfileImage,
     uploadMyProfileImage,
     deleteMyProfileImage,

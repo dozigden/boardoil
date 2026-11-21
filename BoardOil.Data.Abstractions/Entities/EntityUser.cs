@@ -11,6 +11,7 @@ public sealed class EntityUser : ISupportCreatedAt, ISupportUpdatedAt
     public UserIdentityType IdentityType { get; set; } = UserIdentityType.User;
     public bool IsActive { get; set; } = true;
     public bool ExperimentalFeaturesEnabled { get; set; }
+    public bool HasUnreadAnnouncement { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; internal set; }
 

@@ -1,6 +1,6 @@
 <template>
   <section class="app-layout app-layout--admin app-layout-with-header">
-    <AppHeader />
+    <AppHeader :page-ready="hasBoardContext" />
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
     <section class="app-layout-admin-content">
       <section v-if="!hasBoardContext" class="board-context-loading" aria-live="polite">
