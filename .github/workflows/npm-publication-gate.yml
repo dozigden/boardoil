@@ -2,10 +2,6 @@ name: Npm Publication Gate
 
 on:
   workflow_call:
-    inputs:
-      allow_temporary_picomatch_exception:
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -37,9 +33,4 @@ jobs:
           npm install --global --ignore-scripts "npm@$BOARDOIL_NPM_VERSION"
 
       - name: Block publication for high or critical npm vulnerabilities
-        if: ${{ !inputs.allow_temporary_picomatch_exception }}
         run: npm audit --package-lock-only --include=dev --include=optional --include=peer --audit-level=high
-
-      - name: Audit with the temporary nightly picomatch exception
-        if: inputs.allow_temporary_picomatch_exception
-        run: node ../.github/scripts/audit-nightly-npm.mjs
