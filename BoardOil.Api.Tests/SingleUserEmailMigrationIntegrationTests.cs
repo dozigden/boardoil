@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using BoardOil.Data.Abstractions.Entities;
 using BoardOil.Ef;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -225,18 +224,34 @@ public sealed class SingleUserEmailMigrationIntegrationTests
                 VALUES ({id},{$"user-{id}"},{$"User {id}"},{emails[i]},{$"legacy-{id}"},{$"hash-{id}"},0,0,1,'2026-01-01','2026-01-01');
                 """);
         }
-        await db.Database.ExecuteSqlRawAsync(
-            """
-            INSERT INTO Boards (Id,Name,Description,CreatedAtUtc,UpdatedAtUtc)
-            VALUES (1,'Board','','2026-01-01','2026-01-01');
+        var timestamp = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $$"""
+            INSERT INTO Boards (Id, Name, Description, CreatedAtUtc, UpdatedAtUtc)
+            VALUES (1, 'Board', '', {{timestamp}}, {{timestamp}});
+
+            INSERT INTO Columns (Id, BoardId, Title, SortKey, CreatedAtUtc, UpdatedAtUtc)
+            VALUES (1, 1, 'Todo', 'A', {{timestamp}}, {{timestamp}});
+
+            INSERT INTO CardTypes (Id, BoardId, Name, IsSystem, StyleName, StylePropertiesJson, CreatedAtUtc, UpdatedAtUtc)
+            VALUES (1, 1, 'Default', 1, 'auto', '{}', {{timestamp}}, {{timestamp}});
+
+            INSERT INTO Cards (Id, BoardId, BoardCardId, BoardColumnId, CardTypeId, Title, Description, SortKey,
+                               AssignedUserId, CardCreatedUtc, CardUpdatedUtc, CreatedAtUtc, UpdatedAtUtc)
+            VALUES (1, 1, 1, 1, 1, 'Card', '', 'A', 2, {{timestamp}}, {{timestamp}}, {{timestamp}}, {{timestamp}});
+
+            INSERT INTO CardComments (CardId, AuthorUserId, Text, PostedAtUtc, CreatedAtUtc)
+            VALUES (1, 4, 'Live comment', {{timestamp}}, {{timestamp}});
+
+            INSERT INTO BoardMembers (BoardId, UserId, Role, CreatedAtUtc, UpdatedAtUtc)
+            VALUES (1, 2, 1, {{timestamp}}, {{timestamp}});
+
+            INSERT INTO PersonalAccessTokens (UserId, Name, TokenHash, TokenPrefix, ScopesCsv, CreatedAtUtc)
+            VALUES (2, 'Token', 'unchanged-token', 'bo_pat', 'mcp:read', {{timestamp}});
+
+            INSERT INTO RefreshTokens (UserId, TokenHash, ExpiresAtUtc, CreatedAtUtc)
+            VALUES (2, 'unchanged-refresh', {{timestamp.AddDays(1)}}, {{timestamp}});
             """);
-        db.Columns.Add(new EntityBoardColumn { Id = 1, BoardId = 1, Title = "Todo", SortKey = "A" });
-        db.CardTypes.Add(new EntityCardType { Id = 1, BoardId = 1, Name = "Default", IsSystem = true, StyleName = "auto", StylePropertiesJson = "{}" });
-        db.Cards.Add(new EntityBoardCard { Id = 1, BoardId = 1, BoardCardId = 1, BoardColumnId = 1, CardTypeId = 1, Title = "Card", SortKey = "A", AssignedUserId = 2 });
-        db.CardComments.Add(new EntityCardComment { CardId = 1, AuthorUserId = 4, Text = "Live comment" });
-        db.BoardMembers.Add(new EntityBoardMember { BoardId = 1, UserId = 2, Role = BoardMemberRole.Owner });
-        db.PersonalAccessTokens.Add(new EntityPersonalAccessToken { UserId = 2, Name = "Token", TokenHash = "unchanged-token", TokenPrefix = "bo_pat", ScopesCsv = "mcp:read" });
-        db.RefreshTokens.Add(new EntityRefreshToken { UserId = 2, TokenHash = "unchanged-refresh", ExpiresAtUtc = DateTime.UtcNow.AddDays(1) });
         string[] snapshots = [
             """{"schema":"archived-card","version":1,"payload":{"assignedUserId":2,"assignedUserEmail":"CAFÉ@example.com","unknownField":"preserve me","comments":[{"authorUserId":4,"authorEmail":"Café@example.com","text":"Keep this text"},{"authorUserId":8,"authorEmail":"CAFÉ@example.com"},{"authorUserId":999,"authorEmail":"CAFÉ@example.com"}]}}""",
             "{invalid", """{"schema":"archived-card","version":99,"payload":{"assignedUserEmail":"CAFÉ@example.com"}}""",
@@ -244,9 +259,12 @@ public sealed class SingleUserEmailMigrationIntegrationTests
         ];
         for (var i = 0; i < snapshots.Length; i++)
         {
-            db.ArchivedCards.Add(new EntityArchivedCard { BoardId = 1, OriginalCardId = 99 + i, ArchivedAtUtc = DateTime.UtcNow, SnapshotJson = snapshots[i], SearchTitle = "Archive", SearchTagsJson = "[]", SearchTextNormalised = "ARCHIVE" });
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO ArchivedCards (BoardId, OriginalCardId, ArchivedAtUtc, SnapshotJson, SearchTitle, SearchTagsJson, SearchTextNormalised)
+                VALUES (1, {99 + i}, {timestamp}, {snapshots[i]}, 'Archive', '[]', 'ARCHIVE');
+                """);
         }
-        await db.SaveChangesAsync();
     }
 
     private static Task<int> InsertCurrentAsync(BoardOilDbContext db, int id, string email) => db.Database.ExecuteSqlInterpolatedAsync(

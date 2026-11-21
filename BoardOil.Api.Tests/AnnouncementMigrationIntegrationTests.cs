@@ -22,7 +22,10 @@ public sealed class AnnouncementMigrationIntegrationTests
         await InsertAccountAsync(db, "new", 0);
         await db.Database.MigrateAsync("20261121074812_AnnounceSlickEffects");
 
-        Assert.Equal(["existing"], await db.Users.Where(x => x.HasUnreadAnnouncement).Select(x => x.UserName).ToArrayAsync());
+        var notifiedAccounts = await db.Database.SqlQueryRaw<string>("""
+            SELECT UserName AS Value FROM Users WHERE HasUnreadAnnouncement = 1
+            """).ToArrayAsync();
+        Assert.Equal(["existing"], notifiedAccounts);
     }
 
     private static Task InsertAccountAsync(BoardOilDbContext db, string name, int identityType) =>

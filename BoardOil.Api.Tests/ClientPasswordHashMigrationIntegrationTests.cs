@@ -19,73 +19,34 @@ public sealed class ClientPasswordHashMigrationIntegrationTests
         try
         {
             const int boardId = 1;
-            int clientId;
-            int humanId;
-            int tokenId;
+            const int clientId = 1;
+            const int humanId = 2;
+            const int tokenId = 1;
 
             await using (var dbContext = new BoardOilDbContext(options))
             {
                 await dbContext.Database.MigrateAsync("20260731171513_AddBoardScopedCardIdFoundation");
 
-                var client = new EntityUser
-                {
-                    UserName = "existing-client",
-                    DisplayName = "Existing Client",
-                    Email = "existing-client@localhost",
-                    PasswordHash = "legacy-synthetic-password-hash",
-                    Role = UserRole.Standard,
-                    IdentityType = UserIdentityType.Client,
-                    IsActive = true,
-                };
-                var human = new EntityUser
-                {
-                    UserName = "existing-human",
-                    DisplayName = "Existing Human",
-                    Email = "existing-human@localhost",
-                    PasswordHash = "real-human-password-hash",
-                    Role = UserRole.Admin,
-                    IdentityType = UserIdentityType.User,
-                    IsActive = true,
-                };
-                foreach (var user in new[] { client, human })
-                {
-                    await dbContext.Database.ExecuteSqlInterpolatedAsync(
-                        $"""
-                        INSERT INTO Users (UserName,DisplayName,Email,NormalisedEmail,PasswordHash,Role,IdentityType,IsActive,CreatedAtUtc,UpdatedAtUtc)
-                        VALUES ({user.UserName},{user.DisplayName},{user.Email},{user.Email},{user.PasswordHash},{(int)user.Role},{(int)user.IdentityType},1,{DateTime.UtcNow},{DateTime.UtcNow});
-                        """);
-                    user.Id = await dbContext.Users.Where(x => x.UserName == user.UserName).Select(x => x.Id).SingleAsync();
-                }
                 var timestamp = DateTime.UtcNow;
                 await dbContext.Database.ExecuteSqlInterpolatedAsync(
                     $"""
-                    INSERT INTO "Boards"
-                        ("Id", "Name", "Description", "SlickCohesionModeEnabled", "CreatedAtUtc", "UpdatedAtUtc")
+                    INSERT INTO Users
+                        (Id, UserName, DisplayName, Email, NormalisedEmail, PasswordHash, Role, IdentityType, IsActive, CreatedAtUtc, UpdatedAtUtc)
                     VALUES
-                        ({boardId}, {"Existing board"}, {"Migration fixture"}, {true}, {timestamp}, {timestamp});
+                        ({clientId}, 'existing-client', 'Existing Client', 'existing-client@localhost', 'existing-client@localhost',
+                         'legacy-synthetic-password-hash', 0, 1, 1, {timestamp}, {timestamp}),
+                        ({humanId}, 'existing-human', 'Existing Human', 'existing-human@localhost', 'existing-human@localhost',
+                         'real-human-password-hash', 1, 0, 1, {timestamp}, {timestamp});
+
+                    INSERT INTO Boards (Id, Name, Description, SlickCohesionModeEnabled, CreatedAtUtc, UpdatedAtUtc)
+                    VALUES ({boardId}, 'Existing board', 'Migration fixture', 1, {timestamp}, {timestamp});
+
+                    INSERT INTO BoardMembers (BoardId, UserId, Role, CreatedAtUtc, UpdatedAtUtc)
+                    VALUES ({boardId}, {clientId}, 0, {timestamp}, {timestamp});
+
+                    INSERT INTO PersonalAccessTokens (Id, UserId, Name, TokenHash, TokenPrefix, ScopesCsv, CreatedAtUtc)
+                    VALUES ({tokenId}, {clientId}, 'Existing PAT', 'EXISTING_TOKEN_HASH', 'bo_pat_EXIST', 'mcp:read', {timestamp});
                     """);
-
-                var membership = new EntityBoardMember
-                {
-                    BoardId = boardId,
-                    UserId = client.Id,
-                    Role = BoardMemberRole.Contributor,
-                };
-                var token = new EntityPersonalAccessToken
-                {
-                    UserId = client.Id,
-                    Name = "Existing PAT",
-                    TokenHash = "EXISTING_TOKEN_HASH",
-                    TokenPrefix = "bo_pat_EXIST",
-                    ScopesCsv = "mcp:read",
-                };
-                dbContext.BoardMembers.Add(membership);
-                dbContext.PersonalAccessTokens.Add(token);
-                await dbContext.SaveChangesAsync();
-
-                clientId = client.Id;
-                humanId = human.Id;
-                tokenId = token.Id;
             }
 
             // Act

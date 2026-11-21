@@ -1,4 +1,4 @@
-using BoardOil.Data.Abstractions.Entities;
+using System.Globalization;
 using BoardOil.Ef;
 using BoardOil.Ef.Migrations;
 using Microsoft.Data.Sqlite;
@@ -70,13 +70,13 @@ public sealed class OnceScheduleMigrationIntegrationTests
         }
 
         await using var assert = new BoardOilDbContext(options);
-        var state = await assert.ScheduledJobSchedulerStates.SingleAsync();
+        var state = await ReadCheckpoints(assert).SingleAsync();
         Assert.False(state.RunRequested);
         Assert.Equal("existing-daily", state.Name);
         Assert.Equal(Baseline, state.LastRunTimeUtc);
         Assert.Equal(Baseline.AddHours(1), state.LastEvaluatedAtUtc);
         Assert.Equal(Baseline.AddHours(2), state.PendingDueAtUtc);
-        Assert.Equal(Baseline, state.CreatedAtUtc);
+        Assert.Equal(Baseline, ParseTimestamp(state.CreatedAtUtc));
         Assert.Equal(Baseline.AddHours(1), state.UpdatedAtUtc);
         Assert.False(assert.Database.HasPendingModelChanges());
     }
@@ -102,8 +102,8 @@ public sealed class OnceScheduleMigrationIntegrationTests
         }
 
         await using var assert = new BoardOilDbContext(options);
-        Assert.False((await assert.ScheduledJobSchedulerStates.SingleAsync()).RunRequested);
-        Assert.Empty(await assert.Jobs.ToListAsync());
+        Assert.False((await ReadCheckpoints(assert).SingleAsync()).RunRequested);
+        Assert.False(await HasJobsAsync(assert));
     }
 
     [Fact]
@@ -125,16 +125,17 @@ public sealed class OnceScheduleMigrationIntegrationTests
         }
 
         await using var assert = new BoardOilDbContext(options);
-        var state = await assert.ScheduledJobSchedulerStates.SingleAsync();
+        var state = await ReadCheckpoints(assert).SingleAsync();
         Assert.Equal(CheckpointName, state.Name);
         Assert.True(state.RunRequested);
         Assert.Null(state.PendingDueAtUtc);
         Assert.Null(state.LastEvaluatedAtUtc);
-        Assert.NotEqual(default, state.CreatedAtUtc);
-        Assert.Equal(DateTimeKind.Utc, state.CreatedAtUtc.Kind);
-        Assert.Equal(state.CreatedAtUtc, state.LastRunTimeUtc);
-        Assert.True(state.UpdatedAtUtc >= state.CreatedAtUtc);
-        Assert.Empty(await assert.Jobs.ToListAsync());
+        var createdAtUtc = ParseTimestamp(state.CreatedAtUtc);
+        Assert.NotEqual(default, createdAtUtc);
+        Assert.Equal(DateTimeKind.Utc, createdAtUtc.Kind);
+        Assert.Equal(createdAtUtc, state.LastRunTimeUtc);
+        Assert.True(state.UpdatedAtUtc >= createdAtUtc);
+        Assert.False(await HasJobsAsync(assert));
     }
 
     [Theory]
@@ -148,12 +149,8 @@ public sealed class OnceScheduleMigrationIntegrationTests
         await using (var arrange = new BoardOilDbContext(options))
         {
             await arrange.Database.MigrateAsync(TargetMigration);
-            var state = CreateState(CheckpointName, alreadyRequested);
-            arrange.AddRange(state, CreateState("unrelated-daily", false));
-            await arrange.SaveChangesAsync();
-            await arrange.Database.ExecuteSqlInterpolatedAsync($"""
-                UPDATE "ScheduledJobSchedulerStates" SET "UpdatedAtUtc" = {previousUpdatedAtUtc};
-                """);
+            await InsertCheckpointAsync(arrange, CheckpointName, alreadyRequested, previousUpdatedAtUtc);
+            await InsertCheckpointAsync(arrange, "unrelated-daily", false, previousUpdatedAtUtc);
         }
 
         await using (var request = new BoardOilDbContext(options))
@@ -162,14 +159,14 @@ public sealed class OnceScheduleMigrationIntegrationTests
         }
 
         await using var assert = new BoardOilDbContext(options);
-        var stateAfter = await assert.ScheduledJobSchedulerStates.SingleAsync(x => x.Name == CheckpointName);
+        var stateAfter = await ReadCheckpoints(assert).SingleAsync(x => x.Name == CheckpointName);
         Assert.True(stateAfter.RunRequested);
         Assert.Null(stateAfter.PendingDueAtUtc);
         Assert.Equal(Baseline, stateAfter.LastRunTimeUtc);
         Assert.Equal(Baseline.AddHours(1), stateAfter.LastEvaluatedAtUtc);
-        Assert.Equal(Baseline, stateAfter.CreatedAtUtc);
+        Assert.Equal(Baseline, ParseTimestamp(stateAfter.CreatedAtUtc));
         Assert.True(stateAfter.UpdatedAtUtc >= previousUpdatedAtUtc);
-        var unrelated = await assert.ScheduledJobSchedulerStates.SingleAsync(x => x.Name == "unrelated-daily");
+        var unrelated = await ReadCheckpoints(assert).SingleAsync(x => x.Name == "unrelated-daily");
         Assert.False(unrelated.RunRequested);
         Assert.Equal(Baseline.AddHours(2), unrelated.PendingDueAtUtc);
         Assert.Equal(previousUpdatedAtUtc, unrelated.UpdatedAtUtc);
@@ -183,20 +180,22 @@ public sealed class OnceScheduleMigrationIntegrationTests
         await using (var arrange = new BoardOilDbContext(options))
         {
             await arrange.Database.MigrateAsync(TargetMigration);
-            arrange.Add(CreateState(CheckpointName, true));
-            await arrange.SaveChangesAsync();
+            await InsertCheckpointAsync(arrange, CheckpointName, true, Baseline);
         }
 
         await using (var complete = new BoardOilDbContext(options))
         {
-            var state = await complete.ScheduledJobSchedulerStates.SingleAsync();
-            state.RunRequested = false;
-            state.PendingDueAtUtc = null;
-            await complete.SaveChangesAsync();
+            var updatedAtUtc = DateTime.UtcNow;
+            var affected = await complete.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE ScheduledJobSchedulerStates
+                SET RunRequested = 0, PendingDueAtUtc = NULL, UpdatedAtUtc = {updatedAtUtc}
+                WHERE Name = {CheckpointName}
+                """);
+            Assert.Equal(1, affected);
         }
 
         await using var assert = new BoardOilDbContext(options);
-        var completed = await assert.ScheduledJobSchedulerStates.SingleAsync();
+        var completed = await ReadCheckpoints(assert).SingleAsync();
         Assert.False(completed.RunRequested);
         Assert.Null(completed.PendingDueAtUtc);
     }
@@ -209,8 +208,7 @@ public sealed class OnceScheduleMigrationIntegrationTests
         await using (var arrange = new BoardOilDbContext(options))
         {
             await arrange.Database.MigrateAsync(TargetMigration);
-            arrange.Add(CreateState(CheckpointName, false));
-            await arrange.SaveChangesAsync();
+            await InsertCheckpointAsync(arrange, CheckpointName, false, Baseline);
         }
 
         await using (var request = new BoardOilDbContext(options))
@@ -222,27 +220,39 @@ public sealed class OnceScheduleMigrationIntegrationTests
         }
 
         await using var assert = new BoardOilDbContext(options);
-        var state = await assert.ScheduledJobSchedulerStates.SingleAsync();
+        var state = await ReadCheckpoints(assert).SingleAsync();
         Assert.Equal(CheckpointName, state.Name);
         Assert.False(state.RunRequested);
         Assert.Equal(Baseline.AddHours(2), state.PendingDueAtUtc);
     }
 
-    private static EntityScheduledJobSchedulerState CreateState(string name, bool requested) => new()
-    {
-        Name = name,
-        RunRequested = requested,
-        LastRunTimeUtc = Baseline,
-        LastEvaluatedAtUtc = Baseline.AddHours(1),
-        PendingDueAtUtc = Baseline.AddHours(2),
-        CreatedAtUtc = Baseline
-    };
+    private sealed record Checkpoint(
+        string Name, bool RunRequested, DateTime LastRunTimeUtc, DateTime? LastEvaluatedAtUtc,
+        DateTime? PendingDueAtUtc, string CreatedAtUtc, DateTime UpdatedAtUtc);
+
+    private static IQueryable<Checkpoint> ReadCheckpoints(BoardOilDbContext db) => db.Database.SqlQueryRaw<Checkpoint>("""
+        SELECT Name, RunRequested, LastRunTimeUtc, LastEvaluatedAtUtc, PendingDueAtUtc, CreatedAtUtc, UpdatedAtUtc
+        FROM ScheduledJobSchedulerStates
+        """);
+
+    private static Task<bool> HasJobsAsync(BoardOilDbContext db) =>
+        db.Database.SqlQueryRaw<int>("SELECT Id AS Value FROM Jobs").AnyAsync();
+
+    private static DateTime ParseTimestamp(string timestamp) =>
+        DateTime.Parse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+    private static Task<int> InsertCheckpointAsync(BoardOilDbContext db, string name, bool requested, DateTime updatedAtUtc) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO ScheduledJobSchedulerStates
+                (Name, RunRequested, LastRunTimeUtc, LastEvaluatedAtUtc, PendingDueAtUtc, CreatedAtUtc, UpdatedAtUtc)
+            VALUES ({name}, {requested}, {Baseline}, {Baseline.AddHours(1)}, {Baseline.AddHours(2)}, {Baseline}, {updatedAtUtc});
+            """);
 
     private static async Task RequestAsync(BoardOilDbContext db, string name)
     {
         var builder = new MigrationBuilder(db.Database.ProviderName!);
         builder.RequestOnceSchedule(name);
-        var commands = db.GetService<IMigrationsSqlGenerator>().Generate(builder.Operations, db.Model);
+        var commands = db.GetService<IMigrationsSqlGenerator>().Generate(builder.Operations);
         foreach (var command in commands)
         {
             await db.Database.ExecuteSqlRawAsync(command.CommandText);

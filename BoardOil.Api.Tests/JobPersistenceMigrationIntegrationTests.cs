@@ -38,11 +38,9 @@ public sealed class JobPersistenceMigrationIntegrationTests
         {
             await db.Database.MigrateAsync(PendingMigration);
             await db.Database.MigrateAsync(PendingMigration);
-            // Select only historical columns; newer scheduler fields are absent at this migration.
-            var state = await db.ScheduledJobSchedulerStates.Select(x => new
-            {
-                x.Name, x.LastRunTimeUtc, x.LastEvaluatedAtUtc, x.PendingDueAtUtc
-            }).SingleAsync();
+            var state = await db.Database.SqlQueryRaw<PendingCheckpoint>("""
+                SELECT Name, LastRunTimeUtc, LastEvaluatedAtUtc, PendingDueAtUtc FROM ScheduledJobSchedulerStates
+                """).SingleAsync();
             Assert.Equal("existing", state.Name);
             Assert.Equal(new DateTime(2026, 9, 26, 10, 0, 0, DateTimeKind.Utc), state.LastRunTimeUtc);
             Assert.Equal(new DateTime(2026, 9, 26, 11, 0, 0, DateTimeKind.Utc), state.LastEvaluatedAtUtc);
@@ -56,7 +54,9 @@ public sealed class JobPersistenceMigrationIntegrationTests
 
         await using (var db = new BoardOilDbContext(options))
         {
-            var pending = await db.ScheduledJobSchedulerStates.Select(x => x.PendingDueAtUtc).SingleAsync();
+            var pending = await db.Database.SqlQueryRaw<DateTime?>("""
+                SELECT PendingDueAtUtc AS Value FROM ScheduledJobSchedulerStates
+                """).SingleAsync();
             Assert.Equal(new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc), pending);
         }
     }
@@ -157,6 +157,9 @@ public sealed class JobPersistenceMigrationIntegrationTests
         Assert.Contains("JobLogs", await GetTableNamesAsync(connection));
         Assert.Contains("ScheduledJobSchedulerStates", await GetTableNamesAsync(connection));
     }
+
+    private sealed record PendingCheckpoint(
+        string Name, DateTime LastRunTimeUtc, DateTime? LastEvaluatedAtUtc, DateTime? PendingDueAtUtc);
 
     private static async Task<List<string>> GetTableNamesAsync(SqliteConnection connection)
     {

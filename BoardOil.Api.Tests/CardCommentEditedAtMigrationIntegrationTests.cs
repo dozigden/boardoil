@@ -56,7 +56,9 @@ public sealed class CardCommentEditedAtMigrationIntegrationTests
         }
 
         await using var assertDb = new BoardOilDbContext(options);
-        var comment = await assertDb.CardComments.SingleAsync();
+        var comment = await assertDb.Database.SqlQueryRaw<CommentRow>("""
+            SELECT Id, CardId, AuthorUserId, Text, CreatedAtUtc, PostedAtUtc, EditedAtUtc FROM CardComments
+            """).SingleAsync();
         Assert.Equal(1, comment.Id);
         Assert.Equal(1, comment.CardId);
         Assert.Null(comment.AuthorUserId);
@@ -64,8 +66,15 @@ public sealed class CardCommentEditedAtMigrationIntegrationTests
         Assert.Equal(createdAtUtc, comment.CreatedAtUtc);
         Assert.Equal(postedAtUtc, comment.PostedAtUtc);
         Assert.Null(comment.EditedAtUtc);
-        var card = await assertDb.Cards.SingleAsync();
+        var card = await assertDb.Database.SqlQueryRaw<CardTimestamps>("""
+            SELECT CardCreatedUtc, CardUpdatedUtc FROM Cards
+            """).SingleAsync();
         Assert.Equal(createdAtUtc, card.CardCreatedUtc);
         Assert.Equal(postedAtUtc, card.CardUpdatedUtc);
     }
+
+    private sealed record CommentRow(
+        int Id, int CardId, int? AuthorUserId, string Text, DateTime CreatedAtUtc, DateTime PostedAtUtc, DateTime? EditedAtUtc);
+
+    private sealed record CardTimestamps(DateTime CardCreatedUtc, DateTime CardUpdatedUtc);
 }
