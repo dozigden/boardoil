@@ -106,6 +106,38 @@ BOARDOIL_E2E_JUNIT_OUTPUT=test-results/playwright/junit.xml \
 npm run test:e2e:regression:external -- --project=chromium
 ```
 
+### Building the ARM64 nightly Debian package
+
+Princess Posse Jenkins builds on a native Ubuntu 24.04 arm64 worker with the .NET 10 SDK, Node.js 24, the npm version pinned in `BoardOil.Web/package.json`, `debhelper` 13, `dpkg-dev`, and `jq`. Check out the build commit with full history and release tags. From the repository root, run:
+
+```sh
+(cd BoardOil.Web && npm ci)
+scripts/package-linux.sh --nightly "$WORKSPACE/artifacts/$BUILD_NUMBER"
+```
+
+The script reads Jenkins' exported `BUILD_NUMBER`. Use the same job's increasing build numbers for the persistent guest. Each build writes `boardoil_<stable-version>-1+nightly.<BUILD_NUMBER>_arm64.deb` and its `.sha256` file. The base is the highest numeric `vMAJOR.MINOR.PATCH` tag reachable from the checked-out commit. The UI bundle and `/api/version` carry the application version from `Directory.Build.props`, channel `nightly`, the decimal build number as a string, and the full commit SHA. The About dialog abbreviates the SHA for display.
+
+On the persistent guest, set `candidate` to the downloaded `.deb` path. Run this before installing it. A missing package, a partially installed package, or a candidate at the same or an older version must fail the upgrade test.
+
+```sh
+set -eu
+status=$(dpkg-query -W -f='${db:Status-Status}' boardoil)
+[ "$status" = installed ]
+installed_version=$(dpkg-query -W -f='${Version}' boardoil)
+candidate_version=$(dpkg-deb -f "$candidate" Version)
+dpkg --compare-versions "$installed_version" lt "$candidate_version"
+```
+
+After both the clean install and the upgrade, run the smoke script on the guest. Pass the build number and full checkout SHA from the Jenkins build that produced the candidate.
+
+```sh
+scripts/smoke-linux-package.sh --nightly "$BUILD_NUMBER" "$GIT_COMMIT"
+```
+
+The smoke check verifies that the running API reports the expected nightly build and commit, and that the service serves the installed UI files.
+
+Princess Posse runs the ARM64 clean-install and persistent-upgrade tests. For tagged releases, use `scripts/package-linux.sh <output-directory>` to build the existing `<release-version>-1` package with release metadata.
+
 ## Local Fast Loop
 
 Use repository scripts to keep local feedback fast and consistent:

@@ -36,7 +36,9 @@ COPY BoardOil.TasksMd/ BoardOil.TasksMd/
 COPY BoardOil.Ef/ BoardOil.Ef/
 COPY BoardOil.Mcp.Contracts/ BoardOil.Mcp.Contracts/
 RUN dotnet restore BoardOil.Api/BoardOil.Api.csproj --locked-mode
-RUN dotnet publish BoardOil.Api/BoardOil.Api.csproj -c Release -o /app/publish --no-restore
+ARG TARGETARCH
+RUN dotnet publish BoardOil.Api/BoardOil.Api.csproj -c Release --arch "$TARGETARCH" \
+    --no-self-contained -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble AS runtime
 COPY scripts/refresh-container-trust.sh /usr/local/bin/refresh-container-trust

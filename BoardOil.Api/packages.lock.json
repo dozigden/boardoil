@@ -483,7 +483,7 @@
       "boardoil.abstractions": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Contracts": "[1.7.0, )",
+          "BoardOil.Contracts": "[1.10.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )"
         }
       },
@@ -496,8 +496,8 @@
       "boardoil.ef": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[1.7.0, )",
-          "BoardOil.Data.Abstractions": "[1.7.0, )",
+          "BoardOil.Abstractions": "[1.10.0, )",
+          "BoardOil.Data.Abstractions": "[1.10.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.12, )",
           "OpenIddict.EntityFrameworkCore": "[7.7.1, )",
@@ -507,16 +507,30 @@
       "boardoil.mcp.contracts": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Contracts": "[1.7.0, )"
+          "BoardOil.Contracts": "[1.10.0, )"
         }
       },
       "boardoil.services": {
         "type": "Project",
         "dependencies": {
-          "BoardOil.Abstractions": "[1.7.0, )",
-          "BoardOil.Contracts": "[1.7.0, )",
-          "BoardOil.Data.Abstractions": "[1.7.0, )"
+          "BoardOil.Abstractions": "[1.10.0, )",
+          "BoardOil.Contracts": "[1.10.0, )",
+          "BoardOil.Data.Abstractions": "[1.10.0, )"
         }
+      }
+    },
+    "net10.0/linux-arm64": {
+      "SQLite": {
+        "type": "Transitive",
+        "resolved": "3.53.4",
+        "contentHash": "KN7jeWqgUPeBRe1FlcpZURzxomuKKEKHmBBQfg+Nx7NkY1LjKhzHvH+3ASkNvhayESE34nMBinL9CV21JfPRJw=="
+      }
+    },
+    "net10.0/linux-x64": {
+      "SQLite": {
+        "type": "Transitive",
+        "resolved": "3.53.4",
+        "contentHash": "KN7jeWqgUPeBRe1FlcpZURzxomuKKEKHmBBQfg+Nx7NkY1LjKhzHvH+3ASkNvhayESE34nMBinL9CV21JfPRJw=="
       }
     }
   }

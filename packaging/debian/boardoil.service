@@ -1,0 +1,22 @@
+[Unit]
+Description=BoardOil web server
+After=network.target
+
+[Service]
+User=boardoil
+Group=boardoil
+WorkingDirectory=/usr/lib/boardoil
+ExecStart=/usr/bin/dotnet /usr/lib/boardoil/BoardOil.Api.dll
+EnvironmentFile=/etc/boardoil/boardoil.env
+StateDirectory=boardoil
+StateDirectoryMode=0750
+UMask=0027
+Restart=on-failure
+RestartSec=5
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+Source: boardoil
+Section: web
+Priority: optional
+Maintainer: Luke Easter <dozigden@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Rules-Requires-Root: no
+Homepage: https://github.com/dozigden/boardoil
+
+Package: boardoil
+Architecture: amd64 arm64
+Depends: aspnetcore-runtime-10.0, adduser, ${misc:Depends}
+Description: Self-hosted BoardOil kanban board
+ BoardOil serves the web interface and API from a single service and
+ stores boards and uploads on the local machine.
