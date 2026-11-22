@@ -15,14 +15,18 @@ test('admin runs maintenance, inspects completion and changes the schedule timez
   try {
     await api.setSystemTimeZone('UTC');
     await schedules.goto();
-    await expect(schedules.region().getByRole('row')).toHaveCount(6);
-    await expect(schedules.region()).toContainText('OAuth client registration purge');
-    await expect(schedules.region()).toContainText('OAuth token audit purge');
-    await expect(schedules.region()).toContainText('Error log purge');
-    await expect(schedules.region()).toContainText('Job history purge');
+    const dailyJobs = [
+      'OAuth client registration purge',
+      'OAuth token audit purge',
+      'Error log purge',
+      'Job history purge',
+      'Queue purges for deleted items',
+    ];
+    for (const jobName of dailyJobs) {
+      await expect(schedules.row(jobName).getByRole('cell', { name: 'Daily at 03:00', exact: true })).toBeVisible();
+    }
     await expect(schedules.row('Resave all boards').getByText('Once', { exact: true })).toBeVisible();
     await expect(schedules.row('Resave all boards').getByText('Not scheduled', { exact: true })).toBeVisible();
-    await expect(schedules.region().getByText('Daily at 03:00', { exact: true })).toHaveCount(4);
     await expect(schedules.region()).toContainText('Times use the system timezone (UTC)');
     const nextDue = await schedules.nextDue('Job history purge').getAttribute('datetime');
     await page.screenshot({ path: testInfo.outputPath('scheduled-jobs.png') });
