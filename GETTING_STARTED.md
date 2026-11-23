@@ -2,7 +2,7 @@
 
 This guide gets BoardOil running in the simplest way. For HTTPS, persistent data, and MCP configuration, see [Advanced Installation](ADVANCED_INSTALLATION.md).
 
-## Install BoardOil
+## Install with Docker Compose
 
 The quickest way to get going is with Docker Compose. Save the following as `compose.yml`:
 
@@ -36,7 +36,11 @@ Once the container is ready, open `http://localhost:5000` in a browser. If Board
 
 The first visit opens the initial admin setup. You should do it straight away. This setup is available only while the installation has no users.
 
-### Home Assistant
+## Install with APT
+
+To run BoardOil as a system service on a Debian-based distribution, follow [Install BoardOil on Linux with APT](LINUX_INSTALLATION.md).
+
+## Home Assistant
 
 BoardOil has two community Home Assistant projects:
 

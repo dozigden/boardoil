@@ -1,6 +1,8 @@
 # Advanced BoardOil Installation
 
-This guide covers operating and securing a self-hosted BoardOil installation. Complete [Getting Started](GETTING_STARTED.md) first unless you already have BoardOil running with Docker Compose.
+This guide covers operating and securing a self-hosted BoardOil installation with Docker Compose. For service configuration, backups and rollback with the native `.deb` package, see [Install BoardOil on Linux with APT](LINUX_INSTALLATION.md).
+
+For a new Docker Compose installation, start with [Getting Started](GETTING_STARTED.md).
 
 ## HTTPS
 
