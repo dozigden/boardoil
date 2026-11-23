@@ -138,6 +138,20 @@ The smoke check verifies that the running API reports the expected nightly build
 
 Princess Posse runs the ARM64 clean-install and persistent-upgrade tests. For tagged releases, use `scripts/package-linux.sh <output-directory>` to build the existing `<release-version>-1` package with release metadata.
 
+### Rehearsing a Debian release
+
+In GitHub Actions, select **Test Debian release**, choose **Run workflow**, and select `main`. From a checkout of this repository, the equivalent command is:
+
+```sh
+gh workflow run test-debian-release.yml --ref main
+```
+
+Each run creates a draft release named for the workflow run and attempt. Native Ubuntu 24.04 runners build and install the amd64 and arm64 release packages. Each runner checks the API's release metadata against the selected commit, then opens About in Chromium to verify the installed UI agrees with the API on the version, channel, build and full commit.
+
+The runners upload each tested package and its checksum directly to the draft. Prerelease asset filenames use a hyphen (for example, `boardoil_1.11.0-rc.1-1_arm64.deb`). The Debian control version keeps its tilde (`1.11.0~rc.1-1`) for upgrade ordering. Each runner downloads its two assets and verifies the checksum using the published filename.
+
+Open the link in the workflow summary to inspect the draft. A successful run leaves four assets for review. A failed run may leave a partial draft. Delete the rehearsal draft from GitHub Releases when review is complete.
+
 ## Local Fast Loop
 
 Use repository scripts to keep local feedback fast and consistent:

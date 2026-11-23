@@ -1,0 +1,122 @@
+name: Test Debian release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  draft:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.create.outputs.tag }}
+    steps:
+      - name: Create rehearsal draft
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="debian-rehearsal-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          url=$(gh release create "$tag" --repo "$GITHUB_REPOSITORY" --draft \
+            --target "$GITHUB_SHA" --title "Debian release rehearsal $GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT" \
+            --notes "Unpublished package rehearsal for commit $GITHUB_SHA.")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "[Inspect the rehearsal draft]($url)" >> "$GITHUB_STEP_SUMMARY"
+
+  package:
+    name: Build, install and verify (${{ matrix.arch }})
+    needs: draft
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet-10
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install build dependencies
+        working-directory: BoardOil.Web
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debhelper dpkg-dev
+          npm_version=$(node -p "require('./package.json').engines.npm")
+          npm install --global --ignore-scripts "npm@$npm_version"
+          npm ci
+
+      - name: Build release package
+        run: scripts/package-linux.sh "$RUNNER_TEMP/packages"
+
+      - name: Install and smoke-test release package
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          version=$(dotnet msbuild BoardOil.Api/BoardOil.Api.csproj -getProperty:Version)
+          deb_version=$(sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+)-/\1~/' <<< "$version")-1
+          package="boardoil_${deb_version}_${ARCH}.deb"
+          cd "$RUNNER_TEMP/packages"
+          [[ $(dpkg-deb -f "$package" Version) == "$deb_version" ]]
+          [[ $(dpkg-deb -f "$package" Architecture) == "$ARCH" ]]
+          sha256sum --check --strict "$package.sha256"
+          sudo apt-get install -y "./$package"
+          "$GITHUB_WORKSPACE/scripts/smoke-linux-package.sh"
+          curl -fsS http://127.0.0.1:5000/api/version | jq -es --arg version "$version" --arg sha "$GITHUB_SHA" '
+            length == 1 and (.[0] | .success == true and .data.channel == "release"
+              and .data.version == ($version | split("+")[0]) and .data.build == ("tag-" + $version)
+              and .data.commit == $sha)'
+          echo "DEB_NAME=$package" >> "$GITHUB_ENV"
+
+      - name: Check the installed UI against the running API
+        working-directory: BoardOil.Web
+        env:
+          BOARDOIL_E2E_BASE_URL: http://localhost:5000
+        run: |
+          npx playwright install --with-deps --only-shell chromium
+          npm run test:e2e:regression:external -- build-identity.regression.spec.ts --project=chromium
+
+      - name: Verify draft asset round trip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DRAFT_TAG: ${{ needs.draft.outputs.tag }}
+        run: |
+          mkdir "$RUNNER_TEMP/release-assets"
+          cd "$RUNNER_TEMP/release-assets"
+          asset=${DEB_NAME//"~"/-}
+          cp "$RUNNER_TEMP/packages/$DEB_NAME" "$asset"
+          sha256sum -- "$asset" > "$asset.sha256"
+          gh release view "$DRAFT_TAG" --json isDraft,targetCommitish |
+            jq -e --arg sha "$GITHUB_SHA" '.isDraft and .targetCommitish == $sha'
+          gh release upload "$DRAFT_TAG" "$asset" "$asset.sha256" --clobber
+          gh release download "$DRAFT_TAG" --dir downloaded \
+            --pattern "$asset" --pattern "$asset.sha256"
+          cd downloaded
+          cmp "$asset.sha256" "../$asset.sha256"
+          sha256sum --check --strict "$asset.sha256"
