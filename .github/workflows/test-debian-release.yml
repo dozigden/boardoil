@@ -2,6 +2,11 @@ name: Test Debian release
 
 on:
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      draft-tag:
+        description: Draft containing the smoke-tested packages
+        value: ${{ jobs.draft.outputs.tag }}
 
 permissions:
   contents: read
@@ -12,7 +17,7 @@ defaults:
 
 jobs:
   draft:
-    if: github.ref == 'refs/heads/main'
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref_type == 'tag')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -29,7 +34,9 @@ jobs:
             --target "$GITHUB_SHA" --title "Debian release rehearsal $GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT" \
             --notes "Unpublished package rehearsal for commit $GITHUB_SHA.")
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "[Inspect the rehearsal draft]($url)" >> "$GITHUB_STEP_SUMMARY"
+          if [[ $GITHUB_EVENT_NAME == workflow_dispatch ]]; then
+            echo "[Inspect the rehearsal draft]($url)" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   package:
     name: Build, install and verify (${{ matrix.arch }})
@@ -82,9 +89,12 @@ jobs:
           deb_version=$(sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+)-/\1~/' <<< "$version")-1
           package="boardoil_${deb_version}_${ARCH}.deb"
           cd "$RUNNER_TEMP/packages"
+          [[ $(dpkg-deb -f "$package" Package) == boardoil ]]
           [[ $(dpkg-deb -f "$package" Version) == "$deb_version" ]]
           [[ $(dpkg-deb -f "$package" Architecture) == "$ARCH" ]]
           sha256sum --check --strict "$package.sha256"
+          read -r tested_sha _ < "$package.sha256"
+          echo "TESTED_DEB_SHA256=$tested_sha" >> "$GITHUB_ENV"
           sudo apt-get install -y "./$package"
           "$GITHUB_WORKSPACE/scripts/smoke-linux-package.sh"
           curl -fsS http://127.0.0.1:5000/api/version | jq -es --arg version "$version" --arg sha "$GITHUB_SHA" '
@@ -102,6 +112,7 @@ jobs:
           npm run test:e2e:regression:external -- build-identity.regression.spec.ts --project=chromium
 
       - name: Verify draft asset round trip
+        id: verify
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -111,7 +122,7 @@ jobs:
           cd "$RUNNER_TEMP/release-assets"
           asset=${DEB_NAME//"~"/-}
           cp "$RUNNER_TEMP/packages/$DEB_NAME" "$asset"
-          sha256sum -- "$asset" > "$asset.sha256"
+          printf '%s  %s\n' "$TESTED_DEB_SHA256" "$asset" > "$asset.sha256"
           gh release view "$DRAFT_TAG" --json isDraft,targetCommitish |
             jq -e --arg sha "$GITHUB_SHA" '.isDraft and .targetCommitish == $sha'
           gh release upload "$DRAFT_TAG" "$asset" "$asset.sha256" --clobber
@@ -120,3 +131,13 @@ jobs:
           cd downloaded
           cmp "$asset.sha256" "../$asset.sha256"
           sha256sum --check --strict "$asset.sha256"
+          echo "checksum=$RUNNER_TEMP/release-assets/$asset.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Retain the runner checksum for tagged release verification
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: debian-tested-checksum-${{ matrix.arch }}
+          path: ${{ steps.verify.outputs.checksum }}
+          if-no-files-found: error
+          overwrite: true
