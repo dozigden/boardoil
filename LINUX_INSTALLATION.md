@@ -33,14 +33,13 @@ Restrict access until you complete **Create Initial Admin** at the HTTPS address
 | `/var/lib/boardoil/attachments/` | Private card attachments, including images attached to cards |
 | `/var/lib/boardoil/boardoil.db` | SQLite database |
 | `/var/lib/boardoil/boardoil-auth-signing-key` | Generated authentication signing key |
-| `/var/lib/boardoil/backups/` | Automatic pre-migration database backups |
 | `/usr/lib/boardoil/` | Packaged application files |
 
 Check service status with `systemctl status boardoil` and logs with `journalctl -u boardoil`.
 
 ## Upgrades and recovery
 
-Before upgrading, stop the service and back up `/etc/boardoil/` and `/var/lib/boardoil/` together, including any custom storage paths. Protect the backup and retain the matching `.deb`. Automatic migration backups contain only the database.
+Before upgrading, stop the service and back up `/etc/boardoil/` and `/var/lib/boardoil/` together, including any custom storage paths. Protect the backup and retain the matching `.deb` for rollback.
 
 Verify and install the new package with the install command above. Keep local changes to `boardoil.env` if prompted. BoardOil applies migrations on startup. Open an existing board and attachment to check the upgrade.
 
