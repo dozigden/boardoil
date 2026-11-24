@@ -18,18 +18,11 @@ It's written in .NET and Vue3.  I deploy it myself via Docker, so that's had the
 
 ## Quick Start
 
-See [Getting Started with BoardOil](GETTING_STARTED.md) to get BoardOil running with Docker.
-
+See [Getting Started with BoardOil](GETTING_STARTED.md) to get BoardOil running with Docker. Before upgrading, [back up your data](ADVANCED_INSTALLATION.md).
 
 ## MCP
 
 See [Connect an MCP Client to BoardOil](MCP.md) for MCP setup instructions.
-
-### Data volume
-
-The data volume contains the SQLite database and generated authentication signing key. Before a database update, BoardOil makes a backup in the `backups` folder; backups older than 30 days are deleted.
-
-You should back up the complete data volume as you see fit.
 
 ## Development
 

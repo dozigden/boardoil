@@ -21,7 +21,7 @@ Read area guidance before working in that part of the system:
 
 - Prefer backend validation by default. Use frontend validation only where there is a good, explicitly agreed reason; record the exception. When migrating forms, improve missing backend field-error contracts rather than duplicating domain rules in the UI.
 
-- Sliced work requires explicit manual user review after every slice. Implement and validate only the current slice, then stop and wait for the user's approval before starting the next. Approval of the overall plan or an instruction to implement it does not waive these review pauses; see [planning guidance](AGENTS/StoryBoardAndSourceControl.md#plans).
+- Sliced work requires explicit manual user review after every slice. Implement and validate only the current slice, then stop and wait for the user's approval before starting the next. Approval of the overall plan or an instruction to implement it does not waive these review pauses; see the Plans section in [planning guidance](AGENTS/StoryBoardAndSourceControl.md).
 - Source control:
   - work directly on `main` by default
   - do not create, switch to, or push a task/feature branch, and do not open a pull request, unless the user explicitly requests a branch or pull request for the current task
@@ -58,5 +58,7 @@ Read area guidance before working in that part of the system:
   - frontend style modules own rendering, theme token values, automatic colour and contrast behaviour, previews, and editor UX.
   - persisted and REST style values remain `styleName` + `stylePropertiesJson`; backend code should parse or produce them through the shared style-domain codec rather than inspect JSON ad hoc.
   - reads of existing invalid style values must remain non-blocking so frontend editors can fall back to an allowed draft and save a valid replacement.
+- In network setup instructions, describe the connection or access requirement directly. Avoid vague claims about which networks are safe.
+- In BoardOil documentation, link to the file without a `#heading` fragment. Name the section in the surrounding text when needed.
 - Do not update `README.md` unless the user explicitly asks for a README change.
 - If the user gives you a number, eg #123 it is probably refering to a story on the board oil mcp server, look there first.

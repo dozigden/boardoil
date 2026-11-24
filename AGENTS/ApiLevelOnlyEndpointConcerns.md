@@ -9,8 +9,8 @@ This inventory tracks endpoint concerns that are currently covered only in `Boar
   - Why API-only: reads build metadata from runtime host configuration; there is no service abstraction.
 
 - `GET /api/health`
-  - API tests: `StartupMigrationBackupIntegrationTests`
-  - Why API-only: validates startup migration + backup lifecycle wiring in hosted runtime.
+  - API tests: `StartupMigrationIntegrationTests`
+  - Why API-only: verifies the host migrates an existing database before serving requests.
 
 ## Internal Relay and MCP Transport
 

@@ -106,7 +106,7 @@ public sealed class BoardScopedCardIdMigrationIntegrationTests
             // Assert
             Assert.Equal(
                 "Board-scoped card IDs cannot be migrated back to globally unique card IDs. "
-                    + "Restore the automatic pre-migration database backup instead.",
+                    + "Restore your pre-upgrade backup instead.",
                 exception.Message);
         }
         finally

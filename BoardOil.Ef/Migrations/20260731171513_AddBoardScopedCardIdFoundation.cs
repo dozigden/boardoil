@@ -175,7 +175,7 @@ namespace BoardOil.Ef.Migrations
         {
             throw new NotSupportedException(
                 "Board-scoped card IDs cannot be migrated back to globally unique card IDs. "
-                + "Restore the automatic pre-migration database backup instead.");
+                + "Restore your pre-upgrade backup instead.");
         }
     }
 }

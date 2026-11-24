@@ -15,9 +15,9 @@ environment:
 
 Compose mounts `./boardoil-data` at `/data` in the container. It holds the SQLite database (`boardoil.db`), uploaded images (`images/`), private card attachments (`attachments/`) and the authentication signing key (`boardoil-auth-signing-key`). Use one BoardOil instance per data directory.
 
-**Back up.** Run `docker compose stop boardoil`, copy the entire data directory to your backup location, then run `docker compose start boardoil`. Include any attachment directory mounted separately.
+**Before upgrading**, run `docker compose stop boardoil` and copy the entire data directory, including any separately mounted image or attachment directories. Record the current image version for rollback. Start the new version once the backup is complete.
 
-**Restore.** Stop BoardOil, move the current data directory aside, and restore the saved directory with its ownership and permissions. Restore any separate attachment directory from the same backup before starting BoardOil. For a rollback, select the matching image version in `compose.yml` and run `docker compose up -d boardoil`.
+**Restore.** Stop BoardOil, move the current data directory aside, and restore it and any separately mounted storage from the same backup, preserving ownership and permissions. For a rollback, select the matching image version in `compose.yml` before running `docker compose up -d boardoil`.
 
 ## Card attachments
 
@@ -25,8 +25,6 @@ Compose mounts `./boardoil-data` at `/data` in the container. It holds the SQLit
 | --- | --- | --- |
 | `BoardOil__AttachmentRootPath` | `/data/attachments` | Private file storage inside the container |
 | `BoardOil__AttachmentMaxByteLength` | `10485760` | Maximum file size in bytes (10 MiB) |
-| `BoardOil__AttachmentImageMaxPixelCount` | `20000000` | Maximum pixel count for inline previews |
-| `BoardOil__AttachmentImageMaxEdgeLength` | `10000` | Maximum width or height in pixels for inline previews |
 
 ## MCP configuration
 
