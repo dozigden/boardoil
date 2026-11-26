@@ -152,14 +152,6 @@ The runners upload each tested package and its checksum directly to the draft. P
 
 Open the link in the workflow summary to inspect the draft. A successful run leaves four assets for review. A failed run may leave a partial draft. Delete the rehearsal draft from GitHub Releases when review is complete.
 
-### Debian packages on a version tag
-
-Pushing a `v*` release tag runs the same Debian rehearsal after the tag/version check, CI and npm audit pass. Each native runner saves its local SHA-256 checksum as a workflow artifact. Before attaching anything to the tagged release, the workflow checks both rehearsal packages against those checksums and verifies their Debian package name, version and architecture. It then attaches both packages and their checksum files and verifies all four downloads.
-
-If the release already exists, its notes, other assets and publication status are preserved. If it does not exist, the workflow prepares a draft for the existing tag. Add the release notes and publish it when ready. For immutable releases, wait for **Attach Debian packages to the tagged release** to succeed before publishing.
-
-After an upload failure, the job retries once. It accepts byte-identical completed assets, removes empty `starter` placeholders for the expected files, and uploads the missing files. A conflicting completed asset stops the job for maintainer review. If attachment still fails, rerun the failed job to reuse the same tested files. After successful verification the workflow deletes its temporary rehearsal draft.
-
 ## Local Fast Loop
 
 Use repository scripts to keep local feedback fast and consistent:
